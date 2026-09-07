@@ -734,20 +734,93 @@
       }
     }
 
-    function handleOnboardingSubmit(e) {
-      e.preventDefault();
+    // --- Onboarding Wizard State ---
+    let onboardingStep = 1;
+    const ONBOARDING_TOTAL_STEPS = 5;
+    const ONBOARDING_STEP_TITLES = {
+      1: 'صنف کسب‌وکار',
+      2: 'هدف کمپین',
+      3: 'مخاطب هدف',
+      4: 'آفر و پاداش',
+      5: 'مرور و تایۍد'
+    };
+
+    function renderOnboardingStep() {
+      document.querySelectorAll('.onboarding-step').forEach(el => {
+        el.style.display = Number(el.dataset.step) === onboardingStep ? 'block' : 'none';
+      });
+
+      const progressFill = document.getElementById('onboarding-progress-fill');
+      if (progressFill) progressFill.style.width = `${(onboardingStep / ONBOARDING_TOTAL_STEPS) * 100}%`;
+
+      const stepLabel = document.getElementById('onboarding-step-label');
+      if (stepLabel) stepLabel.textContent = `مرحله ${App.formatNumber(onboardingStep)} از ${App.formatNumber(ONBOARDING_TOTAL_STEPS)}`;
+
+      const stepTitle = document.getElementById('onboarding-step-title');
+      if (stepTitle) stepTitle.textContent = ONBOARDING_STEP_TITLES[onboardingStep];
+
+      const backBtn = document.getElementById('onboarding-back-btn');
+      if (backBtn) backBtn.style.visibility = onboardingStep === 1 ? 'hidden' : 'visible';
+
+      const nextBtn = document.getElementById('onboarding-next-btn');
+      const generateBtn = document.getElementById('onboarding-generate-btn');
+      const isLastStep = onboardingStep === ONBOARDING_TOTAL_STEPS;
+      if (nextBtn) nextBtn.style.display = isLastStep ? 'none' : 'inline-flex';
+      if (generateBtn) generateBtn.style.display = isLastStep ? 'inline-flex' : 'none';
+
+      if (isLastStep) renderOnboardingSummary();
+    }
+
+    function onboardingNextStep() {
+      if (onboardingStep < ONBOARDING_TOTAL_STEPS) {
+        onboardingStep++;
+        renderOnboardingStep();
+      }
+    }
+
+    function onboardingPrevStep() {
+      if (onboardingStep > 1) {
+        onboardingStep--;
+        renderOnboardingStep();
+      }
+    }
+
+    function renderOnboardingSummary() {
       const catSlug = document.getElementById('biz-category-select').value;
+      const cat = window.MOCK.businessCategories.find(c => c.slug === catSlug);
+      const conditional = document.getElementById('conditional-answer-select').value;
       const goal = document.getElementById('campaign-goal-select').value;
       const audience = document.getElementById('campaign-audience-input').value;
+      const offer = document.getElementById('campaign-offer-input').value;
+
+      const summary = document.getElementById('onboarding-review-summary');
+      if (!summary) return;
+      summary.innerHTML = `
+        <div><strong>🏷️ صنف:</strong> ${cat ? cat.name_fa : catSlug} — ${conditional}</div>
+        <div><strong>🎯 هدف کمپین:</strong> ${goal === 'acquisition' ? 'جذب مشتری جدید' : 'حفظ و سفارش مجدد مشتریان قبلی'}</div>
+        <div><strong>👥 مخاطب هدف:</strong> ${audience}</div>
+        <div><strong>🎁 آفر پیشنهادی:</strong> ${offer}</div>
+      `;
+    }
+
+    function handleOnboardingSubmit() {
+      const catSlug = document.getElementById('biz-category-select').value;
+      const goal = document.getElementById('campaign-goal-select').value;
 
       document.getElementById('ai-proposal-result').style.display = 'block';
       document.getElementById('proposal-title').textContent = `کمپین پیشنهادی AI برای صنف ${catSlug} (هدف: ${goal === 'acquisition' ? 'جذب مشتری جدید' : 'حفظ مشتریان'})`;
       App.showToast('پیشنهاد کمپین توسط هوش مصنوعی تولید شد!', 'success');
+      document.getElementById('ai-proposal-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function launchCampaign() {
       App.showToast('کمپین با موفقیت ایجاد و فعال شد!', 'success');
       switchTab('dashboard-view');
+
+      // Reset wizard for the next time someone opens the onboarding tab
+      onboardingStep = 1;
+      document.getElementById('ai-proposal-result').style.display = 'none';
+      renderOnboardingStep();
     }
 
     function renderMicrositeBuilder() {
