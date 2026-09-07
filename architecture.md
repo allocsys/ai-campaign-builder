@@ -147,7 +147,10 @@ One row per reward claim by a customer. Gives redemptions their own lifecycle (e
 | campaign_reward_id | uuid | FK → campaign_rewards |
 | points_spent | int | should equal campaign_rewards.threshold_points at time of redemption |
 | status | enum | pending, fulfilled, cancelled |
-| redeemed_at | timestamp | |
+| redemption_code | text, unique, nullable | one-time short-lived code/QR (plan.md "Reward redemption fulfillment"), generated when customer taps Redeem, distinct from the standing personal campaign code |
+| redemption_code_expires_at | timestamp, nullable | code becomes invalid after this (e.g. 5–10 min from generation) |
+| fulfilled_at | timestamp, nullable | set when staff scans the redemption_code via the POS PWA's Fulfill Reward action |
+| redeemed_at | timestamp | when the customer initiated the redemption (tapped Redeem, points deducted) |
 
 ### `points_ledger`
 Append-only transaction log — the source of truth for a customer's point balance in a campaign.
