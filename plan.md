@@ -225,3 +225,10 @@ No auto-apply in this phase. Just surfaced insights.
   - **New critical topic surfaced and resolved: Attribution & Tracking Mechanism (Phase 0.5).** Defined a personal-customer-code system as the backbone for verifying every task type: AI-reviewed screenshots (+ embedded personal code) for social tasks, automatic code-based linking for referrals, and staff-scanned QR/code at point-of-sale for purchases. This was a genuine gap — without it, none of the weighting/benchmark/insight work has real data to run on.
 
   **Next up:** (a) POS-side UX design (how staff scan/enter codes at checkout), (b) AI screenshot-review logic (pass/fail/uncertain handling), (c) overall system architecture / data model (campaign, task, reward, customer-code schema) — needed before MVP build can start.
+- **2026-09-07** — Phase 0.5 (Attribution & Tracking) fully closed out:
+  - POS-side UX decided: web app (PWA) primary for staff, installable app secondary; hybrid QR + short numeric backup code for customer identification.
+  - Offline handling decided: local queue on the staff device, final verification/duplicate-check happens server-side once synced.
+  - Retroactive purchase claim mechanism added: customer can upload a receipt (photo or screenshot) afterward if the code wasn't scanned at checkout, with time limits, duplicate detection, and rate limiting to control the added fraud risk.
+  - AI review decision system decided: three-tier outcome (auto-approve / auto-reject / hold for manual review) instead of binary; central team reviews uncertain cases initially, moving to per-business-owner review later; points stay in a Pending state and are only credited on final approval.
+
+  **Next up:** overall system architecture / data model (campaign, task, reward, customer-code, submission/review schema) — the natural next step now that the attribution mechanism it needs to represent is fully specified.
