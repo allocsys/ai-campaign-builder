@@ -349,56 +349,88 @@
           <span class="card-title">🎯 پرسشنامه هوشمند ساخت کمپین جدید در ۳۰ ثانیه (Phase 0)</span>
         </div>
         <div class="card-body">
-          <form id="onboarding-form" onsubmit="handleOnboardingSubmit(event)">
-            <!-- Q1 -->
-            <div class="form-group">
-              <label class="form-label">۱. صنف و نوع کسب‌وکارت چیه؟</label>
-              <select id="biz-category-select" class="form-select" onchange="handleCategoryChange(this.value)">
-                <option value="coffee_shop">کافی‌شاپ / کافه</option>
-                <option value="clothing">فروشگاه لباس / پوشاک</option>
-                <option value="restaurant">رستوران / فست‌فود</option>
-                <option value="online_store">فروشگاه آنلاین (غیر پوشاک)</option>
-                <option value="gym">باشگاه / سالن ورزشی</option>
-                <option value="beauty_clinic">کلینیک زیبایی</option>
-              </select>
+          <!-- Step Progress -->
+          <div style="margin-bottom: 1.75rem;">
+            <div class="progress-container">
+              <div class="progress-fill" id="onboarding-progress-fill" style="width: 20%;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); margin-top: 0.4rem;">
+              <strong id="onboarding-step-label" style="color: var(--primary);">مرحله ۱ از ۵</strong>
+              <span id="onboarding-step-title">صنف کسب‌وکار</span>
+            </div>
+          </div>
+
+          <form id="onboarding-form" onsubmit="return false;">
+            <!-- Step 1: Category -->
+            <div class="onboarding-step" data-step="1">
+              <div class="form-group">
+                <label class="form-label">۱. صنف و نوع کسب‌وکارت چیه؟</label>
+                <select id="biz-category-select" class="form-select" onchange="handleCategoryChange(this.value)">
+                  <option value="coffee_shop">کافی‌شاپ / کافه</option>
+                  <option value="clothing">فروشگاه لباس / پوشاک</option>
+                  <option value="restaurant">رستوران / فست‌فود</option>
+                  <option value="online_store">فروشگاه آنلاین (غیر پوشاک)</option>
+                  <option value="gym">باشگاه / سالن ورزشی</option>
+                  <option value="beauty_clinic">کلینیک زیبایی</option>
+                </select>
+              </div>
+
+              <!-- Conditional Q (Based on Q1) -->
+              <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.85rem; border-radius: var(--radius-sm);">
+                <label class="form-label" id="conditional-question-label" style="color: #166534;">
+                  پرسش اختصاصی کافی‌شاپ: مشتری بیشتر حضوریه یا آنلاین/دلیوری؟
+                </label>
+                <select id="conditional-answer-select" class="form-select">
+                  <option>اکثراً حضوری در سالن</option>
+                  <option>سفارش بیرون‌بر و اسنپ‌فود</option>
+                  <option>ترکیبی متوازن</option>
+                </select>
+              </div>
             </div>
 
-            <!-- Conditional Q (Based on Q1) -->
-            <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.85rem; border-radius: var(--radius-sm);">
-              <label class="form-label" id="conditional-question-label" style="color: #166534;">
-                پرسش اختصاصی کافی‌شاپ: مشتری بیشتر حضوریه یا آنلاین/دلیوری؟
-              </label>
-              <select id="conditional-answer-select" class="form-select">
-                <option>اکثراً حضوری در سالن</option>
-                <option>سفارش بیرون‌بر و اسنپ‌فود</option>
-                <option>ترکیبی متوازن</option>
-              </select>
+            <!-- Step 2: Goal -->
+            <div class="onboarding-step" data-step="2" style="display: none;">
+              <div class="form-group">
+                <label class="form-label">۲. هدف اصلی این کمپین چیه؟</label>
+                <select id="campaign-goal-select" class="form-select">
+                  <option value="acquisition">جذب مشتری جدید (Acquisition)</option>
+                  <option value="retention">نگه‌داشتن و سفارش مجدد مشتریان قبلی (Retention)</option>
+                </select>
+              </div>
             </div>
 
-            <!-- Q2 -->
-            <div class="form-group">
-              <label class="form-label">۲. هدف اصلی این کمپین چیه؟</label>
-              <select id="campaign-goal-select" class="form-select">
-                <option value="acquisition">جذب مشتری جدید (Acquisition)</option>
-                <option value="retention">نگه‌داشتن و سفارش مجدد مشتریان قبلی (Retention)</option>
-              </select>
+            <!-- Step 3: Audience -->
+            <div class="onboarding-step" data-step="3" style="display: none;">
+              <div class="form-group">
+                <label class="form-label">۳. مخاطب هدفت کیه؟</label>
+                <input type="text" id="campaign-audience-input" class="form-control" value="دانشجویان و جوانان محدوده مرکز شهر، علاقه‌مند به کار یا دورهمی در کافه">
+              </div>
             </div>
 
-            <!-- Q3 -->
-            <div class="form-group">
-              <label class="form-label">۳. مخاطب هدفت کیه؟</label>
-              <input type="text" id="campaign-audience-input" class="form-control" value="دانشجویان و جوانان محدوده مرکز شهر، علاقه‌مند به کار یا دورهمی در کافه">
+            <!-- Step 4: Offer -->
+            <div class="onboarding-step" data-step="4" style="display: none;">
+              <div class="form-group">
+                <label class="form-label">۴. چه چیزی می‌تونی به مشتری هدیه بدی؟ (آفر / پاداش)</label>
+                <input type="text" id="campaign-offer-input" class="form-control" value="یک فنجان قهوه دمی، ۲۰٪ تخفیف روی سفارش دوم، یا ماگ اختصاصی">
+              </div>
             </div>
 
-            <!-- Q4 -->
-            <div class="form-group">
-              <label class="form-label">۴. چه چیزی می‌تونی به مشتری هدیه بدی؟ (آفر / پاداش)</label>
-              <input type="text" id="campaign-offer-input" class="form-control" value="یک فنجان قهوه دمی، ۲۰٪ تخفیف روی سفارش دوم، یا ماگ اختصاصی">
+            <!-- Step 5: Review -->
+            <div class="onboarding-step" data-step="5" style="display: none;">
+              <div class="alert alert-info" style="margin-bottom: 1rem;">
+                <span>🔍 قبل از ساخت کمپین، پاسخ‌هایت رو مرور کن:</span>
+              </div>
+              <div id="onboarding-review-summary" style="font-size: 0.92rem; line-height: 2.1; background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1rem 1.25rem;"></div>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-lg btn-block" style="margin-top: 1.5rem;">
-              ✨ ساخت خودکار کمپین با هوش مصنوعی (AI Generation)
-            </button>
+            <!-- Wizard Nav -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.75rem;">
+              <button type="button" class="btn btn-outline" id="onboarding-back-btn" onclick="onboardingPrevStep()" style="visibility: hidden;">→ مرحله قبل</button>
+              <button type="button" class="btn btn-primary" id="onboarding-next-btn" onclick="onboardingNextStep()">مرحله بعد ←</button>
+              <button type="button" class="btn btn-primary btn-lg" id="onboarding-generate-btn" onclick="handleOnboardingSubmit()" style="display: none;">
+                ✨ ساخت خودکار کمپین با هوش مصنوعی
+              </button>
+            </div>
           </form>
 
           <!-- Proposal Result Modal / Container -->
