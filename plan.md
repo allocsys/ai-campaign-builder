@@ -164,6 +164,11 @@ Not decided yet / left for implementation: exact price points per tier, exact SM
 
 ---
 
+### Business owner authentication (decided 2026-09-07)
+Business owners sign up / log in with **phone number + SMS OTP only** — no email/password option in v1. Chosen for consistency with the customer-facing flow (same OTP mechanism already decided for referral abuse prevention, plan.md Phase 0.5) and because it's lower-friction for this segment (small business owners, not necessarily tech-savvy, for whom a phone number is the natural identity anyway — same reasoning as customers). No password to forget, no reset-password flow needed. This is scoped to the **business owner's own account**; it's separate from the in-store staff POS interface, which doesn't need its own login concept yet (see architecture.md `businesses` table).
+
+---
+
 ## Phase 1 — Abstraction Layer (Task & Reward Patterns)
 
 Instead of hardcoding tasks/rewards per business type, define reusable behavioral patterns and weight them per category. This keeps the system scalable — adding a new business type later means adjusting weights, not building a new task/reward set.
@@ -243,7 +248,7 @@ No auto-apply in this phase. Just surfaced insights.
 - [x] Referral abuse prevention — **decided: three layers, all v1 — OTP phone verification at signup, referral reward gated on referred customer's first purchase (not just signup), and a per-campaign cap on referrals counted per referrer** (see Phase 0.5 "Referral abuse prevention" above).
 - [x] Point expiry — **decided: hybrid — 2-day grace period after campaign end, then 70% of remaining points forfeited and 30% preserved as a carryover credit automatically applied when the customer joins the same business's next campaign** (see Phase 0.5 "Point expiry & carryover" above).
 - [x] Revenue/pricing model — **decided: monthly subscription priced by size tier + SMS billed separately by volume + business microsite as a separate optional paid add-on** (see new Phase 0.9 "Pricing & Revenue Model" above). Exact price points left for a later business/finance decision.
-- [ ] Business owner authentication & onboarding: how does a business sign up / log in to the platform itself (separate from the customer-facing campaign flow)?
+- [x] Business owner authentication — **decided: phone number + SMS OTP only**, no email/password (see new "Business owner authentication" section above).
 - [ ] SMS budget/cost control: since SMS has a real per-message cost, does a business need a spending cap or usage limit on notification sends?
 
 ---
