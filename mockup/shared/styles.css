@@ -512,6 +512,73 @@ p {
 .gap-2 { gap: 1rem; }
 .gap-3 { gap: 1.5rem; }
 
+/* Section grouping (used to break up busy tabs like the dashboard) */
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 2rem 0 0.85rem 0;
+}
+
+.section-heading:first-child {
+  margin-top: 0;
+}
+
+.section-heading h2 {
+  font-size: 1.05rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-heading .section-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-right: 0.35rem;
+}
+
+/* Wraps the stat cards as one visually grouped panel instead of floating boxes */
+.stats-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Compact label/value chips — replaces long inline sentences of mixed metadata */
+.meta-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.meta-chip {
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.meta-chip-label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  margin-bottom: 1px;
+}
+
+.meta-chip-value {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
 /* Stat Box */
 .stat-card {
   background: #fff;
