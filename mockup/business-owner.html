@@ -802,6 +802,72 @@
       const maxDisc = document.getElementById('constraint-max-discount').value;
       const budget = document.getElementById('constraint-budget-ceiling').value;
       App.showToast(`قیود جدید ذخیره شد: حداکثر تخفیف ${maxDisc}٪ و سقف بودجه ${App.formatToman(budget)}`, 'success');
+      completeChecklistItem('ai_constraints_saved');
+    }
+
+    // --- Next Steps checklist (post-launch guidance, decided 2026-09-08) ---
+    function renderNextStepsChecklist() {
+      const card = document.getElementById('next-steps-card');
+      const list = document.getElementById('next-steps-list');
+      const badge = document.getElementById('checklist-progress-badge');
+      if (!card || !list) return;
+
+      const bizId = window.MOCK.businesses[0].id;
+      const progress = window.MOCK.businessChecklistProgress[bizId] || {};
+      const items = window.MOCK.checklistItems;
+
+      const doneCount = items.filter(it => !!progress[it.item_key]).length;
+      badge.textContent = `${App.formatNumber(doneCount)} از ${App.formatNumber(items.length)} انجام شده`;
+
+      if (doneCount === items.length) {
+        card.style.display = 'none';
+        return;
+      }
+      card.style.display = 'block';
+
+      list.innerHTML = items.map(it => {
+        const done = !!progress[it.item_key];
+        const cta = done
+          ? `<span class="badge badge-success">انجام شد ✓</span>`
+          : `<button class="btn btn-outline-primary btn-sm" onclick="${it.cta_type === 'tab' ? `switchTab('${it.cta_target}')` : `${it.cta_target}()`}">${it.cta_label}</button>`;
+        return `
+          <div class="checklist-item ${done ? 'completed' : ''}">
+            <div class="checklist-item-icon">${done ? '✓' : '○'}</div>
+            <div class="checklist-item-body">
+              <strong>${it.label_fa}</strong>
+              <p>${it.description_fa}</p>
+            </div>
+            ${cta}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function completeChecklistItem(itemKey) {
+      const bizId = window.MOCK.businesses[0].id;
+      if (!window.MOCK.businessChecklistProgress[bizId]) {
+        window.MOCK.businessChecklistProgress[bizId] = {};
+      }
+      if (!window.MOCK.businessChecklistProgress[bizId][itemKey]) {
+        window.MOCK.businessChecklistProgress[bizId][itemKey] = new Date().toISOString();
+        renderNextStepsChecklist();
+      }
+    }
+
+    function simulateContactImport() {
+      const bizId = window.MOCK.businesses[0].id;
+      const newContacts = ['09121234567', '09359876543', '09141112233'];
+      newContacts.forEach(phone => {
+        window.MOCK.businessContacts.push({
+          id: 'contact_' + Date.now() + Math.random().toString(36).slice(2, 6),
+          business_id: bizId,
+          phone_number: phone,
+          source: 'manual_upload',
+          imported_at: new Date().toISOString()
+        });
+      });
+      App.showToast(`${App.formatNumber(newContacts.length)} مخاطب از فایل CSV بارگذاری شد.`, 'success');
+      completeChecklistItem('contacts_imported');
     }
 
     function handleCategoryChange(catSlug) {
