@@ -295,7 +295,7 @@ Of the 5 low-risk `change_type`s from Phase 3, autopilot may auto-apply: **`task
   6. **`referral_joined`** — fires immediately to the referrer when a new customer signs up using their referral code (i.e. `customer_campaign_codes.referred_by_code_id` gets set) — a quick "your friend joined!" ping. Distinct from the eventual points-awarded moment (once the referred customer's first purchase clears), which is already covered by the existing `submission_reviewed` trigger — so this is purely an early encouragement message, not a payout notice.
   Both follow the same config-driven `notification_templates` (trigger_type × channel → template) pattern as the original 4 — no new architecture needed beyond adding two enum values and template rows.
 - [x] Phase 3 (AI-suggested changes with an Apply button) — **designed 2026-09-08**, see the Phase 3 section above for full detail (inputs the AI reviews, owner-set constraints, two risk tiers, `suggested_changes` Apply mechanism).
-- [ ] Phase 4 (opt-in autopilot) — same: conceptually described, needs real design now if it's going into the main build rather than a true future phase.
+- [x] Phase 4 (opt-in autopilot) — **designed 2026-09-08**, see the Phase 4 section above (3-manual-Apply eligibility trigger, scope excludes add_task/remove_task, Notify+Undo mechanism).
 
 **Newly surfaced (2026-09-07), not yet resolved:**
 - [x] How does a business import its initial customer contacts? — **decided: hybrid, manual CSV/Excel upload + public join link/QR** (see Phase 0.75 "Initial audience acquisition" above; new `business_contacts` table in architecture.md).
