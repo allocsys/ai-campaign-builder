@@ -94,6 +94,28 @@ Covers the common real-world case: staff or customer forgets to scan/enter the c
 
 ---
 
+## Phase 0.75 — Notifications (SMS + Telegram) — decided 2026-09-07
+
+Core question raised: campaigns are worthless if customers never hear about them or forget to come back. Need an outbound channel.
+
+### Channels: both from the start (not staged)
+- **SMS** — always available, no opt-in needed (phone number is already the primary customer identity).
+- **Telegram** — Iran-relevant, but has a platform constraint: a business/bot **cannot** message a phone number directly. The customer must first **start a conversation with our Telegram bot** (opt-in). UX: when a customer joins a campaign, show a "open in Telegram for updates" link/button; if they tap it and hit Start, they're opted in from then on. If they never opt in, they still get SMS — Telegram is additive, never a replacement for SMS.
+- **Send logic:** SMS is sent unconditionally for every triggered event; Telegram is sent additionally if-and-only-if the customer has opted in for that campaign. Redundancy over exclusivity — no picking "one channel per customer."
+
+### Architecture approach: config-driven, like task/reward patterns
+Rather than hardcoding channel-specific logic per event, follow the same abstraction-layer principle from Phase 1: a `notification_templates` config (trigger type × channel → message template), so adding a new trigger or a new channel later doesn't require new code paths, just new config rows. See architecture.md for the schema.
+
+### Trigger events for v1 (decided — 4 events)
+1. **Campaign invite** — sent when the business launches a campaign, to the business's existing customer contacts.
+2. **Ending soon** — sent to enrolled customers who haven't finished when a campaign is approaching its end date (e.g. ~2 days left).
+3. **Reward threshold reached** — sent the moment a customer's point balance crosses a `campaign_rewards.threshold_points` value, telling them they can redeem.
+4. **Submission reviewed** — sent when a `task_submissions` row moves out of `pending` (AI or central-team review resolves to approved or rejected), so the customer isn't left wondering.
+
+Other candidate triggers (task reminders mid-campaign, referral-success pings) were not requested for v1 — can be added later as more `notification_templates` rows, no architecture change needed.
+
+---
+
 ## Phase 1 — Abstraction Layer (Task & Reward Patterns)
 
 Instead of hardcoding tasks/rewards per business type, define reusable behavioral patterns and weight them per category. This keeps the system scalable — adding a new business type later means adjusting weights, not building a new task/reward set.
