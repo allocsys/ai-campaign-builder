@@ -6,22 +6,40 @@ Companion to `plan.md` / `architecture.md`. This is a plan for a **click-through
 
 ## Goal
 
-One `.html` file. No backend, no build step, no framework, no real data. Every screen/flow from `plan.md` is represented and clickable, wired together with fake in-memory data so a reviewer can click through the whole product story end to end.
+A small **static multi-page site** (plain HTML/CSS/JS, no backend, no build step, no framework). Every screen/flow from `plan.md` is represented and clickable, wired together with fake in-memory data so a reviewer can click through the whole product story end to end.
 
 **Not a prototype of the real system** — no real AI calls, no real OTP/SMS, no real payments, no real image upload. Everything is mocked with canned data and simple JS logic that *simulates* the real behavior well enough to demo it.
 
 ---
 
-## Why single-file / no persistence
+## Why multiple files / no persistence
 
-- **Single file:** simplest possible deploy — literally drop one `index.html` on Cloudflare Pages, no build pipeline, no dependencies to install.
-- **No persistence across reloads (in-memory JS state only, no localStorage):** this is a demo artifact meant to be reviewed/reset cleanly each session, not a working product — avoids the complexity (and staleness risk) of fake persisted state. The real backend (architecture.md) is where actual persistence belongs.
+- **Multiple files, not one giant HTML blob (revised 2026-09-08):** since the mockup covers 4 genuinely different apps (business owner, customer, staff POS, central team) plus a microsite preview, splitting into separate pages with shared CSS/JS keeps each file readable and easier to iterate on individually, instead of one huge file with everything inlined. Still zero build step — plain files, deploy as-is.
+- **No persistence across reloads (in-memory JS state only, no localStorage):** this is a demo artifact meant to be reviewed/reset cleanly each session, not a working product — avoids the complexity (and staleness risk) of fake persisted state. The real backend (architecture.md) is where actual persistence belongs. Shared mock data is defined once (`shared/mock-data.js`) and loaded fresh by whichever page is open.
 
 ---
 
-## Structure: 4 persona modes in one file
+## File structure
 
-Since this single file has to represent the *whole* product (business owner app, customer app, staff POS, and internal review console — four genuinely different apps in the real architecture), the mockup uses a **top-level persona switcher** so a reviewer can jump between them without needing four separate deploys.
+```
+mockup/
+  index.html              — landing page: pick a persona (links to the 4 apps below)
+  business-owner.html      — persona 1
+  customer.html             — persona 2
+  staff-pos.html            — persona 3
+  review-console.html      — persona 4
+  microsite-preview.html   — rendered example business microsite (linked from business-owner.html)
+  shared/
+    styles.css             — shared look & feel (RTL, Persian type, shared components: cards, badges, buttons)
+    mock-data.js           — all fake seed data (businesses, campaigns, tasks, customers, submissions, suggested_changes, etc.), loosely mirroring architecture.md entities
+    app.js                 — small shared helpers (e.g. rendering a task card, a countdown timer, a toast)
+```
+
+Each persona page is a real link between pages (plain `<a href>` navigation, not client-side routing) — simplest possible multi-page static site, works out of the box on Cloudflare Pages.
+
+## Structure: 4 persona apps + microsite preview
+
+Since the real architecture has 4 genuinely different apps (business owner, customer, staff POS, and internal review console), the mockup gives each its own page rather than cramming all of them behind tabs in one file. `index.html` is just a simple entry point linking to each.
 
 ### 1. Business Owner App (the main product)
 - **Onboarding:** the 4 core questions + 1 conditional question (per business category, plan.md Phase 0) → generates a mock **AI Campaign Proposal** (tasks + rewards + one Challenge, pulled from the Phase 1 pattern/weight tables) → **Launch** / **Edit** actions.
@@ -65,9 +83,9 @@ Since this single file has to represent the *whole* product (business owner app,
 
 ## Tech
 
-- Plain HTML + inline `<style>` + inline `<script>`, no framework, no build step.
+- Plain HTML + a shared `styles.css` + shared `app.js`/`mock-data.js`, no framework, no build step, no bundler.
 - **RTL, Persian UI** — matches the real product's target audience and all copy already drafted in plan.md (onboarding questions, insight message examples, etc.).
-- All fake data (businesses, campaigns, tasks, customers, submissions) seeded as JS objects at the top of the script, shaped to mirror the real `architecture.md` entities loosely (not a strict 1:1 schema copy — just enough structure to drive the mock UI).
+- Fake data lives once in `shared/mock-data.js` (businesses, campaigns, tasks, customers, submissions, suggested_changes, etc.), shaped to mirror the real `architecture.md` entities loosely (not a strict 1:1 schema copy — just enough structure to drive the mock UI), and is `<script>`-included by every persona page.
 
 ---
 
@@ -81,11 +99,5 @@ Since this single file has to represent the *whole* product (business owner app,
 ## Deliverables (in order)
 
 1. **`Mockup.md`** (this file) — plan, committed now.
-2. **`mockup/index.html`** — the actual mockup build (next step, not built yet).
-3. Cloudflare Pages deploy of `mockup/index.html`.
-
----
-
-## Open assumption to confirm before building
-
-- **Persona switcher UX:** assumed a simple top-nav/tab switcher between the 4 personas (Business Owner / Customer / Staff POS / Central Team) within the one file, rather than 4 separate mockup files. Flag if a different structure (e.g. separate files per persona, or a single flow that only covers the business-owner side) is preferred.
+2. **`mockup/` directory** (see File structure above) — the actual mockup build (next step, not built yet).
+3. Cloudflare Pages deploy of the `mockup/` directory (root = `index.html`).
