@@ -42,45 +42,68 @@
 
     <!-- 1. DASHBOARD TAB -->
     <div id="dashboard-view" class="tab-content">
-      <!-- Stat Cards -->
-      <div class="grid grid-4" style="margin-bottom: 1.5rem;">
-        <div class="stat-card">
-          <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">👥</div>
-          <div>
-            <div class="stat-value">۱۴۸</div>
-            <div class="stat-label">اعضای کل باشگاه</div>
+
+      <!-- SECTION: Overview stats, grouped as one panel instead of floating boxes -->
+      <div class="section-heading">
+        <h2>📊 نمای کلی عملکرد <span class="section-subtitle">آمار تجمیعی تمام کمپین‌ها تا امروز</span></h2>
+      </div>
+      <div class="stats-panel">
+        <div class="grid grid-4">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">👥</div>
+            <div>
+              <div class="stat-value">۱۴۸</div>
+              <div class="stat-label">اعضای کل باشگاه</div>
+            </div>
           </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background: #ecfdf5; color: #10b981;">💎</div>
-          <div class="stat-value">۱۹,۴۵۰</div>
-          <div class="stat-label">امتیاز اعطا شده</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background: #fffbeb; color: #f59e0b;">🎁</div>
-          <div class="stat-value">۳۱</div>
-          <div class="stat-label">پاداش‌های تحویل شده</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background: #f5f3ff; color: #8b5cf6;">📈</div>
-          <div class="stat-value">۲۴.۵٪</div>
-          <div class="stat-label">نرخ تبدیل مراجعین</div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #ecfdf5; color: #10b981;">💎</div>
+            <div class="stat-value">۱۹,۴۵۰</div>
+            <div class="stat-label">امتیاز اعطا شده</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #fffbeb; color: #f59e0b;">🎁</div>
+            <div class="stat-value">۳۱</div>
+            <div class="stat-label">پاداش‌های تحویل شده</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #f5f3ff; color: #8b5cf6;">📈</div>
+            <div class="stat-value">۲۴.۵٪</div>
+            <div class="stat-label">نرخ تبدیل مراجعین</div>
+          </div>
         </div>
       </div>
 
+      <!-- SECTION: Active campaign details -->
+      <div class="section-heading">
+        <h2>🚀 کمپین در حال اجرا</h2>
+      </div>
       <div class="grid grid-2">
         <!-- Active Campaign Summary Card -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📌 وضعیت کمپین در حال اجرا</span>
+            <span class="card-title">📌 وضعیت کمپین</span>
             <span class="badge badge-success">فعال (روز ۷ از ۱۴)</span>
           </div>
           <div class="card-body">
-            <h3 style="margin-bottom: 0.5rem;">کمپین وفاداری پاییزه کافه نارون</h3>
-            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem;">
-              <strong>هدف:</strong> جذب مشتری جدید (Acquisition) • <strong>ضریب امتیازات:</strong> ۱.۰ برابر پایه • <strong>مهلت بازخرید بعد از پایان (Grace Period):</strong> ۲ روز با حفظ ۳۰٪ اعتبار ذخیره.
-            </p>
-            
+            <h3 style="margin-bottom: 0.75rem;">کمپین وفاداری پاییزه کافه نارون</h3>
+
+            <!-- Compact meta chips replacing the long inline sentence -->
+            <div class="meta-chip-row">
+              <div class="meta-chip">
+                <span class="meta-chip-label">هدف</span>
+                <span class="meta-chip-value">جذب مشتری جدید</span>
+              </div>
+              <div class="meta-chip">
+                <span class="meta-chip-label">ضریب امتیازات</span>
+                <span class="meta-chip-value">۱.۰ برابر پایه</span>
+              </div>
+              <div class="meta-chip">
+                <span class="meta-chip-label">مهلت بازخرید (Grace Period)</span>
+                <span class="meta-chip-value">۲ روز • حفظ ۳۰٪ اعتبار</span>
+              </div>
+            </div>
+
             <div class="alert alert-info" style="font-size: 0.85rem;">
               <span>🏆 <strong>چالش فعال:</strong> ۳ فعالیت در ۷ روز → ۱۵۰ امتیاز هدیه + نشان کافه‌باز حرفه‌ای</span>
             </div>
@@ -118,10 +141,13 @@
         </div>
       </div>
 
-      <!-- Campaign Rewards List -->
-      <div class="card" style="margin-top: 1.5rem;">
+      <!-- SECTION: Rewards -->
+      <div class="section-heading">
+        <h2>🎁 پاداش‌ها</h2>
+      </div>
+      <div class="card">
         <div class="card-header">
-          <span class="card-title">🎁 پاداش‌های قابل دریافت توسط مشتریان</span>
+          <span class="card-title">پاداش‌های قابل دریافت توسط مشتریان</span>
           <span class="badge badge-secondary">۳ سطح جایزه</span>
         </div>
         <div class="card-body">
