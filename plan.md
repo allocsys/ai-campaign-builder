@@ -198,3 +198,10 @@ No auto-apply in this phase. Just surfaced insights.
   5. Phase 2 insight metrics → hybrid completion-rate scoring (cross-campaign + within-campaign) + 3-tier cadence (daily/weekly/anomaly)
 
   **Next up:** no more open questions logged. Candidates for next planning session: (a) define the size-tier point/budget multiplier table referenced in decision #3, (b) sketch the onboarding UI/screen flow, (c) start scoping the early-adopter outreach (who, how many, what incentive) for benchmark Phase B.
+- **2026-09-07** — Follow-up decisions:
+  - Size-tier point/budget multiplier table defined (4 tiers: Micro/Small/Medium/Large — see decision #3 above).
+  - Early-adopter plan defined, then **revised**: product-first approach — build the MVP, then onboard early-adopter businesses through the real product. Dropped the earlier idea of a manual/pre-product spreadsheet+WhatsApp tracking phase, since data collected outside the real product risks not reflecting actual app behavior.
+  - UI/onboarding screen design explicitly deferred — infrastructure gaps take priority.
+  - **New critical topic surfaced and resolved: Attribution & Tracking Mechanism (Phase 0.5).** Defined a personal-customer-code system as the backbone for verifying every task type: AI-reviewed screenshots (+ embedded personal code) for social tasks, automatic code-based linking for referrals, and staff-scanned QR/code at point-of-sale for purchases. This was a genuine gap — without it, none of the weighting/benchmark/insight work has real data to run on.
+
+  **Next up:** (a) POS-side UX design (how staff scan/enter codes at checkout), (b) AI screenshot-review logic (pass/fail/uncertain handling), (c) overall system architecture / data model (campaign, task, reward, customer-code schema) — needed before MVP build can start.
