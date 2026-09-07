@@ -1,1 +1,113 @@
-<!-- TODO: landing page, links to the 4 persona apps + microsite preview. See Mockup.md. -->
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>پلتفرم کمپین‌ساز هوشمند (AI Campaign Builder) — موکاپ کلیک‌خور</title>
+  <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+  <div id="header-root"></div>
+
+  <div class="container" style="margin-top: 2rem; margin-bottom: 3rem;">
+    <div class="page-header" style="background: linear-gradient(135deg, #0f172a, #1e293b); color: #fff; border: none;">
+      <div>
+        <span class="badge badge-info" style="margin-bottom: 0.5rem;">نسخه موکاپ تعاملی (Click-Through Mockup)</span>
+        <h1 style="color: #fff; font-size: 2.1rem; margin-bottom: 0.75rem;">هدفت رو بگو؛ کمپینت رو بساز.</h1>
+        <p style="color: #cbd5e1; max-width: 700px; font-size: 1.05rem;">
+          پلتفرم خودکار طراحی و مدیریت کمپین‌های وفاداری و جذب مشتری با هوش مصنوعی برای اصناف محلی. این سند شامل تمامی جریان‌های محصول (صاحب کسب‌وکار، مشتری، صندوقدار، تیم مرکزی و میکروسایت) به صورت کاملاً تعاملی و بر اساس مستندات architecture.md است.
+        </p>
+      </div>
+      <div>
+        <a href="business-owner.html" class="btn btn-primary btn-lg" style="background: #38bdf8; color: #0f172a; font-weight: 700;">
+          شروع بررسی (ورود به اپ کسب‌وکار) ←
+        </a>
+      </div>
+    </div>
+
+    <h2 style="margin-bottom: 1rem; font-size: 1.35rem;">انتخاب بخش‌های مختلف نمونه‌کار (Persona Apps)</h2>
+    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">روی هر یک از کارت‌ها کلیک کنید تا جریان کامل مربوط به آن نقش را آزمایش کنید:</p>
+
+    <div class="grid grid-3">
+      <!-- 1. Business Owner -->
+      <div class="card" style="border-top: 4px solid var(--primary);">
+        <div class="card-body">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏢</div>
+          <h3>اپلیکیشن صاحب کسب‌وکار</h3>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0.75rem 0 1.25rem 0;">
+            شامل پرسشنامه هوشمند، تولید کمپین خودکار، داشبورد، فید بینش‌های فاز ۲، پیشنهادات هوشمند فاز ۳ با قابلیت اعمال/رد، قفل Autopilot و تنظیمات کیف پول SMS و ساخت میکروسایت.
+          </p>
+          <a href="business-owner.html" class="btn btn-primary btn-block">ورود به اپلیکیشن صاحب کسب‌وکار</a>
+        </div>
+      </div>
+
+      <!-- 2. Customer -->
+      <div class="card" style="border-top: 4px solid var(--success);">
+        <div class="card-body">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">📱</div>
+          <h3>پنل مشتری (موبایل ویو)</h3>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0.75rem 0 1.25rem 0;">
+            ورود با شماره موبایل و کد OTP، دریافت کد شخصی و QR، مشاهده لیست تسک‌ها و شبیه‌سازی ارسال اسکرین‌شات برای بررسی هوش مصنوعی، نوار پیشرفت جوایز و کد یک‌بار مصرف پاداش.
+          </p>
+          <a href="customer.html" class="btn btn-success btn-block">ورود به جریان مشتری</a>
+        </div>
+      </div>
+
+      <!-- 3. Staff POS -->
+      <div class="card" style="border-top: 4px solid var(--warning);">
+        <div class="card-body">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">💳</div>
+          <h3>صندوق‌دار پرسنل (Staff POS)</h3>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0.75rem 0 1.25rem 0;">
+            شبیه‌ساز PWA برای پرسنل صندوق: اسکن/ورود کد مشتری، ثبت خرید و محاسبه امتیاز، بخش مجزا برای تحویل پاداش (Fulfill Reward) و کلید تست حالت آفلاین (Offline Sync).
+          </p>
+          <a href="staff-pos.html" class="btn btn-warning btn-block" style="color: #0f172a;">ورود به صندوق‌دار (POS)</a>
+        </div>
+      </div>
+
+      <!-- 4. Review Console -->
+      <div class="card" style="border-top: 4px solid var(--danger);">
+        <div class="card-body">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">🛡️</div>
+          <h3>کنسول تیم مرکزی (Review Console)</h3>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0.75rem 0 1.25rem 0;">
+            صف بررسی اسکرین‌شات‌های نامطمئن توسط هوش مصنوعی (Confidence بین ۴۰ تا ۷۰٪) با دکمه‌های تایید/رد، و صف پرچم‌های تقلب معرف‌ها (Velocity و Dead Referral).
+          </p>
+          <a href="review-console.html" class="btn btn-danger btn-block">ورود به کنسول تیم مرکزی</a>
+        </div>
+      </div>
+
+      <!-- 5. Microsite Preview -->
+      <div class="card" style="border-top: 4px solid var(--purple);">
+        <div class="card-body">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">🌐</div>
+          <h3>پیش‌نمایش میکروسایت کسب‌وکار</h3>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin: 0.75rem 0 1.25rem 0;">
+            نمونه واقعی یک صفحه کسب‌وکار ساخته شده با قالب انتخابی (کافه دنج) و ماژول‌های فعال (منو، گالری، نظرات، درباره ما) به همراه دکمه دعوت به عضویت در کمپین.
+          </p>
+          <a href="microsite-preview.html" class="btn btn-outline-primary btn-block" style="border-color: var(--purple); color: var(--purple);">مشاهده میکروسایت نمونه</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 2.5rem; background: #f8fafc;">
+      <div class="card-header">
+        <span class="card-title">💡 نکات فنی و معماری موکاپ (طبق معماری سیستم)</span>
+      </div>
+      <div class="card-body">
+        <ul style="padding-right: 1.5rem; color: #334155; font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <li><strong>بدون نیاز به پکیج یا بیلد:</strong> ساختار کاملاً استاتیک (HTML/CSS/JS) بدون فریم‌ورک‌های سنگین، قابل استقرار در کمتر از چند ثانیه روی Cloudflare Pages.</li>
+          <li><strong>داده‌های نمونه (Mock Data):</strong> کلیه موجودیت‌های تعریف شده در <code>architecture.md</code> (کسب‌وکارها، کمپین‌ها، تسک‌ها، پاداش‌ها، مشتریان، کدهای معرف، تراکنش‌های کیف پول SMS و لاگ نوتیفیکیشن‌ها) در فایل <code>shared/mock-data.js</code> بارگذاری شده‌اند.</li>
+          <li><strong>حالت حافظه موقت (In-Memory State):</strong> تغییرات شما روی پیشنهادها، اعمال دکمه‌ها و فرم‌ها در حافظه مرورگر اعمال شده و با تازه‌سازی صفحه بازنشانی می‌شود.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="shared/mock-data.js"></script>
+  <script src="shared/app.js"></script>
+  <script>
+    document.getElementById('header-root').innerHTML = App.renderHeader('index');
+  </script>
+</body>
+</html>
