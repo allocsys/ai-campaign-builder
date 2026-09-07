@@ -242,6 +242,23 @@ The curated template gallery businesses pick from — config-driven like task/re
 | preview_image_url | text | shown in the template picker |
 | theme_identifier | text | maps to the actual frontend theme/component set used at render time |
 
+### `website_modules` (global config, decided 2026-09-08)
+Reusable content sections a microsite can be composed of (plan.md "Business microsite scope") — same config-driven pattern as `task_patterns`. Adding a new module type is a new row, not new code.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| key | enum | hero, about, gallery, product_menu, testimonials, booking_cta, contact, campaign_highlight |
+| name_fa | text | Persian display name shown in the module toggle list |
+| content_schema | jsonb | describes the editable fields for this module type (e.g. gallery = list of image_urls; product_menu = list of {name, price, image_url}) |
+
+### `category_module_defaults` (global config, decided 2026-09-08)
+Which modules the AI enables by default for a given business category — one row per (category, module) pair, mirrors `category_pattern_weights`.
+| Field | Type | Notes |
+|---|---|---|
+| business_category_id | uuid | FK → business_categories |
+| website_module_id | uuid | FK → website_modules |
+| default_enabled | boolean | AI's default pick when a microsite is first created for a business in this category; business owner can still toggle individual modules after |
+
 ### `business_microsites`
 A business's deployed instance of a chosen template. One business can have at most one active microsite (v1).
 | Field | Type | Notes |
@@ -250,12 +267,23 @@ A business's deployed instance of a chosen template. One business can have at mo
 | business_id | uuid | FK → businesses |
 | website_template_id | uuid | FK → website_templates |
 | subdomain_slug | text, unique | builds the hosted URL `{slug}.ourdomain.com` |
-| content | jsonb | logo_url, tagline, description, image_urls, contact_info — the only business-editable fields within the fixed template |
+| content | jsonb | top-level site fields not tied to a specific module: logo_url, business name/tagline shown in the site header |
 | featured_campaign_id | uuid, nullable | FK → campaigns — which campaign's public_join_slug/QR is embedded on the site |
 | published | boolean | default false until business confirms |
 | addon_monthly_price_toman | numeric | the separate optional add-on fee for having a microsite (plan.md Phase 0.9); exact price TBD |
 | addon_status | enum | active, cancelled — independent of the main business_subscriptions status, since the microsite is opt-in on top of the base tier subscription |
 | created_at / updated_at | timestamp | |
+
+### `business_microsite_modules` (decided 2026-09-08)
+Which modules are active on a specific microsite, and each module's own content — replaces a single flat `content` blob with per-module content now that microsites are modular (plan.md "Business microsite scope"). Seeded from `category_module_defaults` when the microsite is created; business owner can toggle `enabled` afterward but display_order/module set otherwise stays AI/system-controlled (no free-form layout, per the scope guardrail).
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| business_microsite_id | uuid | FK → business_microsites |
+| website_module_id | uuid | FK → website_modules |
+| enabled | boolean | business owner can toggle a suggested module off (or back on) |
+| display_order | int | AI/system-set ordering, not owner-editable |
+| content | jsonb | filled per the module's `content_schema` (e.g. gallery image URLs, product/menu list, testimonial text) |
 
 ### `point_carryovers` (decided 2026-09-07)
 Holds a customer's preserved point credit after a campaign's grace period closes, until it can be applied to that same business's next campaign (plan.md "Point expiry & carryover"). Exists independently of any single campaign since the destination campaign doesn't exist yet when the credit is created.
