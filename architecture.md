@@ -373,6 +373,7 @@ Structured, Apply-able version of a Phase 3 suggestion — the actual audit log 
 | suggested_value | jsonb | value the AI proposes |
 | rationale | text | AI-generated explanation shown to the business owner |
 | status | enum | pending, applied, dismissed |
+| applied_by | enum, nullable | business_owner, autopilot (plan.md Phase 4) — set when status=applied; distinguishes a manual Apply click from an automatic autopilot apply, though the resulting current_value/suggested_value audit trail is identical either way |
 | dismiss_reason | enum, nullable | too_aggressive, not_relevant, other — set when status=dismissed, feeds back into future suggestion generation |
 | applied_at / dismissed_at | timestamp, nullable | |
 | created_at | timestamp | |
