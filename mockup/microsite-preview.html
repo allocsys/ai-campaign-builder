@@ -1,1 +1,125 @@
-<!-- TODO: Example rendered business microsite. See Mockup.md section 5. -->
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>کافه نارون — میکروسایت</title>
+  <link rel="stylesheet" href="shared/styles.css">
+  <style>
+    .ms-hero {
+      background: linear-gradient(135deg, #78350f, #b45309);
+      color: #fff;
+      padding: 4rem 1.5rem;
+      text-align: center;
+    }
+    .ms-hero h1 { color: #fff; font-size: 2.2rem; }
+    .ms-hero p { color: #fde68a; font-size: 1.05rem; max-width: 520px; margin: 0.75rem auto 0; }
+    .ms-section { max-width: 960px; margin: 0 auto; padding: 3rem 1.5rem; }
+    .ms-section-alt { background: #fff; }
+    .ms-badge-label {
+      display: inline-block; background: rgba(255,255,255,0.15); color: #fff;
+      padding: 0.3rem 0.9rem; border-radius: var(--radius-full); font-size: 0.8rem; margin-bottom: 1rem;
+    }
+    .ms-campaign-cta {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff; border-radius: var(--radius-lg); padding: 2rem; text-align: center; margin: -2.5rem auto 2rem;
+      max-width: 720px; box-shadow: var(--shadow-lg); position: relative; z-index: 5;
+    }
+    .ms-menu-item { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px dashed var(--border-color); }
+    .ms-gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
+    .ms-gallery-item { background: #e2e8f0; border-radius: var(--radius-sm); height: 140px; display:flex; align-items:center; justify-content:center; color: var(--text-muted); font-size: 0.8rem; }
+    .ms-testimonial { background: #f8fafc; border-radius: var(--radius-md); padding: 1.25rem; border: 1px solid var(--border-color); }
+    .ms-footer { background: #0f172a; color: #cbd5e1; padding: 2.5rem 1.5rem; text-align: center; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div id="header-root"></div>
+
+  <div class="container" style="margin-top: 1.25rem;">
+    <div class="alert alert-info">
+      💡 این یک نمونه از میکروسایت واقعی است که یک کسب‌وکار پس از انتخاب قالب و فعال‌سازی ماژول‌های دلخواه (plan.md «دامنه microsite») دریافت می‌کند. آدرس نمونه: <code>narvan-cafe.ourdomain.com</code>
+    </div>
+    <div id="template-picker-note" class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-body" style="font-size: 0.88rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+        <span>📁 قالب انتخابی صاحب کسب‌وکار: <strong>کافه دنج (Minimal Cafe)</strong> — از گالری فیلترشده بر اساس دسته «کافی‌شاپ»</span>
+        <span id="active-modules-badge"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO MODULE -->
+  <section class="ms-hero">
+    <span class="ms-badge-label">☕ کافه نارون</span>
+    <h1>طعم اصیل، فضای دنج، هر روز کنار شما</h1>
+    <p>از سال ۱۳۹۸ میزبان لحظات آرام شما در قلب ولیعصر — قهوه‌ی تخصصی، دسرهای خانگی و فضایی برای گفتگو.</p>
+  </section>
+
+  <!-- CAMPAIGN HIGHLIGHT MODULE -->
+  <div class="ms-campaign-cta">
+    <h3 style="color:#fff;">🎉 کمپین وفاداری پاییزه فعال است!</h3>
+    <p style="color:#fff7ed; margin: 0.5rem 0 1.25rem;">با عضویت رایگان، اولین نوشیدنی گرم شما مهمان ماست — به‌علاوه امکان دریافت جوایز بیشتر با دعوت از دوستان.</p>
+    <button class="btn btn-lg" style="background:#fff; color:#b45309;" onclick="App.showToast('در نسخه واقعی، این دکمه به فرم عضویت در کمپین با شماره موبایل می‌رود (customer.html).', 'info')">
+      عضویت در کمپین و دریافت کد شخصی 🎁
+    </button>
+    <div style="font-size: 0.78rem; color: #fef3c7; margin-top: 0.5rem;">لینک عمومی: ourdomain.com/join/narvan-autumn</div>
+  </div>
+
+  <!-- ABOUT MODULE -->
+  <section class="ms-section">
+    <h2>درباره کافه نارون</h2>
+    <p style="margin-top: 0.5rem;">کافه نارون با هدف ساختن یک فضای گرم و صمیمی برای علاقه‌مندان به قهوه‌ی تخصصی راه‌اندازی شد. دانه‌های ما به‌صورت تازه بو داده می‌شوند و هر فنجان با دقت و عشق تهیه می‌شود.</p>
+  </section>
+
+  <!-- PRODUCT MENU MODULE -->
+  <section class="ms-section ms-section-alt">
+    <h2 style="margin-bottom: 1rem;">منوی محبوب‌ترین اقلام</h2>
+    <div class="ms-menu-item"><span>☕ آمریکانو</span><strong>۸۵,۰۰۰ تومان</strong></div>
+    <div class="ms-menu-item"><span>🥛 کاپوچینو</span><strong>۹۵,۰۰۰ تومان</strong></div>
+    <div class="ms-menu-item"><span>🍫 موکای مخصوص نارون</span><strong>۱۱۰,۰۰۰ تومان</strong></div>
+    <div class="ms-menu-item"><span>🍰 چیزکیک خانگی</span><strong>۱۴۰,۰۰۰ تومان</strong></div>
+  </section>
+
+  <!-- GALLERY MODULE -->
+  <section class="ms-section">
+    <h2 style="margin-bottom: 1rem;">فضای کافه</h2>
+    <div class="ms-gallery-grid">
+      <div class="ms-gallery-item">🖼️ عکس فضای داخلی</div>
+      <div class="ms-gallery-item">🖼️ عکس بار قهوه</div>
+      <div class="ms-gallery-item">🖼️ عکس میزهای حیاط</div>
+      <div class="ms-gallery-item">🖼️ عکس دسر و نوشیدنی</div>
+    </div>
+  </section>
+
+  <!-- CONTACT MODULE -->
+  <section class="ms-section ms-section-alt">
+    <h2 style="margin-bottom: 1rem;">تماس با ما</h2>
+    <div class="grid grid-3">
+      <div class="stat-card"><div class="stat-icon" style="background:var(--primary-light);">📍</div><div><div class="stat-value" style="font-size:0.95rem;">تهران، ولیعصر</div><div class="stat-label">خیابان توانیر، پلاک ۱۲</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:var(--success-light);">📞</div><div><div class="stat-value" style="font-size:0.95rem;">۰۲۱-۸۸۸۸۸۸۸۸</div><div class="stat-label">پاسخگویی ۹ صبح تا ۱۱ شب</div></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:var(--warning-light);">🕒</div><div><div class="stat-value" style="font-size:0.95rem;">همه‌روزه</div><div class="stat-label">۸:۰۰ تا ۲۳:۰۰</div></div></div>
+    </div>
+  </section>
+
+  <!-- (testimonials & booking_cta modules exist but are OFF by default for this category — shown here disabled for reference -->
+  <section class="ms-section" style="opacity: 0.5;">
+    <div class="alert alert-info" style="margin-bottom: 1rem;">
+      ماژول‌های «نظرات مشتریان» و «رزرو میز» برای دسته کافی‌شاپ به‌صورت پیش‌فرض غیرفعال هستند (قابل فعال‌سازی توسط صاحب کسب‌وکار از پنل business-owner.html).
+    </div>
+    <div class="ms-testimonial">"بهترین قهوه محله‌مون! فضاش خیلی آرومه." — یکی از مشتریان (نمونه غیرفعال)</div>
+  </section>
+
+  <footer class="ms-footer">
+    © کافه نارون — این صفحه بخشی از موکاپ کلیک‌خور پروژه است، نه یک سایت واقعی.
+  </footer>
+
+  <script src="shared/mock-data.js"></script>
+  <script src="shared/app.js"></script>
+  <script>
+    document.getElementById('header-root').innerHTML = App.renderHeader('microsite');
+
+    const activeModules = window.MOCK.websiteModules.filter(m => m.default_coffee);
+    document.getElementById('active-modules-badge').innerHTML =
+      `<span class="badge badge-success">${App.formatNumber(activeModules.length)} ماژول فعال</span>`;
+  </script>
+</body>
+</html>
