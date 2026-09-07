@@ -140,7 +140,7 @@ No auto-apply in this phase. Just surfaced insights.
   **Signal conflict rule:** if the follower/customer signal and the offer-budget signal point to different tiers, use the **higher** tier (assume more available resources rather than being conservative).
 - [x] Data source for "benchmark" credibility — **decided: hybrid, run in parallel:**
   1. **Phase A (launch placeholder):** pull general industry/marketing data (loyalty program reports, retail & F&B marketing studies) to set reasonable initial defaults (e.g. typical acquisition discount %, typical referral task completion rates). Available immediately, but generic/not Iran-market-specific.
-  2. **Phase B (parallel, ongoing):** onboard a small batch of real early-adopter businesses (~5–10, free or discounted) from day one, run real campaigns, collect real completion/conversion data.
+___SENTINEL___
   3. As Phase B data accumulates, progressively replace Phase A generic defaults with real early-adopter benchmarks, category by category (e.g. once enough coffee shop campaigns have run, swap in real numbers for that category specifically rather than waiting for all categories at once).
 - [x] Metric definitions for Phase 2 insights — **decided:**
 
