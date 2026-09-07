@@ -45,6 +45,7 @@ One campaign belongs to one business.
 | status | enum | draft, active, ended |
 | point_multiplier | numeric | resolved from business.size_tier at campaign creation |
 | start_date / end_date | timestamp | end_date derived from size-tier suggested duration, editable |
+| public_join_slug | text, unique | short public code/slug used to build the shareable join link + QR (plan.md Phase 0.75 audience acquisition) |
 | created_at | timestamp | |
 
 ### `task_patterns` (global config, not per-campaign)
@@ -169,6 +170,16 @@ Append-only transaction log — the source of truth for a customer's point balan
 | completion_rate | numeric | |
 | sample_size | int | |
 | updated_at | timestamp | |
+
+### `business_contacts` (decided 2026-09-07)
+A business's raw phone-number list, independent of campaign enrollment — feeds the campaign_invite notification. Not the same as `customers`/`customer_campaign_codes`, which only exist once someone has actually joined a campaign.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| business_id | uuid | FK → businesses |
+| phone_number | text | not unique globally — same number can be a contact of multiple businesses |
+| source | enum | manual_upload, self_joined (added automatically once someone joins via the public link, so they're tracked for future campaigns too) |
+| imported_at | timestamp | |
 
 ### `notification_templates` (global config, plan.md Phase 0.75)
 Config-driven, like `category_pattern_weights` — adding a trigger or channel later is a new row, not new code.
