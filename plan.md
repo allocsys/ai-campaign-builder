@@ -47,6 +47,33 @@ Implementation note: use a small fixed set of business categories with a pre-wri
 
 ---
 
+## Phase 0.5 — Attribution & Tracking Mechanism (CRITICAL, decided 2026-09-07)
+
+Core question raised: how do we actually know a campaign worked — how do we know a customer was acquired, a task was completed, a purchase happened? Without this, all the weighting/benchmark/insight work in Phase 1–2 has nothing real to measure.
+
+### Core concept: personal customer code
+Every customer who joins a campaign (signs up, typically via phone number) gets a **unique personal code/QR**. This single identifier is reused across every tracking mechanism below — one identity, multiple uses — rather than separate tracking schemes per task type.
+
+### Tracking method per task type
+
+| Task type | Verification method |
+|---|---|
+| **Follow** | Customer submits a screenshot of their own profile showing they follow the business account → reviewed by AI (vision model checks the screenshot shows a genuine follow). |
+| **Share / Story / Social Proof** | Customer embeds their **personal code/link** in the story or post caption, then submits a screenshot → AI verifies both (a) the personal code is visible/correct and (b) the content genuinely matches the campaign (not an unrelated post). Combines identity proof (the code) with content proof (the screenshot + AI review). |
+| **Referral** | Customer shares their personal code/link with a friend → the friend enters it at signup → system automatically links the new customer to the referrer. No manual verification needed — the code itself is the proof. |
+| **Purchase / Repeat Purchase / Off-Peak Visit** | At checkout (point of sale), staff scans or manually enters the customer's personal code/QR → purchase and points are logged at that moment. This is the mechanism that answers "did we actually get a paying customer" — requires a simple POS-side interface (app or web page) for staff to use. |
+
+### Why AI-reviewed screenshots (not pure self-report, not manual-only review)
+- Pure self-report ("I did it, trust me") has no fraud resistance — rejected.
+- Manual-only admin review doesn't scale once there are many businesses/customers — AI review as the primary check, with the option to spot-check manually later if fraud patterns emerge.
+- The personal code embedded in shared content solves what a screenshot alone can't: proving *which* customer posted it, not just that *a* post exists.
+
+### Open follow-up (needs implementation-level design, not blocking)
+- Exact UX for staff at POS (dedicated small app? web page accessible from any phone/tablet at checkout? manual code entry as fallback if QR scan fails?)
+- What the AI vision review flags as pass/fail/uncertain, and what happens on "uncertain" (auto-reject, hold for manual review, or auto-approve with low weight?)
+
+---
+
 ## Phase 1 — Abstraction Layer (Task & Reward Patterns)
 
 Instead of hardcoding tasks/rewards per business type, define reusable behavioral patterns and weight them per category. This keeps the system scalable — adding a new business type later means adjusting weights, not building a new task/reward set.
