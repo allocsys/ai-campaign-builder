@@ -47,6 +47,8 @@ One campaign belongs to one business.
 | start_date / end_date | timestamp | end_date derived from size-tier suggested duration, editable |
 | public_join_slug | text, unique | short public code/slug used to build the shareable join link + QR (plan.md Phase 0.75 audience acquisition) |
 | max_referrals_per_customer | int | default 10 (plan.md "Referral abuse prevention") — cap on how many referrals earn a given referrer points in this campaign |
+| grace_period_days | int | default 2 (plan.md "Point expiry & carryover") — days after end_date customers can still redeem before points are forfeited/carried over |
+| carryover_percentage | int | default 30 — % of a customer's remaining balance preserved as carryover credit after the grace period; the rest is forfeited |
 | created_at | timestamp | |
 
 ### `task_patterns` (global config, not per-campaign)
@@ -162,9 +164,11 @@ Append-only transaction log — the source of truth for a customer's point balan
 |---|---|---|
 | id | uuid | PK |
 | customer_campaign_code_id | uuid | FK |
-| task_submission_id | uuid, nullable | FK — null for manual adjustments or redemptions |
+| task_submission_id | uuid, nullable | FK — null for manual adjustments, redemptions, expirations, or carryovers |
 | reward_redemption_id | uuid, nullable | FK → reward_redemptions — set when this entry is a redemption (negative points); null otherwise |
-| points | int | positive (earned) or negative (redeemed/reward claimed) |
+| point_carryover_id | uuid, nullable | FK → point_carryovers — set when this entry is a carryover credit applied at campaign join, or the source-side forfeiture record; null otherwise |
+| entry_type | enum | earned, redemption, expiration, carryover_credit, manual_adjustment (plan.md "Point expiry & carryover" introduces expiration/carryover_credit) |
+| points | int | positive (earned, carryover_credit) or negative (redemption, expiration) |
 | created_at | timestamp | |
 
 ### `benchmark_stats` (supports plan.md's Phase A/B benchmark system)
@@ -209,6 +213,18 @@ A business's deployed instance of a chosen template. One business can have at mo
 | featured_campaign_id | uuid, nullable | FK → campaigns — which campaign's public_join_slug/QR is embedded on the site |
 | published | boolean | default false until business confirms |
 | created_at / updated_at | timestamp | |
+
+### `point_carryovers` (decided 2026-09-07)
+Holds a customer's preserved point credit after a campaign's grace period closes, until it can be applied to that same business's next campaign (plan.md "Point expiry & carryover"). Exists independently of any single campaign since the destination campaign doesn't exist yet when the credit is created.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| customer_id | uuid | FK → customers |
+| business_id | uuid | FK → businesses |
+| source_campaign_id | uuid | FK → campaigns — the campaign the credit was forfeited/carried over from |
+| points | int | 30% (campaigns.carryover_percentage) of the customer's remaining balance at grace-period end |
+| consumed_in_campaign_id | uuid, nullable | FK → campaigns — set once applied as a starting points_ledger entry in the customer's next campaign with this business |
+| created_at | timestamp | |
 
 ### `notification_templates` (global config, plan.md Phase 0.75)
 Config-driven, like `category_pattern_weights` — adding a trigger or channel later is a new row, not new code.
