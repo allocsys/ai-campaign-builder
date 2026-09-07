@@ -188,6 +188,18 @@ No auto-apply in this phase. Just surfaced insights.
 ---
 
 ## Open Questions / To Decide
+
+**Newly surfaced (2026-09-07), not yet resolved:**
+- [ ] How does a business import its initial customer contacts (for the campaign-invite notification)? Manual list upload, Instagram connector, phone contacts, or a combination?
+- [ ] Physical reward fulfillment: when a customer redeems, how does in-store staff verify/confirm the redemption is legitimate? (Likely reuses the personal code/QR from Phase 0.5, but not yet specified.)
+- [ ] Referral abuse prevention: what stops a customer from self-referring via a second phone number to double-dip on referral rewards?
+- [ ] Do unused points expire when a campaign ends, or carry over? If they expire, how/when is the customer warned?
+- [ ] Revenue/pricing model: how does this product itself make money from businesses (subscription, per-campaign fee, take-rate on rewards, etc.)?
+- [ ] Business owner authentication & onboarding: how does a business sign up / log in to the platform itself (separate from the customer-facing campaign flow)?
+- [ ] SMS budget/cost control: since SMS has a real per-message cost, does a business need a spending cap or usage limit on notification sends?
+
+---
+
 - [x] Final list of business categories for v1 — **decided: 6 categories (see Phase 0 above)**
 - [x] Exact weighting values per pattern per category — **decided: v1 draft table set (9 patterns, see Phase 1 above), intuition-based, to refine once real campaign data exists**
 - [x] How campaign duration/points scale with business size — **decided: hybrid proxy, no extra onboarding question:**
