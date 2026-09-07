@@ -45,6 +45,19 @@ Implementation note: use a small fixed set of business categories with a pre-wri
 - One Challenge (e.g. "do 3 activities in 7 days for a special reward")
 - Two actions only: **Launch Campaign** / **Edit Campaign**
 
+### Post-launch guidance for the business owner (decided 2026-09-08)
+Problem raised: once a campaign launches, the business owner lands on the Dashboard with no guidance across the other tabs (Insights, Suggestions, Autopilot, Microsite, Settings) — easy to feel lost among several tabs/settings with no clear next step.
+
+**Solution: a "Next Steps" checklist card + explanatory empty-states in data-dependent tabs — not a full guided tour** (a step-by-step tooltip walkthrough was considered but rejected as heavier to build and easy for users to dismiss/never see again).
+- **"Next Steps" checklist** — a persistent card on the Dashboard listing outstanding setup actions, auto-hiding once complete.
+  - v1 items (2, both **auto-detected** from real actions — no manual "mark as done" checkbox, consistent with the product's broader philosophy of trusting real signals over self-report):
+    1. **Review/set AI constraints** — auto-completes the moment the business owner saves the AI Constraints form (Settings tab) for the first time.
+    2. **Import contacts** — auto-completes the moment the business has at least one `business_contacts` row, whether from a CSV upload or the first customer self-joining via the public campaign link.
+  - Checklist is **per-business, not per-campaign** — doesn't reset when a new campaign launches, since both items are one-time business-level setup, not campaign-level.
+- **Empty-state guidance in data-dependent tabs** — Insights and Suggestions tabs show explanatory copy (not a blank/empty grid) when there's nothing to show yet, explaining that content appears once enough campaign data accumulates — mirrors the existing Autopilot tab's locked-state banner, which already does this well. No new data model needed here, just UI copy, since these tabs are already naturally empty until real insight/suggestion rows exist.
+
+See architecture.md `onboarding_checklist_items` / `business_checklist_progress`.
+
 ---
 
 ## Phase 0.5 — Attribution & Tracking Mechanism (CRITICAL, decided 2026-09-07)
