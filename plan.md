@@ -58,6 +58,13 @@ Instead of hardcoding tasks/rewards per business type, define reusable behaviora
 - **Milestone / Streak** — consecutive visits/activities (gym, subscription-based)
 - **Specific Product Push** — order/try a specific item (cafe, retail)
 - **Review / UGC** — leave a review, share a result photo (beauty, online store)
+- **First Action / Conversion** — first purchase, first order, first booking. Weight depends on **campaign Goal**, not just business type: high weight when Goal = "acquisition", low/zero when Goal = "retention" of existing customers.
+- **Off-Peak / Time-based Visit** — bonus for activity during slow hours (e.g. 3–5pm order). High value for cafe, restaurant, gym to spread out traffic.
+- **Anniversary / Birthday** — trigger tied to customer signup date or birthday. Useful re-engagement hook, esp. gym, beauty, clothing.
+
+**Decided against for v1 (over-engineering risk):**
+- Bundle/Cross-sell — more of a merchandising concern than gamification; revisit later.
+- Geolocation Check-in — needs GPS/permission handling, too much technical overhead for v1.
 
 ### Base Reward Patterns
 - **Percentage Discount**
@@ -67,8 +74,24 @@ Instead of hardcoding tasks/rewards per business type, define reusable behaviora
 - **Promotional Item** (physical gift, merch)
 - **Early Access** (new product/collection)
 
-### Weighting table (to be refined)
-Each business type maps to a weight (0–3) per pattern, controlling which tasks/rewards get suggested first and how many points they're worth. To be built as a config (JSON/table), not hardcoded logic.
+### Weighting table (v1 draft — intuition-based, to refine with real data later)
+Scale: 0 (not relevant) to 3 (core pattern for this business type).
+
+| Pattern | کافی‌شاپ | لباس | رستوران | آنلاین | باشگاه | زیبایی |
+|---|---|---|---|---|---|---|
+| Social Proof | 3 | 2 | 2 | 1 | 1 | 3 |
+| Referral | 2 | 2 | 2 | 2 | 2 | 2 |
+| Repeat Purchase | 2 | 2 | 3 | 2 | 0 | 1 |
+| Milestone/Streak | 1 | 0 | 0 | 0 | 3 | 1 |
+| Specific Product Push | 3 | 1 | 2 | 1 | 0 | 0 |
+| Review/UGC | 1 | 1 | 2 | 3 | 1 | 2 |
+| First Action/Conversion | 2* | 2* | 2* | 3* | 2* | 2* |
+| Off-Peak/Time-based | 2 | 0 | 2 | 0 | 2 | 1 |
+| Anniversary/Birthday | 1 | 2 | 1 | 1 | 2 | 2 |
+
+*First Action/Conversion weight shown assumes Goal = acquisition. This row should be dynamically overridden by the Goal answer (Q2 in onboarding): boost toward 3 when Goal = acquisition, drop toward 0–1 when Goal = retention/loyalty of existing customers. This is the one pattern that's Goal-driven rather than purely business-type-driven — keep that logic explicit in implementation, not baked into the static table.
+
+Implementation: build as a config (JSON/table), not hardcoded logic, so weights can be tuned without code changes.
 
 ---
 
