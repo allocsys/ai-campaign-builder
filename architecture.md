@@ -269,6 +269,18 @@ Holds a customer's preserved point credit after a campaign's grace period closes
 | consumed_in_campaign_id | uuid, nullable | FK → campaigns — set once applied as a starting points_ledger entry in the customer's next campaign with this business |
 | created_at | timestamp | |
 
+### `referral_flags` (decided 2026-09-08)
+Advisory-only output of the rule-based referral anomaly detection (plan.md "Referral anomaly detection"). A flag never blocks or reverses a payout by itself — it only surfaces a suspicious referrer to the central team's review queue.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| referrer_customer_campaign_code_id | uuid | FK → customer_campaign_codes — the referrer flagged, scoped to the campaign the referrals happened in |
+| rule_triggered | enum | velocity (>5 signups/24h), dead_referral_ratio (≥5 referred customers >7 days old with zero purchases) |
+| triggered_at | timestamp | when the periodic batch job detected the pattern |
+| status | enum | open, reviewed, dismissed |
+| reviewed_by | uuid, nullable | FK → central team member, set once status leaves `open` |
+| notes | text, nullable | reviewer's notes |
+
 ### `notification_templates` (global config, plan.md Phase 0.75)
 Config-driven, like `category_pattern_weights` — adding a trigger or channel later is a new row, not new code.
 | Field | Type | Notes |
