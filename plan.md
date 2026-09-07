@@ -234,11 +234,34 @@ Dashboard evolves from static stats to AI-generated insights, but **read-only** 
 
 No auto-apply in this phase. Just surfaced insights.
 
-## Phase 3 — Suggested Changes (Human-in-the-loop)
+## Phase 3 — Suggested Changes (Human-in-the-loop) — designed 2026-09-08
 
-- AI suggests a specific change (e.g. "increase Referral points from 50 → 80")
-- User reviews and clicks **Apply** to confirm
-- Every change is logged/reversible
+### What the AI reviews (inputs)
+- Phase 2 insights already generated (daily/weekly/anomaly, completion-rate deviations, correlations)
+- Current live state of `campaign_tasks` / `campaign_rewards` for the campaign
+- `benchmark_stats` (industry + early-adopter data)
+- The campaign's Goal (acquisition/retention) and size tier
+- **History of past suggestions for this business** — what was applied vs. dismissed (and why, see below) — so the AI doesn't re-suggest something the owner already rejected
+- The business owner's **constraints** (new, see below)
+
+### What the business owner tells the AI
+- Nothing ongoing/conversational — the main signal is implicit: **Apply** or **Dismiss** on each suggestion (dismissing captures a reason: too_aggressive / not_relevant / other).
+- **New: one-time constraints, decided 2026-09-08.** A business owner can optionally set guardrails once (editable later) — e.g. a max discount percentage, a budget ceiling — that the AI must respect when generating suggestions. See architecture.md `business_ai_constraints`.
+
+### What the AI can suggest/change — two risk tiers, decided 2026-09-08
+Both tiers are shown to the business owner in Phase 3 (manual Apply required for either) — the tier distinction exists for two reasons: (a) a clear warning label in the UI for high-risk suggestions, and (b) it's the same tier boundary Phase 4 autopilot will later use to limit itself to low-risk only.
+- **Low-risk (parameter-only):**
+  - `campaign_tasks.points_value` adjustments
+  - `campaign_rewards.threshold_points` adjustments
+  - Add a new task pattern to the campaign (from the category's weighted patterns, not yet included)
+  - Remove/pause an underperforming task from the campaign
+  - Extend or shorten campaign duration (`campaigns.end_date`)
+- **High-risk (direct financial impact) — shown with a warning label:**
+  - Change reward depth (e.g. discount % change) or reward type/pattern swap
+  Any high-risk suggestion is checked against the owner's constraints (e.g. never suggest a discount above their configured max) before being shown at all.
+
+### Suggested-change record & Apply mechanism
+A structured `suggested_changes` row per suggestion (see architecture.md) — not just free text — captures: risk tier, change type, current value, suggested value, AI's rationale, and status (pending/applied/dismissed). Clicking **Apply** writes the suggested_value into the live campaign_tasks/campaign_rewards/campaigns row and marks the suggestion `applied` with a timestamp — the row itself (old value + new value) is the audit log, satisfying "every change is logged/reversible" (revert = apply the inverse of a previous suggested_changes row).
 
 ## Phase 4 — Opt-in Autopilot (long-term, NOT default)
 
