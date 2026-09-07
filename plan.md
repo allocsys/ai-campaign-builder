@@ -82,8 +82,14 @@ Covers the common real-world case: staff or customer forgets to scan/enter the c
 - **Staff device:** primary is a **web app (PWA)** on the staff's own phone/tablet — no install, no app-store friction, works on whatever device the business already has. A dedicated installable app is offered as a secondary option later (from app stores), but web-first is the priority since it removes onboarding friction for small businesses.
 - **Code entry:** **hybrid** — QR is the primary method (staff scans with phone camera via the PWA, fastest path), with a **short numeric backup code** always available on the customer's screen in case the QR scan fails (bad lighting, camera issue, no data connection to load the QR image, etc.). Staff can type the short code manually as a fallback without breaking the checkout flow.
 
-### Open follow-up (needs implementation-level design, not blocking)
-- What the AI vision review flags as pass/fail/uncertain, and what happens on "uncertain" (auto-reject, hold for manual review, or auto-approve with low weight?)
+### AI review decision system (decided 2026-09-07)
+- **Three-tier outcome, not binary:** every AI-reviewed submission (Follow screenshot, Share/Story screenshot, retroactive receipt claim) gets one of three outcomes based on the AI's confidence score:
+  - **High confidence → Auto-approve.** Points awarded immediately.
+  - **Low confidence → Auto-reject.** Customer is notified and can resubmit with clearer evidence rather than losing the task permanently on one bad photo.
+  - **Middle/uncertain confidence → Held for manual review.** Not auto-approved or auto-rejected — goes into a review queue.
+- **Who reviews "uncertain" cases:** starts with our **central team** (single consistent review console across all businesses/campaigns) since early-stage business owners are non-technical and reviewing takes judgment calibration. **Transition later** to letting each business owner review their own campaign's uncertain cases from their dashboard, once the review workflow and criteria are proven out — they know their own store/customers/receipts best, but shouldn't be the default from day one.
+- **Points while pending:** a task/purchase under review sits in a **Pending** state and does **not** award points yet. Points are only credited once a submission is finally approved — whether that's an immediate AI auto-approve or a later manual approval. This avoids double-counting or gaming the pending window.
+- Exact numeric confidence thresholds (e.g. what % counts as "high" vs "uncertain" vs "low") to be tuned empirically once real AI review data exists — not fixed in this plan.
 - [x] **Offline handling — decided:** if the staff device has no internet at checkout, the scan/entry is **stored locally on the device** (not blocked) and queued. Once connectivity returns, queued entries sync to the server, where **final verification happens against the central database** (checking the code is valid, not already redeemed/duplicated, etc.). Doing final verification server-side rather than trusting the offline device lowers fraud risk — a customer or staff member can't exploit the offline gap to redeem the same code twice, since the source of truth (and duplicate check) only lives on the server.
 
 ---
