@@ -252,7 +252,10 @@ No auto-apply in this phase. Just surfaced insights.
 
 **Reclassified from "later/v2" to "main version, under review" (2026-09-07)** — project has no separate MVP stage, going straight to the full build, so these previously-deferred items are being brought forward for the same one-at-a-time review process:
 - [x] Installable staff app (beyond the PWA) — **decided: PWA-only for main version, no native app built now.** Instead, the backend is designed API-first (see architecture.md "Stack") so a native app can be added later as just another client consuming the same documented endpoints, without backend rework.
-- [ ] Referral anomaly detection (suspicious referral-cluster pattern matching) — was noted as "good Phase 2+ addition"; needs its actual detection logic/rules defined for the main version.
+- [x] Referral anomaly detection (suspicious referral-cluster pattern matching) — **decided: simple rule-based system for main version**, two fixed v1 rules (tunable later once real data exists):
+  1. **Velocity rule:** a referrer with more than 5 new referred signups within a rolling 24-hour window → flagged.
+  2. **Dead-referral ratio rule:** a referrer with ≥5 referred customers who are more than 7 days old with zero purchases → flagged.
+  Both rules run as a **periodic batch job** (e.g. daily), not real-time blocking. Flags are **advisory only** — they land in the central team's review queue (see architecture.md `referral_flags`), they do **not** auto-block or auto-reject anything; the existing three defense layers (OTP, purchase-gated payout, per-campaign cap) remain the actual payout gate. This keeps the heuristic from causing false-positive harm while still surfacing suspicious clusters for a human to look at.
 - [x] Monthly SMS spending cap on top of the prepaid wallet — **decided: optional hard-block monthly cap**, business can set a per-month SMS spend ceiling in addition to the wallet (see Phase 0.9 "SMS cost control" above; `businesses.sms_monthly_cap_toman`).
 - [ ] Business microsite as a real multi-page site/CMS (vs. the current fixed-template gallery) — was explicitly scoped out; revisit whether the main version should support this.
 - [ ] Additional notification triggers (mid-campaign task reminders, referral-success pings) beyond the current 4 — were left as "can add later"; decide if they belong in the main version.
