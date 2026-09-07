@@ -129,7 +129,17 @@ No auto-apply in this phase. Just surfaced insights.
   1. **Phase A (launch placeholder):** pull general industry/marketing data (loyalty program reports, retail & F&B marketing studies) to set reasonable initial defaults (e.g. typical acquisition discount %, typical referral task completion rates). Available immediately, but generic/not Iran-market-specific.
   2. **Phase B (parallel, ongoing):** onboard a small batch of real early-adopter businesses (~5–10, free or discounted) from day one, run real campaigns, collect real completion/conversion data.
   3. As Phase B data accumulates, progressively replace Phase A generic defaults with real early-adopter benchmarks, category by category (e.g. once enough coffee shop campaigns have run, swap in real numbers for that category specifically rather than waiting for all categories at once).
-- [ ] Metric definitions for Phase 2 insights (what counts as "low completion rate", etc.)
+- [x] Metric definitions for Phase 2 insights — **decided:**
+
+  **"Low completion rate" scoring (hybrid, not single-source):**
+  1. Compare a task's completion rate against the **cross-campaign benchmark** for that same task pattern + business category (from the Phase A/B benchmark data above).
+  2. Compare it against the **within-campaign baseline** — average completion rate of the other tasks in the same campaign.
+  3. Average the two deviation scores into one combined signal to decide the final "low / normal / high" flag. This avoids false positives from relying on just one comparison (e.g. a task might look low vs. benchmark but be normal for that specific campaign's context, or vice versa).
+
+  **Insight cadence (three tiers, running together):**
+  1. **Daily** — lightweight one-line digest per key metric (e.g. "Share: 12% — below average").
+  2. **Weekly** (once ~7 days of data has accumulated) — fuller report: task/reward comparisons, correlations (e.g. the "Referral users buy 2.4x more" type insight), and concrete suggestions.
+  3. **Anomaly-based** (event-triggered, independent of the daily/weekly clock) — immediate detailed alert whenever a metric deviates sharply/suddenly, so the business isn't stuck waiting for the next scheduled digest.
 
 ---
 
