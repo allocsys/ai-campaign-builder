@@ -61,7 +61,17 @@ Every customer who joins a campaign (signs up, typically via phone number) gets 
 | **Follow** | Customer submits a screenshot of their own profile showing they follow the business account → reviewed by AI (vision model checks the screenshot shows a genuine follow). |
 | **Share / Story / Social Proof** | Customer embeds their **personal code/link** in the story or post caption, then submits a screenshot → AI verifies both (a) the personal code is visible/correct and (b) the content genuinely matches the campaign (not an unrelated post). Combines identity proof (the code) with content proof (the screenshot + AI review). |
 | **Referral** | Customer shares their personal code/link with a friend → the friend enters it at signup → system automatically links the new customer to the referrer. No manual verification needed — the code itself is the proof. |
-| **Purchase / Repeat Purchase / Off-Peak Visit** | At checkout (point of sale), staff scans or manually enters the customer's personal code/QR → purchase and points are logged at that moment. This is the mechanism that answers "did we actually get a paying customer" — requires a simple POS-side interface (app or web page) for staff to use. |
+| **Purchase / Repeat Purchase / Off-Peak Visit** | At checkout (point of sale), staff scans or manually enters the customer's personal code/QR → purchase and points are logged at that moment. This is the mechanism that answers "did we actually get a paying customer" — requires a simple POS-side interface (app or web page) for staff to use. **Fallback: retroactive claim** (see below) if the code wasn't scanned at checkout time. |
+
+### Retroactive purchase claim (decided 2026-09-07)
+Covers the common real-world case: staff or customer forgets to scan/enter the code at checkout.
+- Customer opens the app afterward, selects something like "I forgot to scan my code," and uploads proof of purchase — either a **photo of the physical receipt** or a **screenshot of an online order confirmation**.
+- AI reviews the submission: business name/logo matches, purchase date falls within the campaign window, amount looks plausible.
+- **Higher-risk path than direct POS scan** since there's no staff witness at the moment of purchase, so extra safeguards apply:
+  - **Time limit:** claim must be submitted within a short window after purchase (e.g. 48–72 hours), not indefinitely.
+  - **Duplicate detection:** store a hash/fingerprint of the receipt image (and receipt number if visible) so the same receipt can't be claimed twice.
+  - **Rate limiting:** cap how many retroactive claims one customer can submit in a given period, to blunt repeated abuse attempts.
+  - **Default to more cautious review** than the direct-scan path — since there's no staff witness, retroactive claims should lean toward manual review (or a stricter AI confidence threshold) rather than being auto-approved as easily as a live POS scan.
 
 ### Why AI-reviewed screenshots (not pure self-report, not manual-only review)
 - Pure self-report ("I did it, trust me") has no fraud resistance — rejected.
