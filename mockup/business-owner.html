@@ -294,18 +294,23 @@
 
     <!-- 6. SETTINGS TAB -->
     <div id="settings-view" class="tab-content" style="display: none;">
+      <div class="section-heading">
+        <h2>⚙️ تنظیمات و کیف‌پول <span class="section-subtitle">کانال‌های اطلاع‌رسانی و خطوط قرمز هوش مصنوعی</span></h2>
+      </div>
       <div class="grid grid-2">
         <!-- SMS Wallet & Notification Settings -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">💳 کیف‌پول پیامک و کانال‌های اطلاع‌رسانی</span>
+            <span class="card-title">💳 کیف‌پول پیامک و اطلاع‌رسانی</span>
             <span class="badge badge-success">حساب فعال</span>
           </div>
           <div class="card-body">
             <div style="background: #f8fafc; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1rem;">
-              <span style="font-size: 0.82rem; color: var(--text-muted); display: block;">موجودی فعلی کیف‌پول پیامک (Prepaid Wallet):</span>
-              <span style="font-size: 1.5rem; font-weight: 700; color: #0f172a;" id="sms-balance-display">۴۲۰,۰۰۰ تومان</span>
-              <button class="btn btn-outline-primary btn-sm" style="margin-right: 1rem;" onclick="topupWallet()">+ شارژ ۲۰۰,۰۰۰ تومان</button>
+              <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">موجودی کیف‌پول پیامک (Prepaid Wallet)</span>
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem;">
+                <span style="font-size: 1.35rem; font-weight: 700; color: #0f172a;" id="sms-balance-display">۴۲۰,۰۰۰ تومان</span>
+                <button class="btn btn-outline-primary btn-sm" onclick="topupWallet()">+ شارژ ۲۰۰,۰۰۰</button>
+              </div>
             </div>
 
             <div class="form-group">
