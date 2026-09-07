@@ -168,7 +168,7 @@ Since SMS is billed by volume (not flat-rate), a business needs a way to control
 - Every SMS notification (campaign_invite, ending_soon, reward_unlocked, submission_reviewed — plan.md Phase 0.75) deducts its cost (from `sms_pricing`) from the wallet balance at send time.
 - If the wallet balance is insufficient to cover a send, that specific SMS is **skipped** (not sent, not charged) — it does **not** block the rest of the platform (campaign still runs, Telegram sends for opted-in customers still go out since Telegram is free/bundled).
 - The business should be alerted when their wallet runs low/out (via Telegram to the owner or the dashboard, since SMS itself may be unavailable at zero balance) so they can top up.
-- No monthly spending cap on top of this for v1 — the prepaid nature is itself the spend control (can't overspend what hasn't been loaded); a configurable monthly cap can be added later if requested.
+- **Optional monthly spending cap, decided 2026-09-07:** in addition to the wallet, a business can optionally set a monthly SMS spending cap (hard block). Even if the wallet has enough balance, once that month's SMS spend hits the cap, further SMS sends stop until the next calendar month (Telegram sends are unaffected, since they're free/bundled). This protects against a runaway/high-traffic month draining a large prepaid balance faster than the business expected. The cap is optional — a business that doesn't set one is governed purely by wallet balance, as originally decided.
 
 ---
 
