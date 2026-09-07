@@ -127,13 +127,13 @@ Core question raised: campaigns are worthless if customers never hear about them
 ### Architecture approach: config-driven, like task/reward patterns
 Rather than hardcoding channel-specific logic per event, follow the same abstraction-layer principle from Phase 1: a `notification_templates` config (trigger type × channel → message template), so adding a new trigger or a new channel later doesn't require new code paths, just new config rows. See architecture.md for the schema.
 
-### Trigger events for v1 (decided — 4 events)
+### Trigger events for v1 (decided — 6 events, expanded 2026-09-08)
 1. **Campaign invite** — sent when the business launches a campaign, to the business's existing customer contacts.
 2. **Ending soon** — sent to enrolled customers who haven't finished when a campaign is approaching its end date (e.g. ~2 days left).
 3. **Reward threshold reached** — sent the moment a customer's point balance crosses a `campaign_rewards.threshold_points` value, telling them they can redeem.
 4. **Submission reviewed** — sent when a `task_submissions` row moves out of `pending` (AI or central-team review resolves to approved or rejected), so the customer isn't left wondering.
-
-Other candidate triggers (task reminders mid-campaign, referral-success pings) were not requested for v1 — can be added later as more `notification_templates` rows, no architecture change needed.
+5. **Mid-campaign reminder** (added 2026-09-08) — sent once per customer per campaign at the halfway point of the campaign's duration, only if that customer hasn't completed any task yet.
+6. **Referral joined** (added 2026-09-08) — sent immediately to the referrer when someone signs up using their referral code (before any purchase/points are involved) — an early encouragement ping, separate from the later payout notice already covered by trigger #4.
 
 ### Initial audience acquisition (decided 2026-09-07) — hybrid
 The campaign_invite trigger needs a list of phone numbers to send to. Two complementary sources, both v1:
