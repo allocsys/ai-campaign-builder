@@ -265,11 +265,18 @@ Both tiers are shown to the business owner in Phase 3 (manual Apply required for
 ### Suggested-change record & Apply mechanism
 A structured `suggested_changes` row per suggestion (see architecture.md) — not just free text — captures: risk tier, change type, current value, suggested value, AI's rationale, and status (pending/applied/dismissed). Clicking **Apply** writes the suggested_value into the live campaign_tasks/campaign_rewards/campaigns row and marks the suggestion `applied` with a timestamp — the row itself (old value + new value) is the audit log, satisfying "every change is logged/reversible" (revert = apply the inverse of a previous suggested_changes row).
 
-## Phase 4 — Opt-in Autopilot (long-term, NOT default)
+## Phase 4 — Opt-in Autopilot (long-term, NOT default) — designed 2026-09-08
 
-- Only after a user has manually applied several AI suggestions (trust built)
-- Offer an explicit opt-in toggle: "Auto-apply low-risk changes"
-- Never on by default. Scope limited to low-risk parameters (e.g. point values), never budget/discount depth without confirmation.
+### Eligibility trigger
+The autopilot toggle is only **offered** (never shown upfront) after a business owner has manually clicked **Apply** on **3** Phase 3 suggestions. Before that, no toggle exists in the UI at all — trust has to be built through real manual Applies first.
+
+### Scope — which change types autopilot may auto-apply
+Of the 5 low-risk `change_type`s from Phase 3, autopilot may auto-apply: **`task_points`, `reward_threshold`, `campaign_duration`**. **`add_task` and `remove_task` stay manual-only even with autopilot on** — changing the actual set of tasks in a live campaign is more structurally disruptive than tuning a number, so it always needs a human's explicit Apply regardless of autopilot state. High-risk (`reward_depth`) was already excluded by definition (Phase 3) and remains so here. Autopilot also still respects `business_ai_constraints` (max discount, budget ceiling) exactly like manual suggestions do, though those constraints mostly matter for the high-risk tier it never touches.
+
+### Mechanism
+- `businesses.autopilot_enabled` (boolean, default false) — explicit opt-in toggle, off by default, can be switched off anytime.
+- When enabled, an eligible-scope `suggested_changes` row is applied **immediately by the system** instead of waiting for a manual Apply click — `applied_by = autopilot`, `status = applied`, same `current_value`/`suggested_value` audit fields as a manual Apply, so it's indistinguishable in the log except for who applied it.
+- **Notify + Undo (decided 2026-09-08):** every autopilot auto-apply fires a new notification trigger, **`autopilot_change_applied`** (added to `notification_templates`), telling the business owner what changed and why (reusing the suggestion's `rationale`), with an **Undo** action. Undo creates and immediately applies the inverse `suggested_changes` row (old value ↔ new value swapped) — same revert mechanism already defined for manual changes in Phase 3, just triggered instantly instead of needing a fresh AI suggestion cycle.
 
 ---
 
