@@ -73,6 +73,13 @@ Covers the common real-world case: staff or customer forgets to scan/enter the c
   - **Rate limiting:** cap how many retroactive claims one customer can submit in a given period, to blunt repeated abuse attempts.
   - **Default to more cautious review** than the direct-scan path — since there's no staff witness, retroactive claims should lean toward manual review (or a stricter AI confidence threshold) rather than being auto-approved as easily as a live POS scan.
 
+### Reward redemption fulfillment (decided 2026-09-07)
+How in-store staff verify a reward redemption is legitimate at the moment of fulfillment (e.g. handing over a free item or applying a discount).
+- **Not** the customer's ongoing personal campaign code/QR — that code gets shown often (every purchase scan), so it's a weaker point to gate a reward on.
+- Instead: when the customer taps **Redeem** in-app for a specific reward, the system generates a **separate, one-time redemption code/QR**, short-lived (e.g. 5–10 minute expiry). The customer shows *this* code to staff, who scan it via the same POS PWA — a dedicated "Fulfill Reward" action, distinct from the purchase-scan action.
+- Once scanned (or once it expires unused), the code is invalidated — can't be reused or shown to a different staff member later.
+- Chosen over reusing the standing personal code because a fresh, short-lived, single-use code closes the reuse/screenshot-sharing risk that a long-lived code carries, at the cost of one extra tap for the customer (Redeem → show code), which is an acceptable trade-off for something as valuable as a reward payout.
+
 ### Why AI-reviewed screenshots (not pure self-report, not manual-only review)
 - Pure self-report ("I did it, trust me") has no fraud resistance — rejected.
 - Manual-only admin review doesn't scale once there are many businesses/customers — AI review as the primary check, with the option to spot-check manually later if fraud patterns emerge.
@@ -206,7 +213,7 @@ No auto-apply in this phase. Just surfaced insights.
 
 **Newly surfaced (2026-09-07), not yet resolved:**
 - [x] How does a business import its initial customer contacts? — **decided: hybrid, manual CSV/Excel upload + public join link/QR** (see Phase 0.75 "Initial audience acquisition" above; new `business_contacts` table in architecture.md).
-- [ ] Physical reward fulfillment: when a customer redeems, how does in-store staff verify/confirm the redemption is legitimate? (Likely reuses the personal code/QR from Phase 0.5, but not yet specified.)
+- [x] Physical reward fulfillment — **decided: one-time, short-lived redemption code/QR generated on Redeem tap**, separate from the standing personal campaign code (see Phase 0.5 "Reward redemption fulfillment" above).
 - [ ] Referral abuse prevention: what stops a customer from self-referring via a second phone number to double-dip on referral rewards?
 - [ ] Do unused points expire when a campaign ends, or carry over? If they expire, how/when is the customer warned?
 - [ ] Revenue/pricing model: how does this product itself make money from businesses (subscription, per-campaign fee, take-rate on rewards, etc.)?
