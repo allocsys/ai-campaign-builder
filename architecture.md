@@ -339,8 +339,34 @@ Generated insights (plan.md Phase 2).
 | campaign_id | uuid | FK → campaigns |
 | cadence | enum | daily, weekly, anomaly |
 | message | text | |
-| suggested_action | text, nullable | e.g. "increase referral points to 80" |
-| applied | boolean | tracks Phase 3 Apply-button state |
+| suggested_action | text, nullable | human-readable summary; the actual structured, Apply-able version of this lives in `suggested_changes` (plan.md Phase 3, decided 2026-09-08) |
+| created_at | timestamp | |
+
+### `business_ai_constraints` (decided 2026-09-08)
+One-time (editable) guardrails a business owner sets, which the AI must respect when generating Phase 3 suggestions (plan.md Phase 3 "What the business owner tells the AI"). One row per business.
+| Field | Type | Notes |
+|---|---|---|
+| business_id | uuid | PK, FK → businesses |
+| max_discount_percent | numeric, nullable | AI will not suggest a reward-depth change above this; null = no constraint set |
+| budget_ceiling_toman | numeric, nullable | rough cap on cost-per-customer the AI should stay under when suggesting reward-related changes; null = no constraint set |
+| updated_at | timestamp | |
+
+### `suggested_changes` (decided 2026-09-08)
+Structured, Apply-able version of a Phase 3 suggestion — the actual audit log for changes made to a campaign's tasks/rewards/duration. Optionally linked back to the `insights` row that prompted it.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| insight_id | uuid, nullable | FK → insights — the insight that prompted this suggestion, if any |
+| campaign_id | uuid | FK → campaigns |
+| risk_tier | enum | low, high (plan.md Phase 3 risk tiers) |
+| change_type | enum | task_points, reward_threshold, add_task, remove_task, campaign_duration (low-risk); reward_depth (high-risk) |
+| target_id | uuid, nullable | id of the campaign_task/campaign_reward being changed; null for add_task |
+| current_value | jsonb | value before the change, for audit/revert |
+| suggested_value | jsonb | value the AI proposes |
+| rationale | text | AI-generated explanation shown to the business owner |
+| status | enum | pending, applied, dismissed |
+| dismiss_reason | enum, nullable | too_aggressive, not_relevant, other — set when status=dismissed, feeds back into future suggestion generation |
+| applied_at / dismissed_at | timestamp, nullable | |
 | created_at | timestamp | |
 
 ---
