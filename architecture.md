@@ -135,13 +135,25 @@ Specifically for purchase-type tasks (Purchase, Repeat Purchase, Off-Peak), link
 | synced_from_offline | boolean | true if this came through the offline queue |
 | created_at | timestamp | |
 
+### `reward_redemptions` (decided 2026-09-07)
+One row per reward claim by a customer. Gives redemptions their own lifecycle (e.g. fulfillment status) instead of being just a bare negative points_ledger entry.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| customer_campaign_code_id | uuid | FK → customer_campaign_codes |
+| campaign_reward_id | uuid | FK → campaign_rewards |
+| points_spent | int | should equal campaign_rewards.threshold_points at time of redemption |
+| status | enum | pending, fulfilled, cancelled |
+| redeemed_at | timestamp | |
+
 ### `points_ledger`
 Append-only transaction log — the source of truth for a customer's point balance in a campaign.
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid | PK |
 | customer_campaign_code_id | uuid | FK |
-| task_submission_id | uuid, nullable | FK — null for manual adjustments |
+| task_submission_id | uuid, nullable | FK — null for manual adjustments or redemptions |
+| reward_redemption_id | uuid, nullable | FK → reward_redemptions — set when this entry is a redemption (negative points); null otherwise |
 | points | int | positive (earned) or negative (redeemed/reward claimed) |
 | created_at | timestamp | |
 
@@ -186,4 +198,4 @@ businesses 1──* campaigns 1──* campaign_tasks *──1 task_patterns
 ## Open implementation questions (not blocking, to resolve during build)
 - [x] **Decided (2026-09-07):** business category moved from a hardcoded enum to a `business_categories` lookup table (see above). Adding a 7th+ category later is a plain row insert, no migration. `businesses.category_id`, `category_pattern_weights.business_category_id`, and `benchmark_stats.business_category_id` all FK into it; the 6 v1 categories are seed rows.
 - [x] **Decided (2026-09-07):** AI screenshot review runs as a **separate microservice**, not inline in the main API. Main backend enqueues a review job when a submission comes in (`task_submissions.status = pending`); the review microservice processes it (calls the AI vision model) and writes back `ai_confidence_score` + the resulting status. Chosen so review load/latency and future AI-provider changes stay isolated from the main API, and so it fits naturally with the already-async pending→approved/rejected flow (plan.md). Needs a job queue between the two (mechanism TBD during build).
-- [ ] Whether `points_ledger` also needs a `redeemed_reward_id` reference for tracking which reward a redemption paid for
+- [x] **Decided (2026-09-07):** added a dedicated `reward_redemptions` table (rather than just a bare field on points_ledger) to track reward claims, since redemptions need their own lifecycle (status: pending/fulfilled/cancelled), not just a point deduction. `points_ledger.reward_redemption_id` links the negative-points entry back to it.
