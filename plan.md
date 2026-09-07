@@ -73,6 +73,13 @@ Covers the common real-world case: staff or customer forgets to scan/enter the c
   - **Rate limiting:** cap how many retroactive claims one customer can submit in a given period, to blunt repeated abuse attempts.
   - **Default to more cautious review** than the direct-scan path — since there's no staff witness, retroactive claims should lean toward manual review (or a stricter AI confidence threshold) rather than being auto-approved as easily as a live POS scan.
 
+### Referral abuse prevention (decided 2026-09-07)
+Three layers, all active in v1:
+1. **OTP phone verification at signup** — applies to every customer joining any campaign (not referral-specific), not just referrals. A phone number must be confirmed via SMS OTP before the signup counts as real. This is the baseline identity check the other two layers build on — without it, self-referral via a second unverified number would be nearly free.
+2. **Referral reward gated on a real qualifying action, not just signup** — the referrer's referral points stay in the same **Pending** state as any other task (plan.md AI review system) until the referred customer completes a real action, specifically their **first purchase**. A referred signup with no purchase never pays out. This makes self-referral farming cost real money (an actual purchase), not just a spare SIM.
+3. **Cap on referrals counted per customer per campaign** — a per-campaign maximum (default suggestion: 10) on how many referrals earn points for one referrer, to blunt large-scale abuse even if layers 1–2 are partially defeated. Referrals beyond the cap can still happen (the referred person still joins normally) but simply stop earning the referrer additional points.
+Pattern-matching/anomaly detection on suspicious referral clusters (e.g. many referred numbers with zero activity) is a good Phase 2+ addition but not built for v1 — the three layers above are the actual defense for launch.
+
 ### Reward redemption fulfillment (decided 2026-09-07)
 How in-store staff verify a reward redemption is legitimate at the moment of fulfillment (e.g. handing over a free item or applying a discount).
 - **Not** the customer's ongoing personal campaign code/QR — that code gets shown often (every purchase scan), so it's a weaker point to gate a reward on.
@@ -214,7 +221,7 @@ No auto-apply in this phase. Just surfaced insights.
 **Newly surfaced (2026-09-07), not yet resolved:**
 - [x] How does a business import its initial customer contacts? — **decided: hybrid, manual CSV/Excel upload + public join link/QR** (see Phase 0.75 "Initial audience acquisition" above; new `business_contacts` table in architecture.md).
 - [x] Physical reward fulfillment — **decided: one-time, short-lived redemption code/QR generated on Redeem tap**, separate from the standing personal campaign code (see Phase 0.5 "Reward redemption fulfillment" above).
-- [ ] Referral abuse prevention: what stops a customer from self-referring via a second phone number to double-dip on referral rewards?
+- [x] Referral abuse prevention — **decided: three layers, all v1 — OTP phone verification at signup, referral reward gated on referred customer's first purchase (not just signup), and a per-campaign cap on referrals counted per referrer** (see Phase 0.5 "Referral abuse prevention" above).
 - [ ] Do unused points expire when a campaign ends, or carry over? If they expire, how/when is the customer warned?
 - [ ] Revenue/pricing model: how does this product itself make money from businesses (subscription, per-campaign fee, take-rate on rewards, etc.)?
 - [ ] Business owner authentication & onboarding: how does a business sign up / log in to the platform itself (separate from the customer-facing campaign flow)?
