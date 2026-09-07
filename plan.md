@@ -140,7 +140,12 @@ No auto-apply in this phase. Just surfaced insights.
   **Signal conflict rule:** if the follower/customer signal and the offer-budget signal point to different tiers, use the **higher** tier (assume more available resources rather than being conservative).
 - [x] Data source for "benchmark" credibility — **decided: hybrid, run in parallel:**
   1. **Phase A (launch placeholder):** pull general industry/marketing data (loyalty program reports, retail & F&B marketing studies) to set reasonable initial defaults (e.g. typical acquisition discount %, typical referral task completion rates). Available immediately, but generic/not Iran-market-specific.
-___SENTINEL___
+2. **Phase B (parallel, ongoing):** onboard a small batch of real early-adopter businesses (~5–10, free, manual/pre-product) from day one, run real campaigns manually (tracked via spreadsheet/WhatsApp, not the actual app — no need to wait for the product to be built), collect real completion/conversion data.
+
+     **Early-adopter acquisition plan (v1):**
+     - **Scope:** 1–2 businesses from each of the 6 v1 categories (roughly 6–12 total) rather than concentrating in just one or two categories — gives at least a thin data point per category instead of leaving some categories with zero real signal.
+     - **Incentive (combined):** (a) fully free access/participation as a beta partner, framed as early access — no cost to them; PLUS (b) hands-on help actually designing and running their campaign (manual consulting, since the automated tool doesn't exist yet). This matters because a small business owner often lacks the time/expertise to run a good campaign alone — without hands-on help the campaign risks being poorly run, producing low-quality/noisy data. The hands-on involvement also gives direct qualitative signal for tuning weights and benchmarks, beyond just the raw numbers.
+     - **Mechanism:** fully manual for this phase — spreadsheet-based campaign tracking + WhatsApp/direct contact, no app needed. Decouples benchmark data collection from infrastructure build-out.
   3. As Phase B data accumulates, progressively replace Phase A generic defaults with real early-adopter benchmarks, category by category (e.g. once enough coffee shop campaigns have run, swap in real numbers for that category specifically rather than waiting for all categories at once).
 - [x] Metric definitions for Phase 2 insights — **decided:**
 
