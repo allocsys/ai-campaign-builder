@@ -120,7 +120,7 @@ No auto-apply in this phase. Just surfaced insights.
 
 ## Open Questions / To Decide
 - [x] Final list of business categories for v1 — **decided: 6 categories (see Phase 0 above)**
-- [ ] Exact weighting values per pattern per category (needs real benchmark data ideally)
+- [x] Exact weighting values per pattern per category — **decided: v1 draft table set (9 patterns, see Phase 1 above), intuition-based, to refine once real campaign data exists**
 - [ ] How campaign duration/points scale with business size (small shop vs. large chain)
 - [ ] Data source for "benchmark" credibility (real campaign data vs. reasonable defaults) — needed so AI suggestions don't feel generic/templated
 - [ ] Metric definitions for Phase 2 insights (what counts as "low completion rate", etc.)
