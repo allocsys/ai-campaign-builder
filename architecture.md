@@ -97,6 +97,8 @@ A person, identified by phone number, independent of any one campaign.
 |---|---|---|
 | id | uuid | PK |
 | phone_number | text, unique | primary identity |
+| phone_verified | boolean | default false — set true once customer confirms an SMS OTP at signup (plan.md "Referral abuse prevention"); baseline identity check for all customers, not referral-specific |
+| phone_verified_at | timestamp, nullable | |
 | telegram_chat_id | text, nullable | set once customer starts a conversation with our Telegram bot (plan.md Phase 0.75 opt-in flow) |
 | telegram_opted_in | boolean | default false; Telegram sends only happen if true, SMS always sends regardless |
 | created_at | timestamp | |
@@ -123,6 +125,7 @@ Every attempt at completing a task — the central table the AI-review system (p
 | submission_type | enum | screenshot, receipt_claim, pos_scan, referral_auto |
 | evidence_url | text, nullable | screenshot/receipt image location |
 | ai_confidence_score | numeric, nullable | 0–100, null for pos_scan/referral_auto (no AI review needed) |
+| qualifying_purchase_id | uuid, nullable | FK → purchase_logs — **referral_auto submissions only** (plan.md "Referral abuse prevention"): stays null (and status stays pending) until the referred customer's first purchase is logged here, which triggers approval/points payout |
 | status | enum | pending, approved, rejected |
 | reviewed_by | enum, nullable | ai, central_team, business_owner |
 | submitted_at / reviewed_at | timestamp | |
