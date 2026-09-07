@@ -13,14 +13,23 @@
     <!-- Top Business Header -->
     <div class="page-header">
       <div>
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+        <div class="flex items-center gap-1" style="margin-bottom: 0.6rem;">
           <h1 style="margin: 0; font-size: 1.6rem;" id="biz-title">کافه نارون</h1>
           <span class="badge badge-info" id="biz-category-badge">کافی‌شاپ / کافه</span>
           <span class="badge badge-success">کمپین فعال: پاییزه ۱۴۰۳</span>
         </div>
-        <p style="margin: 0; color: var(--text-muted); font-size: 0.88rem;">شناسه مالک: ۰۹۱۲۱۱۱۱۱۱۱ (تایید شده با پیامک) • رده کسب‌وکار: کوچک (Small - تا ۲۰۰۰ مشتری)</p>
+        <div class="meta-chip-row" style="margin-bottom: 0;">
+          <div class="meta-chip">
+            <span class="meta-chip-label">شناسه مالک</span>
+            <span class="meta-chip-value">۰۹۱۲۱۱۱۱۱۱۱ ✓ تایید شده با پیامک</span>
+          </div>
+          <div class="meta-chip">
+            <span class="meta-chip-label">رده کسب‌وکار</span>
+            <span class="meta-chip-value">کوچک (Small — تا ۲۰۰۰ مشتری)</span>
+          </div>
+        </div>
       </div>
-      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      <div class="flex gap-1" style="flex-wrap: wrap;">
         <button class="btn btn-outline-primary btn-sm" onclick="switchTab('onboarding-view')">✨ طراحی کمپین جدید با AI</button>
         <a href="microsite-preview.html" class="btn btn-outline btn-sm">🌐 مشاهده میکروسایت زنده</a>
       </div>
