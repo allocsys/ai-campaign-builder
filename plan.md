@@ -74,7 +74,7 @@ Every customer who joins a campaign (signs up, typically via phone number) gets 
 
 ### Open follow-up (needs implementation-level design, not blocking)
 - What the AI vision review flags as pass/fail/uncertain, and what happens on "uncertain" (auto-reject, hold for manual review, or auto-approve with low weight?)
-- Offline handling: what happens if the staff device has no internet at the moment of checkout (queue locally and sync later, or block the scan)?
+- [x] **Offline handling — decided:** if the staff device has no internet at checkout, the scan/entry is **stored locally on the device** (not blocked) and queued. Once connectivity returns, queued entries sync to the server, where **final verification happens against the central database** (checking the code is valid, not already redeemed/duplicated, etc.). Doing final verification server-side rather than trusting the offline device lowers fraud risk — a customer or staff member can't exploit the offline gap to redeem the same code twice, since the source of truth (and duplicate check) only lives on the server.
 
 ---
 
