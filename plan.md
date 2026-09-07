@@ -144,4 +144,12 @@ No auto-apply in this phase. Just surfaced insights.
 ---
 
 ## Status Log
-- **2026-09-07** — Repo created, initial plan drafted. Core onboarding flow + abstraction layer concept agreed on. Next: define v1 business categories and pattern weighting table.
+- **2026-09-07** — Repo created, initial plan drafted. Core onboarding flow + abstraction layer concept agreed on.
+- **2026-09-07** — All 5 initial open questions resolved:
+  1. v1 business categories → 6 categories (incl. beauty clinic)
+  2. Task/reward pattern weighting → v1 draft table with 9 patterns (added First Action, Off-Peak, Anniversary/Birthday to original 6)
+  3. Business-size scaling → hybrid proxy (connected app data + offer budget inference), no extra onboarding question
+  4. Benchmark data source → hybrid: industry data as launch placeholder + parallel early-adopter data collection, category-by-category replacement over time
+  5. Phase 2 insight metrics → hybrid completion-rate scoring (cross-campaign + within-campaign) + 3-tier cadence (daily/weekly/anomaly)
+
+  **Next up:** no more open questions logged. Candidates for next planning session: (a) define the size-tier point/budget multiplier table referenced in decision #3, (b) sketch the onboarding UI/screen flow, (c) start scoping the early-adopter outreach (who, how many, what incentive) for benchmark Phase B.
