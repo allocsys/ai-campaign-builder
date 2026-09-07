@@ -124,7 +124,20 @@ No auto-apply in this phase. Just surfaced insights.
 - [x] How campaign duration/points scale with business size — **decided: hybrid proxy, no extra onboarding question:**
   1. **Primary signal (if a connector is linked):** follower count / existing customer count from Instagram or the business's app. Higher count → scale up points/budget/duration.
   2. **Fallback signal (always available):** infer from the offer/budget the owner types in Q4 ("چه چیزی می‌تونی بدی؟") — e.g. a flat discount amount or free-item cost implies a rough per-customer cost ceiling, which caps how many points/tasks make sense before the reward becomes unprofitable.
-  3. No dedicated "business size" question is added to onboarding — keeps the 30-second flow intact. Needs a simple size-tier mapping (e.g. small/medium/large → point multiplier + suggested duration) to be defined during implementation.
+  3. No dedicated "business size" question is added to onboarding — keeps the 30-second flow intact.
+
+  **Size-tier mapping (v1 draft, 4 tiers):**
+
+  | Tier | Followers/existing customers | Offer budget (Toman) | Point multiplier | Suggested duration |
+  |---|---|---|---|---|
+  | Micro | < 500 | < 30,000 | 0.7x | 10 days |
+  | Small | 500–2,000 | 30,000–100,000 | 1x (base) | 14 days |
+  | Medium | 2,000–20,000 | 100,000–500,000 | 1.5x | 21 days |
+  | Large | > 20,000 | > 500,000 | 2x | 30 days |
+
+  Point multiplier scales the base point values of each task pattern (e.g. base Follow = 10 points → 15 points at Medium tier). Duration is the AI's suggested default, editable by the business owner.
+
+  **Signal conflict rule:** if the follower/customer signal and the offer-budget signal point to different tiers, use the **higher** tier (assume more available resources rather than being conservative).
 - [x] Data source for "benchmark" credibility — **decided: hybrid, run in parallel:**
   1. **Phase A (launch placeholder):** pull general industry/marketing data (loyalty program reports, retail & F&B marketing studies) to set reasonable initial defaults (e.g. typical acquisition discount %, typical referral task completion rates). Available immediately, but generic/not Iran-market-specific.
   2. **Phase B (parallel, ongoing):** onboard a small batch of real early-adopter businesses (~5–10, free or discounted) from day one, run real campaigns, collect real completion/conversion data.
