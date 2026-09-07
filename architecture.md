@@ -46,6 +46,7 @@ One campaign belongs to one business.
 | point_multiplier | numeric | resolved from business.size_tier at campaign creation |
 | start_date / end_date | timestamp | end_date derived from size-tier suggested duration, editable |
 | public_join_slug | text, unique | short public code/slug used to build the shareable join link + QR (plan.md Phase 0.75 audience acquisition) |
+| max_referrals_per_customer | int | default 10 (plan.md "Referral abuse prevention") — cap on how many referrals earn a given referrer points in this campaign |
 | created_at | timestamp | |
 
 ### `task_patterns` (global config, not per-campaign)
