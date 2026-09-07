@@ -100,6 +100,34 @@ window.MOCK = (function () {
     }
   };
 
+  const checklistItems = [
+    {
+      item_key: "ai_constraints_saved",
+      label_fa: "بررسی و تنظیم خطوط قرمز هوش مصنوعی",
+      description_fa: "سقف تخفیف و بودجه پاداش رو در تب «تنظیمات» مشخص کن تا پیشنهادهای AI همیشه در همون چارچوب بمونن.",
+      cta_label: "برو به تنظیمات",
+      cta_type: "tab",
+      cta_target: "settings-view"
+    },
+    {
+      item_key: "contacts_imported",
+      label_fa: "وارد کردن مخاطبین اولیه",
+      description_fa: "لیست مشتری‌های قبلی رو آپلود کن، یا صبر کن اولین نفر از طریق لینک عمومی کمپین خودش عضو بشه.",
+      cta_label: "بارگذاری نمایشی CSV",
+      cta_type: "action",
+      cta_target: "simulateContactImport"
+    }
+  ];
+
+  const businessChecklistProgress = {
+    b_narvan: {
+      ai_constraints_saved: null,
+      contacts_imported: null
+    }
+  };
+
+  const businessContacts = [];
+
   const campaigns = [
     {
       id: "c_narvan_autumn",
@@ -516,6 +544,9 @@ window.MOCK = (function () {
     businessCategories,
     businesses,
     businessAiConstraints,
+    checklistItems,
+    businessChecklistProgress,
+    businessContacts,
     campaigns,
     taskPatterns,
     campaignTasks,
