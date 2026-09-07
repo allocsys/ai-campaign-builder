@@ -125,7 +125,10 @@ No auto-apply in this phase. Just surfaced insights.
   1. **Primary signal (if a connector is linked):** follower count / existing customer count from Instagram or the business's app. Higher count → scale up points/budget/duration.
   2. **Fallback signal (always available):** infer from the offer/budget the owner types in Q4 ("چه چیزی می‌تونی بدی؟") — e.g. a flat discount amount or free-item cost implies a rough per-customer cost ceiling, which caps how many points/tasks make sense before the reward becomes unprofitable.
   3. No dedicated "business size" question is added to onboarding — keeps the 30-second flow intact. Needs a simple size-tier mapping (e.g. small/medium/large → point multiplier + suggested duration) to be defined during implementation.
-- [ ] Data source for "benchmark" credibility (real campaign data vs. reasonable defaults) — needed so AI suggestions don't feel generic/templated
+- [x] Data source for "benchmark" credibility — **decided: hybrid, run in parallel:**
+  1. **Phase A (launch placeholder):** pull general industry/marketing data (loyalty program reports, retail & F&B marketing studies) to set reasonable initial defaults (e.g. typical acquisition discount %, typical referral task completion rates). Available immediately, but generic/not Iran-market-specific.
+  2. **Phase B (parallel, ongoing):** onboard a small batch of real early-adopter businesses (~5–10, free or discounted) from day one, run real campaigns, collect real completion/conversion data.
+  3. As Phase B data accumulates, progressively replace Phase A generic defaults with real early-adopter benchmarks, category by category (e.g. once enough coffee shop campaigns have run, swap in real numbers for that category specifically rather than waiting for all categories at once).
 - [ ] Metric definitions for Phase 2 insights (what counts as "low completion rate", etc.)
 
 ---
