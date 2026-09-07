@@ -232,3 +232,6 @@ No auto-apply in this phase. Just surfaced insights.
   - AI review decision system decided: three-tier outcome (auto-approve / auto-reject / hold for manual review) instead of binary; central team reviews uncertain cases initially, moving to per-business-owner review later; points stay in a Pending state and are only credited on final approval.
 
   **Next up:** overall system architecture / data model (campaign, task, reward, customer-code, submission/review schema) — the natural next step now that the attribution mechanism it needs to represent is fully specified.
+- **2026-09-07** — System architecture started: **tech stack decided — Node.js/TypeScript backend + PostgreSQL**, with the staff POS interface as a web app (PWA). Full entity/schema draft written up separately in **[architecture.md](./architecture.md)** (businesses, campaigns, task_patterns, category_pattern_weights, campaign_tasks, reward_patterns, campaign_rewards, customers, customer_campaign_codes, task_submissions, purchase_logs, points_ledger, benchmark_stats, insights) to keep plan.md from growing unmanageably long. See that file for the full schema and relationship diagram.
+
+  **Next up:** resolve the three open implementation questions logged in architecture.md, then move toward a buildable MVP scope/task breakdown.
