@@ -120,6 +120,15 @@ The campaign_invite trigger needs a list of phone numbers to send to. Two comple
 2. **Public join link / QR** — every campaign gets a shareable public link + QR code (for Instagram bio, a printed poster in-store, etc.) that lets a new customer self-join directly — enters their phone number, gets their personal code, no pre-existing contact record needed. This is the primary path for businesses with no list at all, and it also keeps growing the contact base after initial launch, not just at launch time.
 Instagram-follower-list import was explicitly ruled out — Instagram's API doesn't expose follower phone numbers/DMs for this kind of use, so it only works for the existing size-tier follower *count* signal (plan.md decision #3), not for actually reaching people.
 
+### Business microsite / landing page templates (decided 2026-09-07, v1 add-on)
+For businesses that don't already have a website: an **optional** extra beyond the campaign itself.
+- A small curated set of **pre-built, minimal/elegant website templates** (not a page builder/CMS) that a business can pick from and deploy as their own real site — not just a bare join-link page.
+- Business customizes only basic content within the chosen template: logo, name, tagline/description, a few images, contact info. No layout editing — keeps it fast and prevents businesses from producing a messy, unprofessional result.
+- The campaign's public join link/QR (see above) gets embedded prominently on the deployed site, so the microsite doubles as both a real web presence and an on-ramp into the current campaign.
+- Deployed to a hosted subdomain (e.g. `{business-slug}.ourdomain.com`) — no separate hosting/domain setup needed by the business.
+- Explicitly **optional and additive** — a business with no interest in a website just uses the plain join link; this doesn't block or complicate that path.
+- Scope guardrail: this is a small template gallery, not a general website builder — multi-page custom sites, editable layouts, or a full CMS are out of scope for v1 and would pull focus away from the core campaign-builder product.
+
 ---
 
 ## Phase 1 — Abstraction Layer (Task & Reward Patterns)
