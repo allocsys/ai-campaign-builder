@@ -28,7 +28,15 @@ One extra question per business category, shown after Q1:
 | Gym / fitness | هدف نگه‌داشتن مشتری قدیمیه یا جذب جدید؟ |
 | Beauty clinic | خدمات یک‌باره یا پکیج/دوره‌ای؟ |
 
-Implementation note: use a small fixed set of business categories (5–6 to start) with a pre-written conditional question each. Do NOT dynamically generate the conditional question — keep it deterministic for reliability and speed.
+Implementation note: use a small fixed set of business categories with a pre-written conditional question each. Do NOT dynamically generate the conditional question — keep it deterministic for reliability and speed.
+
+**✅ DECIDED (2026-09-07): v1 business categories = 6**
+1. کافی‌شاپ / کافه (Coffee shop)
+2. فروشگاه لباس / پوشاک (Clothing store)
+3. رستوران / فست‌فود (Restaurant)
+4. فروشگاه آنلاین — غیر پوشاک (Online store)
+5. باشگاه / سالن ورزشی (Gym / fitness)
+6. کلینیک زیبایی (Beauty clinic)
 
 ### Output: AI Campaign proposal
 - Goal, duration, target audience (auto-filled from answers)
@@ -88,7 +96,7 @@ No auto-apply in this phase. Just surfaced insights.
 ---
 
 ## Open Questions / To Decide
-- [ ] Final list of business categories for v1 (start with 5–6)
+- [x] Final list of business categories for v1 — **decided: 6 categories (see Phase 0 above)**
 - [ ] Exact weighting values per pattern per category (needs real benchmark data ideally)
 - [ ] How campaign duration/points scale with business size (small shop vs. large chain)
 - [ ] Data source for "benchmark" credibility (real campaign data vs. reasonable defaults) — needed so AI suggestions don't feel generic/templated
