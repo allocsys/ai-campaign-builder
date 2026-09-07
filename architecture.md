@@ -181,6 +181,28 @@ A business's raw phone-number list, independent of campaign enrollment — feeds
 | source | enum | manual_upload, self_joined (added automatically once someone joins via the public link, so they're tracked for future campaigns too) |
 | imported_at | timestamp | |
 
+### `website_templates` (global config, decided 2026-09-07)
+The curated template gallery businesses pick from — config-driven like task/reward patterns, so adding a new template is a new row, not new code.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| name | text | e.g. "Minimal Cafe", "Clean Retail" |
+| preview_image_url | text | shown in the template picker |
+| theme_identifier | text | maps to the actual frontend theme/component set used at render time |
+
+### `business_microsites`
+A business's deployed instance of a chosen template. One business can have at most one active microsite (v1).
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| business_id | uuid | FK → businesses |
+| website_template_id | uuid | FK → website_templates |
+| subdomain_slug | text, unique | builds the hosted URL `{slug}.ourdomain.com` |
+| content | jsonb | logo_url, tagline, description, image_urls, contact_info — the only business-editable fields within the fixed template |
+| featured_campaign_id | uuid, nullable | FK → campaigns — which campaign's public_join_slug/QR is embedded on the site |
+| published | boolean | default false until business confirms |
+| created_at / updated_at | timestamp | |
+
 ### `notification_templates` (global config, plan.md Phase 0.75)
 Config-driven, like `category_pattern_weights` — adding a trigger or channel later is a new row, not new code.
 | Field | Type | Notes |
