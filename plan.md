@@ -253,7 +253,7 @@ No auto-apply in this phase. Just surfaced insights.
 **Reclassified from "later/v2" to "main version, under review" (2026-09-07)** — project has no separate MVP stage, going straight to the full build, so these previously-deferred items are being brought forward for the same one-at-a-time review process:
 - [ ] Installable staff app (beyond the PWA) — build now as part of the main version, or is PWA-only still sufficient?
 - [ ] Referral anomaly detection (suspicious referral-cluster pattern matching) — was noted as "good Phase 2+ addition"; needs its actual detection logic/rules defined for the main version.
-- [ ] Monthly SMS spending cap on top of the prepaid wallet — was left as "add later if requested"; decide now whether it's needed alongside the wallet.
+- [x] Monthly SMS spending cap on top of the prepaid wallet — **decided: optional hard-block monthly cap**, business can set a per-month SMS spend ceiling in addition to the wallet (see Phase 0.9 "SMS cost control" above; `businesses.sms_monthly_cap_toman`).
 - [ ] Business microsite as a real multi-page site/CMS (vs. the current fixed-template gallery) — was explicitly scoped out; revisit whether the main version should support this.
 - [ ] Additional notification triggers (mid-campaign task reminders, referral-success pings) beyond the current 4 — were left as "can add later"; decide if they belong in the main version.
 - [ ] Phase 3 (AI-suggested changes with an Apply button) — conceptually described in the plan but not specified at implementation depth; needs real design now.
