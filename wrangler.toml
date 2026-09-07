@@ -1,0 +1,12 @@
+# Cloudflare Pages config for the click-through mockup (see Mockup.md).
+# Static files only — no build step, no framework.
+#
+# Deploy with:
+#   npx wrangler pages deploy mockup --project-name=ai-campaign-builder-mockup
+#
+# (This file also lets `wrangler pages dev` / CI pick up the same config
+# without retyping flags.)
+
+name = "ai-campaign-builder-mockup"
+compatibility_date = "2026-09-08"
+pages_build_output_dir = "mockup"
