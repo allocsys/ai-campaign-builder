@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>صندوق کافه نارون — پنل پرسنل (Staff POS)</title>
+  <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body style="background: #e2e8f0;">
+  <div id="header-root"></div>
+
+  <div class="phone-simulator-wrapper">
+    <div class="phone-screen" style="max-width: 480px;">
+      <!-- POS Top Bar -->
+      <div class="phone-screen-header" style="background: #1e293b;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.2rem;">☕</span>
+          <strong>صندوق کافه نارون (POS PWA)</strong>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span id="pos-online-badge" class="badge badge-success">آنلاین (متصل به سرور)</span>
+        </div>
+      </div>
+
+      <!-- Offline Mode Toggle Bar -->
+      <div style="background: #f1f5f9; padding: 0.65rem 1rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 0.85rem; font-weight: 600; color: #334155;">شبیه‌سازی قطعی اینترنت (حالت آفلاین):</span>
+        <label class="switch-label">
+          <input type="checkbox" id="offline-switch" class="switch-input" onchange="toggleOfflineMode(this.checked)">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <!-- Offline Banner when enabled -->
+      <div id="offline-alert-banner" class="offline-banner" style="display: none;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div class="offline-pulse"></div>
+          <span>اینترنت قطع است — عملیات در صف آفلاین ذخیره خواهند شد</span>
+        </div>
+        <span class="badge badge-danger" id="offline-queue-badge">۰ در صف</span>
+      </div>
+
+      <div class="phone-screen-body">
+        <!-- Main Tabs for Staff: 1. Log Purchase, 2. Fulfill Reward -->
+        <div class="tabs" style="margin-bottom: 1rem;">
+          <button class="tab-btn active" id="btn-tab-purchase" onclick="switchPosTab('purchase')">🛒 ثبت فاکتور و امتیاز خرید</button>
+          <button class="tab-btn" id="btn-tab-fulfill" onclick="switchPosTab('fulfill')">🎁 تحویل پاداش و کوپن</button>
+        </div>
+
+        <!-- 1. LOG PURCHASE TAB -->
+        <div id="pos-tab-purchase">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" style="font-size: 0.95rem;">کد یا بارکد مشتری را وارد کنید</span>
+            </div>
+            <div class="card-body">
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                <input type="text" id="pos-customer-code" class="form-control" placeholder="کد ۵ رقمی یا اسکن بارکد" style="font-size: 1.1rem; letter-spacing: 2px;">
+                <button class="btn btn-outline-primary" onclick="simulateBarcodeScan('48291')" title="شبیه‌سازی خواندن بارکد با دوربین">
+                  📷 اسکن بارکد
+                </button>
+              </div>
+
+              <!-- Customer lookup preview -->
+              <div id="customer-preview-box" style="background: #f8fafc; border: 1px solid var(--border-color); padding: 0.65rem; border-radius: var(--radius-sm); margin-bottom: 1rem; display: none;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                  <strong id="found-cust-name">سارا احمدی</strong>
+                  <span class="badge badge-success" id="found-cust-tier">مشتری دائم • ۱۹۰ امتیاز</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">مبلغ فاکتور مشتری (تومان):</label>
+                <input type="number" id="pos-purchase-amount" class="form-control" value="180000" step="10000" style="font-size: 1.2rem; font-weight: 700;">
+              </div>
+
+              <div class="alert alert-info" style="font-size: 0.82rem; margin-bottom: 1rem;">
+                <span>✨ <strong>امتیاز قابل اعطا:</strong> به ازای این خرید ۶۰ امتیاز (تسویه اولین خرید + ساعت عادی) محاسبه می‌شود.</span>
+              </div>
+
+              <button class="btn btn-primary btn-lg btn-block" onclick="submitPurchase()">
+                ✓ ثبت خرید و اعمال امتیاز
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. FULFILL REWARD TAB -->
+        <div id="pos-tab-fulfill" style="display: none;">
+          <div class="card" style="border-right: 4px solid var(--success);">
+            <div class="card-header">
+              <span class="card-title" style="font-size: 0.95rem;">تحویل هدیه / تخفیف به مشتری</span>
+            </div>
+            <div class="card-body">
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                مشتری پس از زدن دکمه «دریافت پاداش» در گوشی خود، یک کد یک‌بار مصرف ۵ دقیقه‌ای دریافت می‌کند.
+              </p>
+
+              <div class="form-group">
+                <label class="form-label">کد یک‌بار مصرف پاداش (Redemption Code):</label>
+                <div style="display: flex; gap: 0.5rem;">
+                  <input type="text" id="pos-redemption-code" class="form-control" placeholder="مثال: RDM-84920" style="letter-spacing: 2px; font-weight: 700;">
+                  <button class="btn btn-outline-primary" onclick="simulateRedemptionScan('RDM-84920')">
+                    📷 اسکن
+                  </button>
+                </div>
+              </div>
+
+              <div id="reward-details-preview" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 1rem;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: #065f46;">✓ کد پاداش معتبر است</div>
+                <div style="font-size: 0.85rem; color: #065f46; margin-top: 2px;">عنوان پاداش: <strong>یک فنجان قهوه گرم انتخابی</strong></div>
+                <div style="font-size: 0.75rem; color: #047857; margin-top: 2px;">مشتری: سارا احمدی (48291) • کسر شده: ۱۲۰ امتیاز</div>
+              </div>
+
+              <button class="btn btn-success btn-lg btn-block" onclick="submitFulfillReward()">
+                🎁 تایید تحویل پاداش به مشتری
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- POS Recent Activity Log -->
+        <div class="card" style="margin-top: 1rem;">
+          <div class="card-header">
+            <span class="card-title" style="font-size: 0.9rem;">🕒 آخرین عملیات ثبت شده صندوق</span>
+            <span class="badge badge-secondary" id="log-count-badge">۳ تراکنش</span>
+          </div>
+          <div class="card-body" style="padding: 0.5rem;" id="pos-activity-feed">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="shared/mock-data.js"></script>
+  <script src="shared/app.js"></script>
+  <script>
+    document.getElementById('header-root').innerHTML = App.renderHeader('pos');
+
+    let isOffline = false;
+    let offlineQueue = [];
+    let recentActivities = [
+      { type: 'purchase', text: 'ثبت فاکتور ۲۴۰,۰۰۰ تومان برای کد 33812 (+۶۰ امتیاز)', time: '۱۵ دقیقه پیش', status: 'synced' },
+      { type: 'fulfill', text: 'تحویل پاداش ۲۰٪ تخفیف برای کد 71934 (کد RDM-19402)', time: '۳۲ دقیقه پیش', status: 'synced' },
+      { type: 'purchase', text: 'ثبت فاکتور ۹۵,۰۰۰ تومان برای کد 48291 (+۳۵ امتیاز)', time: '۱ ساعت پیش', status: 'synced' }
+    ];
+
+    function switchPosTab(tab) {
+      if (tab === 'purchase') {
+        document.getElementById('pos-tab-purchase').style.display = 'block';
+        document.getElementById('pos-tab-fulfill').style.display = 'none';
+        document.getElementById('btn-tab-purchase').classList.add('active');
+        document.getElementById('btn-tab-fulfill').classList.remove('active');
+      } else {
+        document.getElementById('pos-tab-purchase').style.display = 'none';
+        document.getElementById('pos-tab-fulfill').style.display = 'block';
+        document.getElementById('btn-tab-purchase').classList.remove('active');
+        document.getElementById('btn-tab-fulfill').classList.add('active');
+      }
+    }
+
+    function simulateBarcodeScan(code) {
+      document.getElementById('pos-customer-code').value = code;
+      const preview = document.getElementById('customer-preview-box');
+      preview.style.display = 'block';
+      App.showToast('بارکد مشتری خوانده شد: ' + code, 'info');
+    }
+
+    function simulateRedemptionScan(code) {
+      document.getElementById('pos-redemption-code').value = code;
+      document.getElementById('reward-details-preview').style.display = 'block';
+      App.showToast('بارکد پاداش شناسایی شد: ' + code, 'info');
+    }
+
+    function toggleOfflineMode(enabled) {
+      isOffline = enabled;
+      const banner = document.getElementById('offline-alert-banner');
+      const badge = document.getElementById('pos-online-badge');
+
+      if (enabled) {
+        banner.style.display = 'flex';
+        badge.className = 'badge badge-danger';
+        badge.textContent = 'آفلاین (بدون اینترنت)';
+        App.showToast('دستگاه به حالت آفلاین رفت. کلیه عملیات در حافظه صندوق صف‌بندی می‌شوند.', 'warning');
+      } else {
+        banner.style.display = 'none';
+        badge.className = 'badge badge-success';
+        badge.textContent = 'آنلاین (متصل به سرور)';
+        flushOfflineQueue();
+      }
+    }
+
+    function flushOfflineQueue() {
+      if (offlineQueue.length > 0) {
+        App.showToast(`در حال همگام‌سازی و راستی‌آزمایی ${offlineQueue.length} تراکنش آفلاین با سرور مرکزی...`, 'info');
+        setTimeout(() => {
+          recentActivities.forEach(item => {
+            if (item.status === 'queued') item.status = 'synced';
+          });
+          offlineQueue = [];
+          document.getElementById('offline-queue-badge').textContent = '۰ در صف';
+          App.showToast('همگام‌سازی کامل شد! راستی‌آزمایی و ثبت نهایی در سرور انجام شد.', 'success');
+          renderActivities();
+        }, 1200);
+      } else {
+        App.showToast('اتصال به سرور مرکزی برقرار است.', 'success');
+      }
+    }
+
+    function submitPurchase() {
+      const code = document.getElementById('pos-customer-code').value || '48291';
+      const amount = document.getElementById('pos-purchase-amount').value || '180000';
+
+      const entry = {
+        type: 'purchase',
+        text: `ثبت فاکتور ${App.formatToman(amount)} برای کد ${code} (+۶۰ امتیاز)`,
+        time: 'همین الان',
+        status: isOffline ? 'queued' : 'synced'
+      };
+
+      recentActivities.unshift(entry);
+
+      if (isOffline) {
+        offlineQueue.push(entry);
+        document.getElementById('offline-queue-badge').textContent = `${offlineQueue.length} در صف`;
+        App.showToast('تراکنش در صف آفلاین دستگاه ذخیره شد و پس از اتصال اینترنت همگام می‌شود.', 'warning');
+      } else {
+        App.showToast(`خرید با موفقیت ثبت شد و ۶۰ امتیاز به کد ${code} اعطا گردید.`, 'success');
+      }
+
+      document.getElementById('pos-customer-code').value = '';
+      document.getElementById('customer-preview-box').style.display = 'none';
+      renderActivities();
+    }
+
+    function submitFulfillReward() {
+      const code = document.getElementById('pos-redemption-code').value || 'RDM-84920';
+
+      const entry = {
+        type: 'fulfill',
+        text: `تحویل پاداش یک فنجان قهوه با کد ${code}`,
+        time: 'همین الان',
+        status: isOffline ? 'queued' : 'synced'
+      };
+
+      recentActivities.unshift(entry);
+
+      if (isOffline) {
+        offlineQueue.push(entry);
+        document.getElementById('offline-queue-badge').textContent = `${offlineQueue.length} در صف`;
+        App.showToast('تحویل پاداش در صف آفلاین ذخیره شد (راستی‌آزمایی مضاعف در سرور انجام خواهد شد).', 'warning');
+      } else {
+        App.showToast(`پاداش ${code} با موفقیت در سیستم باطل و تحویل داده شد.`, 'success');
+      }
+
+      document.getElementById('pos-redemption-code').value = '';
+      document.getElementById('reward-details-preview').style.display = 'none';
+      renderActivities();
+    }
+
+    function renderActivities() {
+      const feed = document.getElementById('pos-activity-feed');
+      feed.innerHTML = recentActivities.map(act => `
+        <div style="padding: 0.5rem 0.65rem; border-bottom: 1px solid var(--border-color); font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight: 600;">${act.text}</div>
+            <div style="font-size: 0.72rem; color: var(--text-muted);">${act.time}</div>
+          </div>
+          <div>
+            ${act.status === 'queued' ? 
+              '<span class="badge badge-warning">در صف آفلاین</span>' : 
+              '<span class="badge badge-success">ثبت شده</span>'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    renderActivities();
+  </script>
+</body>
+</html>

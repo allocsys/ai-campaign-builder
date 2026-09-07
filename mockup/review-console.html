@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>کنسول بررسی تیم مرکزی</title>
+  <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+  <div id="header-root"></div>
+
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <h1>🛡️ کنسول بررسی تیم مرکزی</h1>
+        <p>بررسی موارد نامطمئن هوش مصنوعی و مدیریت هشدارهای تقلب معرفی (Referral) — plan.md «سیستم تصمیم‌گیری بازبینی هوش مصنوعی» و «تشخیص ناهنجاری معرفی»</p>
+      </div>
+    </div>
+
+    <!-- SECTION 1: Uncertain AI-reviewed submissions -->
+    <h2 style="margin-bottom: 1rem;">📋 صف بررسی دستی — موارد نامطمئن هوش مصنوعی</h2>
+    <div id="submissions-queue" class="grid grid-2" style="margin-bottom: 2.5rem;"></div>
+    <div id="submissions-empty" class="alert alert-success" style="display: none;">
+      همه‌ی موارد نامطمئن بررسی شدند. ✓
+    </div>
+
+    <!-- SECTION 2: Referral anomaly flags -->
+    <h2 style="margin-bottom: 1rem;">🚩 صف هشدارهای ناهنجاری معرفی (Referral Flags)</h2>
+    <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+      این هشدارها صرفاً جنبه اطلاع‌رسانی دارند — پاداش معرفی همچنان بر اساس سه لایه دفاعی موجود (تایید OTP، گیت‌شدن به خرید واقعی، سقف تعداد) کنترل می‌شود؛ هیچ اکشن خودکاری از این صف اجرا نمی‌شود.
+    </p>
+    <div id="flags-queue"></div>
+  </div>
+
+  <script src="shared/mock-data.js"></script>
+  <script src="shared/app.js"></script>
+  <script>
+    document.getElementById('header-root').innerHTML = App.renderHeader('console');
+
+    const submissions = window.MOCK.taskSubmissions;
+    const flags = window.MOCK.referralFlags;
+
+    function renderSubmissions() {
+      const pending = submissions.filter(s => s.status === 'pending');
+      const wrap = document.getElementById('submissions-queue');
+      const emptyMsg = document.getElementById('submissions-empty');
+
+      if (pending.length === 0) {
+        wrap.innerHTML = '';
+        emptyMsg.style.display = 'flex';
+        return;
+      }
+      emptyMsg.style.display = 'none';
+
+      wrap.innerHTML = pending.map(s => `
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📎 ${s.task_title}</span>
+            <span class="badge badge-warning">اعتماد AI: ${App.formatNumber(s.ai_confidence_score)}٪</span>
+          </div>
+          <div class="card-body">
+            <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 0.75rem;">
+              <span><strong>کاربر:</strong> ${s.customer_name}</span>
+              <span style="color: var(--text-muted);">${s.submitted_at}</span>
+            </div>
+            <div style="background: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: var(--radius-sm); padding: 1.25rem; text-align: center; margin-bottom: 0.75rem; color: var(--text-muted); font-size: 0.85rem;">
+              🖼️ فایل پیوست: <code>${s.evidence_url}</code>
+            </div>
+            ${s.notes ? `<div class="alert alert-info" style="margin-bottom: 0.75rem;">${s.notes}</div>` : ''}
+          </div>
+          <div class="card-footer">
+            <button class="btn btn-danger btn-sm" onclick="resolveSubmission('${s.id}', 'rejected')">✕ رد کردن</button>
+            <button class="btn btn-success btn-sm" onclick="resolveSubmission('${s.id}', 'approved')">✓ تایید و اعطای امتیاز</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function resolveSubmission(id, decision) {
+      const sub = submissions.find(s => s.id === id);
+      if (!sub) return;
+      sub.status = decision;
+      sub.reviewed_by = 'central_team';
+      if (decision === 'approved') {
+        const task = window.MOCK.campaignTasks.find(t => t.id === sub.campaign_task_id);
+        sub.points_awarded = task ? task.points_value : 0;
+        App.showToast(`تایید شد — ${sub.points_awarded} امتیاز به ${sub.customer_name} اعطا شد.`, 'success');
+        App.logNotification(sub.customer_name, 'sms', 'submission_reviewed', `تبریک! ارسال شما تایید و امتیاز شما واریز شد.`);
+      } else {
+        sub.points_awarded = 0;
+        App.showToast(`رد شد — به ${sub.customer_name} اطلاع داده شد که می‌تواند دوباره ارسال کند.`, 'error');
+        App.logNotification(sub.customer_name, 'sms', 'submission_reviewed', `متاسفانه ارسال شما تایید نشد؛ می‌توانید با مدرک واضح‌تر دوباره تلاش کنید.`);
+      }
+      renderSubmissions();
+    }
+
+    function renderFlags() {
+      const wrap = document.getElementById('flags-queue');
+      wrap.innerHTML = flags.map(f => `
+        <div class="card ${f.status === 'open' ? 'card-high-risk' : ''}">
+          <div class="card-header">
+            <span class="card-title">👤 ${f.referrer_name}</span>
+            ${App.renderStatusBadge(f.status)}
+          </div>
+          <div class="card-body">
+            <div style="margin-bottom: 0.5rem;">
+              <span class="badge badge-secondary">${f.rule_name_fa}</span>
+            </div>
+            <p style="font-size: 0.88rem; margin-bottom: 0.5rem;">${f.description}</p>
+            <p style="font-size: 0.78rem; color: var(--text-muted);">شناسایی شده در: ${f.triggered_at}</p>
+            ${f.notes ? `<div class="alert alert-info" style="margin-top: 0.75rem;">📝 ${f.notes}</div>` : ''}
+          </div>
+          ${f.status === 'open' ? `
+          <div class="card-footer">
+            <button class="btn btn-outline btn-sm" onclick="resolveFlag('${f.id}', 'dismissed')">رد هشدار (بی‌خطر بود)</button>
+            <button class="btn btn-primary btn-sm" onclick="resolveFlag('${f.id}', 'reviewed')">علامت‌گذاری به‌عنوان بررسی‌شده</button>
+          </div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function resolveFlag(id, decision) {
+      const f = flags.find(x => x.id === id);
+      if (!f) return;
+      f.status = decision;
+      f.notes = decision === 'reviewed'
+        ? 'توسط تیم مرکزی بررسی و بدون اقدام مخرب تشخیص داده شد.'
+        : 'به‌عنوان هشدار اشتباه (False Positive) رد شد.';
+      App.showToast('وضعیت هشدار به‌روزرسانی شد.', 'success');
+      renderFlags();
+    }
+
+    renderSubmissions();
+    renderFlags();
+  </script>
+</body>
+</html>

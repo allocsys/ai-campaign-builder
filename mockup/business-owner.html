@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>پنل صاحب کسب‌وکار — AI Campaign Builder</title>
+  <link rel="stylesheet" href="shared/styles.css">
+</head>
+<body>
+  <div id="header-root"></div>
+
+  <div class="container">
+    <!-- Top Business Header -->
+    <div class="page-header">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+          <h1 style="margin: 0; font-size: 1.6rem;" id="biz-title">کافه نارون</h1>
+          <span class="badge badge-info" id="biz-category-badge">کافی‌شاپ / کافه</span>
+          <span class="badge badge-success">کمپین فعال: پاییزه ۱۴۰۳</span>
+        </div>
+        <p style="margin: 0; color: var(--text-muted); font-size: 0.88rem;">شناسه مالک: ۰۹۱۲۱۱۱۱۱۱۱ (تایید شده با پیامک) • رده کسب‌وکار: کوچک (Small - تا ۲۰۰۰ مشتری)</p>
+      </div>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button class="btn btn-outline-primary btn-sm" onclick="switchTab('onboarding-view')">✨ طراحی کمپین جدید با AI</button>
+        <a href="microsite-preview.html" class="btn btn-outline btn-sm">🌐 مشاهده میکروسایت زنده</a>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('dashboard-view')" id="tab-dashboard-btn">📊 داشبورد و آمار</button>
+      <button class="tab-btn" onclick="switchTab('insights-view')" id="tab-insights-btn">💡 بینش‌های هوش مصنوعی (Phase 2)</button>
+      <button class="tab-btn" onclick="switchTab('suggestions-view')" id="tab-suggestions-btn">
+        ⚡ تغییرات پیشنهادی (Phase 3)
+        <span class="badge badge-warning" id="pending-suggestions-badge" style="margin-right: 4px;">۴</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('autopilot-view')" id="tab-autopilot-btn">🤖 حالت خلبان خودکار (Phase 4)</button>
+      <button class="tab-btn" onclick="switchTab('microsite-builder-view')" id="tab-microsite-btn">🎨 سازنده میکروسایت</button>
+      <button class="tab-btn" onclick="switchTab('settings-view')" id="tab-settings-btn">⚙️ تنظیمات و کیف‌پول</button>
+      <button class="tab-btn" onclick="switchTab('onboarding-view')" id="tab-onboarding-btn">🎯 پرسشنامه هوشمند Onboarding</button>
+    </div>
+
+    <!-- 1. DASHBOARD TAB -->
+    <div id="dashboard-view" class="tab-content">
+      <!-- Stat Cards -->
+      <div class="grid grid-4" style="margin-bottom: 1.5rem;">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">👥</div>
+          <div>
+            <div class="stat-value">۱۴۸</div>
+            <div class="stat-label">اعضای کل باشگاه</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #ecfdf5; color: #10b981;">💎</div>
+          <div class="stat-value">۱۹,۴۵۰</div>
+          <div class="stat-label">امتیاز اعطا شده</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #fffbeb; color: #f59e0b;">🎁</div>
+          <div class="stat-value">۳۱</div>
+          <div class="stat-label">پاداش‌های تحویل شده</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #f5f3ff; color: #8b5cf6;">📈</div>
+          <div class="stat-value">۲۴.۵٪</div>
+          <div class="stat-label">نرخ تبدیل مراجعین</div>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <!-- Active Campaign Summary Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📌 وضعیت کمپین در حال اجرا</span>
+            <span class="badge badge-success">فعال (روز ۷ از ۱۴)</span>
+          </div>
+          <div class="card-body">
+            <h3 style="margin-bottom: 0.5rem;">کمپین وفاداری پاییزه کافه نارون</h3>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem;">
+              <strong>هدف:</strong> جذب مشتری جدید (Acquisition) • <strong>ضریب امتیازات:</strong> ۱.۰ برابر پایه • <strong>مهلت بازخرید بعد از پایان (Grace Period):</strong> ۲ روز با حفظ ۳۰٪ اعتبار ذخیره.
+            </p>
+            
+            <div class="alert alert-info" style="font-size: 0.85rem;">
+              <span>🏆 <strong>چالش فعال:</strong> ۳ فعالیت در ۷ روز → ۱۵۰ امتیاز هدیه + نشان کافه‌باز حرفه‌ای</span>
+            </div>
+
+            <div style="margin-top: 1rem;">
+              <span class="form-label" style="font-size: 0.85rem;">زمان سپری شده از کمپین:</span>
+              <div class="progress-container">
+                <div class="progress-fill" style="width: 50%;"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted);">
+                <span>شروع: ۱ مهر</span>
+                <span>۵۰٪ سپری شده</span>
+                <span>پایان: ۱۵ مهر</span>
+              </div>
+            </div>
+
+            <div style="margin-top: 1.25rem; display: flex; gap: 0.5rem;">
+              <a href="customer.html" class="btn btn-outline btn-sm">🔗 لینک عمومی کمپین (narvan-autumn)</a>
+              <button class="btn btn-outline-primary btn-sm" onclick="App.showToast('لینک عمومی در کلیپ‌بورد کپی شد!', 'success')">📋 کپی لینک</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Campaign Tasks List -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📋 تسک‌های فعال در کمپین</span>
+            <span class="badge badge-secondary">۴ تسک</span>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <div id="active-tasks-list">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Campaign Rewards List -->
+      <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-header">
+          <span class="card-title">🎁 پاداش‌های قابل دریافت توسط مشتریان</span>
+          <span class="badge badge-secondary">۳ سطح جایزه</span>
+        </div>
+        <div class="card-body">
+          <div class="grid grid-3" id="active-rewards-list">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PHASE 2 INSIGHTS TAB -->
+    <div id="insights-view" class="tab-content" style="display: none;">
+      <div class="alert alert-info">
+        <span>💡 <strong>بینش‌های هوش مصنوعی (Phase 2):</strong> سیستم با مقایسه دیتای رفتاری کمپین شما با میانگین صنف و ترندهای تاریخی، این بینش‌ها را استخراج کرده است. این بینش‌ها صرفاً تحلیلی هستند و چیزی خودکار تغییر نمی‌کند.</span>
+      </div>
+
+      <div class="grid grid-3" id="insights-cards-container">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- 3. PHASE 3 SUGGESTED CHANGES TAB -->
+    <div id="suggestions-view" class="tab-content" style="display: none;">
+      <div class="page-header" style="margin-bottom: 1.5rem;">
+        <div>
+          <h2>پیشنهادات هوشمند بهبود کمپین (Human-in-the-Loop)</h2>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.88rem;">
+            هوش مصنوعی بر اساس بینش‌های فاز ۲، این تنظیمات را به شما پیشنهاد می‌دهد. هر پیشنهاد تا زمانی که روی دکمه «اعمال پیشنهاد» کلیک نکنید، اجرایی نخواهد شد.
+          </p>
+        </div>
+        <div>
+          <span class="badge badge-secondary" id="applied-counter-badge" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;">
+            تعداد پیشنهادات تایید شده در این نشست: ۰
+          </span>
+        </div>
+      </div>
+
+      <div id="suggestions-list-container">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- 4. PHASE 4 AUTOPILOT TAB -->
+    <div id="autopilot-view" class="tab-content" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🤖 حالت خلبان خودکار هوش مصنوعی (Autopilot)</span>
+          <span class="badge badge-secondary" id="autopilot-status-badge">غیرفعال (قفل است)</span>
+        </div>
+        <div class="card-body">
+          <div id="autopilot-locked-banner" class="alert alert-warning">
+            <span>
+              🔒 <strong>این قابلیت در حال حاضر قفل است:</strong>
+              طبق ضوابط ایمنی، برای فعال‌سازی خلبان خودکار ابتدا باید اعتماد به پیشنهادات سنجیده شود. لطفاً ابتدا حداقل <strong>۳ پیشنهاد</strong> را در تب «تغییرات پیشنهادی (Phase 3)» به صورت دستی بررسی و تایید کنید.
+              <br>
+              <strong id="lock-progress-text">پیشرفت فعلی: ۰ از ۳ تایید شده</strong>
+            </span>
+          </div>
+
+          <div id="autopilot-unlocked-section" style="display: none;">
+            <div class="alert alert-success">
+              <span>🎉 <strong>شما واجد شرایط استفاده از حالت خودکار هستید!</strong> (حداقل ۳ پیشنهاد با موفقیت تایید دستی شد).</span>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+              <div>
+                <h3 style="margin-bottom: 0.25rem;">فعال‌سازی حالت خودکار (Autopilot)</h3>
+                <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
+                  در صورت فعال بودن، تنظیمات کم‌ریسک (مانند امتیاز تسک، آستانه پاداش و تمدید مدت) به صورت آنی توسط سیستم اعمال می‌شوند. تغییرات با ریسک مالی یا تغییر نوع پاداش کماکان نیازمند تایید شما خواهند بود.
+                </p>
+              </div>
+              <label class="switch-label">
+                <input type="checkbox" id="autopilot-toggle" class="switch-input" onchange="toggleAutopilot(this.checked)">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <!-- Autopilot Action Log Simulation -->
+            <div id="autopilot-log-container" style="display: none;">
+              <h3 style="margin-bottom: 0.75rem;">📋 لاگ آخرین اقدام خودکار انجام شده:</h3>
+              <div class="card" style="border-right: 4px solid var(--purple);">
+                <div class="card-body" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                      <span class="badge badge-info">Autopilot Applied</span>
+                      <strong>کاهش آستانه پاداش «فنجان قهوه رایگان» از ۱۲۰ به ۱۰۰ امتیاز</strong>
+                    </div>
+                    <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
+                      علت اعمال خودکار: نرخ ریزش اعضا در هفته اول افزایش یافته بود. سیستم برای تسریع در دریافت جایزه آستانه را تعدیل کرد.
+                    </p>
+                  </div>
+                  <div>
+                    <button class="btn btn-outline-primary btn-sm" id="undo-autopilot-btn" onclick="undoAutopilotAction()">
+                      ↩️ بازگردانی (Undo Action)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. MICROSITE BUILDER TAB -->
+    <div id="microsite-builder-view" class="tab-content" style="display: none;">
+      <div class="page-header">
+        <div>
+          <h2>سازنده میکروسایت کسب‌وکار (Modular Microsite)</h2>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.88rem;">
+            یک وب‌سایت شیک و سریع برای کسب‌وکار شما. قالب‌ها بر اساس صنف شما پالایش شده‌اند و بخش‌ها توسط هوش مصنوعی بر اساس نوع صنف پیشنهاد شده‌اند.
+          </p>
+        </div>
+        <a href="microsite-preview.html" class="btn btn-primary" target="_blank">🌐 مشاهده پیش‌نمایش زنده در صفحه جدید ↗</a>
+      </div>
+
+      <!-- Step 1: Template Selection -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">۱. انتخاب قالب متناسب با صنف (فیلتر شده بر اساس کافی‌شاپ)</span>
+          <span class="badge badge-info">قالب پیشنهادی AI: کافه دنج</span>
+        </div>
+        <div class="card-body">
+          <div class="grid grid-3" id="template-gallery-list">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Content Modules Toggle -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">۲. بخش‌های محتوایی میکروسایت (Modular Sections)</span>
+          <span class="badge badge-secondary">پیشنهاد هوشمند AI فعال است</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem;">
+            تیک بخش‌هایی که مایلید در میکروسایت اختصاصی شما در آدرس <code>narvan.domain.com</code> نمایش داده شوند را فعال یا غیرفعال کنید:
+          </p>
+          <div class="grid grid-2" id="modules-toggle-list">
+            <!-- Rendered via JS -->
+          </div>
+          <div style="margin-top: 1.5rem; text-align: left;">
+            <button class="btn btn-success" onclick="saveMicrositeModules()">ذخیره تغییرات میکروسایت</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. SETTINGS TAB -->
+    <div id="settings-view" class="tab-content" style="display: none;">
+      <div class="grid grid-2">
+        <!-- SMS Wallet & Notification Settings -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">💳 کیف‌پول پیامک و کانال‌های اطلاع‌رسانی</span>
+            <span class="badge badge-success">حساب فعال</span>
+          </div>
+          <div class="card-body">
+            <div style="background: #f8fafc; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1rem;">
+              <span style="font-size: 0.82rem; color: var(--text-muted); display: block;">موجودی فعلی کیف‌پول پیامک (Prepaid Wallet):</span>
+              <span style="font-size: 1.5rem; font-weight: 700; color: #0f172a;" id="sms-balance-display">۴۲۰,۰۰۰ تومان</span>
+              <button class="btn btn-outline-primary btn-sm" style="margin-right: 1rem;" onclick="topupWallet()">+ شارژ ۲۰۰,۰۰۰ تومان</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">سقف ماهانه هزینه پیامک (Monthly Spending Cap):</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="sms-cap-input" class="form-control" value="۶۰۰,۰۰۰ تومان">
+                <button class="btn btn-outline" onclick="App.showToast('سقف ماهانه ذخیره شد.', 'success')">ذخیره سقف</button>
+              </div>
+              <small style="color: var(--text-muted); font-size: 0.78rem;">جهت محافظت در برابر ارسال‌های غیرمنتظره ترافیک بالا (اختیاری).</small>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.25rem 0;">
+
+            <div class="form-group">
+              <label class="form-label">وضعیت کانال‌های ارسال:</label>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.88rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                  <span>📱 پیامک به شماره موبایل (SMS)</span>
+                  <span class="badge badge-success">همواره فعال (پیش‌فرض)</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                  <span>✈️ بات تلگرام (Telegram Opt-in)</span>
+                  <span class="badge badge-info">فعال برای مشتریان عضو</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Constraints Settings -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🛡️ خطوط قرمز و قیود هوش مصنوعی (AI Constraints)</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+              این قیود توسط هوش مصنوعی هنگام ارائه پیشنهادات در فاز ۳ و فاز ۴ با دقت رعایت می‌شوند:
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">حداکثر درصد تخفیف مجاز (Max Discount %):</label>
+              <input type="number" id="constraint-max-discount" class="form-control" value="25" min="5" max="90">
+              <small style="color: var(--text-muted); font-size: 0.78rem;">هوش مصنوعی هرگز تخفیفی بالاتر از این درصد پیشنهاد نخواهد داد.</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">سقف بودجه پاداش به ازای هر مشتری (تومان):</label>
+              <input type="number" id="constraint-budget-ceiling" class="form-control" value="150000" step="10000">
+              <small style="color: var(--text-muted); font-size: 0.78rem;">حداکثر ارزش مالی کل پاداش‌های دریافتی یک مشتری در طول کمپین.</small>
+            </div>
+
+            <button class="btn btn-primary btn-block" onclick="saveAiConstraints()">ذخیره قیود هوش مصنوعی</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. ONBOARDING WIZARD TAB -->
+    <div id="onboarding-view" class="tab-content" style="display: none;">
+      <div class="card" style="max-width: 800px; margin: 0 auto;">
+        <div class="card-header">
+          <span class="card-title">🎯 پرسشنامه هوشمند ساخت کمپین جدید در ۳۰ ثانیه (Phase 0)</span>
+        </div>
+        <div class="card-body">
+          <form id="onboarding-form" onsubmit="handleOnboardingSubmit(event)">
+            <!-- Q1 -->
+            <div class="form-group">
+              <label class="form-label">۱. صنف و نوع کسب‌وکارت چیه؟</label>
+              <select id="biz-category-select" class="form-select" onchange="handleCategoryChange(this.value)">
+                <option value="coffee_shop">کافی‌شاپ / کافه</option>
+                <option value="clothing">فروشگاه لباس / پوشاک</option>
+                <option value="restaurant">رستوران / فست‌فود</option>
+                <option value="online_store">فروشگاه آنلاین (غیر پوشاک)</option>
+                <option value="gym">باشگاه / سالن ورزشی</option>
+                <option value="beauty_clinic">کلینیک زیبایی</option>
+              </select>
+            </div>
+
+            <!-- Conditional Q (Based on Q1) -->
+            <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.85rem; border-radius: var(--radius-sm);">
+              <label class="form-label" id="conditional-question-label" style="color: #166534;">
+                پرسش اختصاصی کافی‌شاپ: مشتری بیشتر حضوریه یا آنلاین/دلیوری؟
+              </label>
+              <select id="conditional-answer-select" class="form-select">
+                <option>اکثراً حضوری در سالن</option>
+                <option>سفارش بیرون‌بر و اسنپ‌فود</option>
+                <option>ترکیبی متوازن</option>
+              </select>
+            </div>
+
+            <!-- Q2 -->
+            <div class="form-group">
+              <label class="form-label">۲. هدف اصلی این کمپین چیه؟</label>
+              <select id="campaign-goal-select" class="form-select">
+                <option value="acquisition">جذب مشتری جدید (Acquisition)</option>
+                <option value="retention">نگه‌داشتن و سفارش مجدد مشتریان قبلی (Retention)</option>
+              </select>
+            </div>
+
+            <!-- Q3 -->
+            <div class="form-group">
+              <label class="form-label">۳. مخاطب هدفت کیه؟</label>
+              <input type="text" id="campaign-audience-input" class="form-control" value="دانشجویان و جوانان محدوده مرکز شهر، علاقه‌مند به کار یا دورهمی در کافه">
+            </div>
+
+            <!-- Q4 -->
+            <div class="form-group">
+              <label class="form-label">۴. چه چیزی می‌تونی به مشتری هدیه بدی؟ (آفر / پاداش)</label>
+              <input type="text" id="campaign-offer-input" class="form-control" value="یک فنجان قهوه دمی، ۲۰٪ تخفیف روی سفارش دوم، یا ماگ اختصاصی">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg btn-block" style="margin-top: 1.5rem;">
+              ✨ ساخت خودکار کمپین با هوش مصنوعی (AI Generation)
+            </button>
+          </form>
+
+          <!-- Proposal Result Modal / Container -->
+          <div id="ai-proposal-result" style="display: none; margin-top: 2rem; border-top: 2px dashed var(--border-color); padding-top: 1.5rem;">
+            <div class="alert alert-success">
+              <span>🎉 <strong>پیشنهاد اولیه کمپین توسط هوش مصنوعی آماده شد!</strong> وزن‌دهی تسک‌ها بر اساس الگوهای انتزاعی فاز ۱ انجام گرفت.</span>
+            </div>
+
+            <div class="card" style="border: 2px solid var(--primary);">
+              <div class="card-header" style="background: var(--primary-light);">
+                <strong id="proposal-title">کمپین پیشنهادی: رشد و جذب اعضای جدید</strong>
+                <span class="badge badge-primary">مدت پیشنهادی: ۱۴ روز</span>
+              </div>
+              <div class="card-body">
+                <div style="margin-bottom: 1rem;">
+                  <strong>تسک‌های وزن‌دهی شده:</strong>
+                  <ul id="proposal-tasks" style="padding-right: 1.5rem; margin-top: 0.5rem; font-size: 0.88rem;">
+                    <li>استوری اینستاگرام از کافه با درج کد اختصاصی (۵۰ امتیاز)</li>
+                    <li>دعوت دوست با لینک و اولین خرید او (۸۰ امتیاز)</li>
+                    <li>سفارش در ساعات خلوت روز (۴۵ امتیاز)</li>
+                  </ul>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                  <strong>پاداش‌های چندسطحی:</strong>
+                  <ul id="proposal-rewards" style="padding-right: 1.5rem; margin-top: 0.5rem; font-size: 0.88rem;">
+                    <li>سطح ۱ (۱۲۰ امتیاز): قهوه دمی رایگان</li>
+                    <li>سطح ۲ (۲۲۰ امتیاز): ۲۰٪ تخفیف کل فاکتور</li>
+                  </ul>
+                </div>
+                <div class="alert alert-warning" style="margin-bottom: 0;">
+                  <span>🏆 <strong>چالش تکمیلی هوش مصنوعی:</strong> ۳ بار مراجعه در طول مدت کمپین → دریافت ۲۰۰ امتیاز ویژه!</span>
+                </div>
+              </div>
+              <div class="card-footer">
+                <button class="btn btn-outline" onclick="App.showToast('حالت ویرایش تسک‌ها فعال شد.', 'info')">✏️ ویرایش جزییات کمپین</button>
+                <button class="btn btn-success" onclick="launchCampaign()">🚀 تایید و راه‌اندازی کمپین (Launch)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dismiss Reason Modal -->
+  <div id="dismiss-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">رد پیشنهاد هوش مصنوعی</div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; margin-bottom: 1rem;">لطفاً دلیل رد کردن این پیشنهاد را مشخص کنید تا سیستم برای پیشنهادات آینده آن را در نظر بگیرد:</p>
+        <div class="form-group">
+          <select id="dismiss-reason-select" class="form-select">
+            <option value="too_aggressive">بسیار جسورانه یا پرریسک است (Too Aggressive)</option>
+            <option value="not_relevant">نامرتبط با اولویت‌های فعلی من است (Not Relevant)</option>
+            <option value="other">سایر دلایل</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeDismissModal()">انصراف</button>
+        <button class="btn btn-danger" onclick="confirmDismiss()">تایید و رد پیشنهاد</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="shared/mock-data.js"></script>
+  <script src="shared/app.js"></script>
+  <script>
+    document.getElementById('header-root').innerHTML = App.renderHeader('business');
+
+    let currentDismissingId = null;
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      const target = document.getElementById(tabId);
+      if (target) target.style.display = 'block';
+
+      const btnMap = {
+        'dashboard-view': 'tab-dashboard-btn',
+        'insights-view': 'tab-insights-btn',
+        'suggestions-view': 'tab-suggestions-btn',
+        'autopilot-view': 'tab-autopilot-btn',
+        'microsite-builder-view': 'tab-microsite-btn',
+        'settings-view': 'tab-settings-btn',
+        'onboarding-view': 'tab-onboarding-btn'
+      };
+      const activeBtn = document.getElementById(btnMap[tabId]);
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    function renderActiveTasks() {
+      const container = document.getElementById('active-tasks-list');
+      if (!container) return;
+      container.innerHTML = window.MOCK.campaignTasks.map(t => `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border-color);">
+          <div>
+            <strong style="font-size: 0.92rem;">${t.title}</strong>
+            <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
+              روش راستی‌آزمایی: <code>${t.verification_method}</code>
+            </div>
+          </div>
+          <span class="badge badge-info" style="font-size: 0.85rem; font-weight: 700;">+${t.points_value} امتیاز</span>
+        </div>
+      `).join('');
+    }
+
+    function renderActiveRewards() {
+      const container = document.getElementById('active-rewards-list');
+      if (!container) return;
+      container.innerHTML = window.MOCK.campaignRewards.map(r => `
+        <div style="border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-sm); background: #fafbfc;">
+          <span class="badge badge-warning" style="margin-bottom: 0.5rem;">${r.threshold_points} امتیاز لازم</span>
+          <h4 style="margin: 0.25rem 0; font-size: 0.95rem;">${r.title}</h4>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">${r.description}</p>
+        </div>
+      `).join('');
+    }
+
+    function renderInsights() {
+      const container = document.getElementById('insights-cards-container');
+      if (!container) return;
+      container.innerHTML = window.MOCK.insights.map(item => `
+        <div class="card">
+          <div class="card-header">
+            <span class="badge ${item.cadence === 'anomaly' ? 'badge-danger' : item.cadence === 'weekly' ? 'badge-info' : 'badge-secondary'}">
+              ${item.badge_fa}
+            </span>
+          </div>
+          <div class="card-body">
+            <p style="font-weight: 600; margin-bottom: 0.75rem; font-size: 0.92rem;">${item.message}</p>
+            <div class="alert alert-warning" style="margin: 0; font-size: 0.82rem; padding: 0.6rem;">
+              <span>💡 ${item.suggested_action}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderSuggestions() {
+      const container = document.getElementById('suggestions-list-container');
+      if (!container) return;
+
+      const pending = window.MOCK.suggestedChanges.filter(s => s.status === 'pending');
+      document.getElementById('pending-suggestions-badge').textContent = pending.length;
+      document.getElementById('applied-counter-badge').textContent = `تعداد پیشنهادات تایید شده در این نشست: ${App.session.appliedSuggestionsCount}`;
+
+      if (pending.length === 0) {
+        container.innerHTML = `
+          <div class="card" style="text-align: center; padding: 2.5rem;">
+            <p style="color: var(--text-muted);">تمامی پیشنهادات بررسی شده‌اند و مورد جدیدی وجود ندارد.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = pending.map(s => {
+        const isHighRisk = s.risk_tier === 'high';
+        return `
+          <div class="card ${isHighRisk ? 'card-high-risk' : 'card-low-risk'}">
+            <div class="card-header">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="card-title" style="margin: 0;">${s.title}</span>
+                ${App.renderRiskBadge(s.risk_tier)}
+              </div>
+              <span class="badge badge-secondary">کد: ${s.change_type}</span>
+            </div>
+            <div class="card-body">
+              ${isHighRisk ? `
+                <div class="alert alert-danger" style="margin-bottom: 0.75rem; font-size: 0.82rem;">
+                  <span>⚠️ <strong>هشدار اثر مالی:</strong> این پیشنهاد بر میزان تخفیف‌ها یا بودجه تاثیر مستقیم دارد و فراتر از اختیارات خودکار سیستم است.</span>
+                </div>
+              ` : ''}
+              <p style="font-size: 0.92rem; margin-bottom: 0.5rem;"><strong>دلیل هوش مصنوعی:</strong> ${s.rationale}</p>
+              <div style="font-size: 0.85rem; color: var(--text-muted);">
+                مقدار پیشنهادی جدید: <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${JSON.stringify(s.suggested_value)}</code>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="btn btn-outline-danger btn-sm" onclick="promptDismiss('${s.id}')">رد پیشنهاد (Dismiss)</button>
+              <button class="btn btn-success btn-sm" onclick="applySuggestion('${s.id}')">✓ تایید و اعمال پیشنهاد (Apply)</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function applySuggestion(id) {
+      const item = window.MOCK.suggestedChanges.find(s => s.id === id);
+      if (item) {
+        item.status = 'applied';
+        item.applied_by = 'business_owner';
+        App.session.appliedSuggestionsCount++;
+
+        // If it was task_points ct_1
+        if (item.change_type === 'task_points') {
+          const task = window.MOCK.campaignTasks.find(t => t.id === 'ct_1');
+          if (task) task.points_value = item.suggested_value.points;
+        } else if (item.change_type === 'reward_threshold') {
+          const reward = window.MOCK.campaignRewards.find(r => r.id === 'cr_1');
+          if (reward) reward.threshold_points = item.suggested_value.threshold;
+        }
+
+        App.showToast(`پیشنهاد «${item.title}» با موفقیت اعمال شد.`, 'success');
+        updateAutopilotEligibility();
+        renderActiveTasks();
+        renderActiveRewards();
+        renderSuggestions();
+      }
+    }
+
+    function promptDismiss(id) {
+      currentDismissingId = id;
+      document.getElementById('dismiss-modal').style.display = 'flex';
+    }
+
+    function closeDismissModal() {
+      document.getElementById('dismiss-modal').style.display = 'none';
+      currentDismissingId = null;
+    }
+
+    function confirmDismiss() {
+      const reason = document.getElementById('dismiss-reason-select').value;
+      const item = window.MOCK.suggestedChanges.find(s => s.id === currentDismissingId);
+      if (item) {
+        item.status = 'dismissed';
+        item.dismiss_reason = reason;
+        App.showToast('پیشنهاد رد شد و در مدل هوش مصنوعی لحاظ گردید.', 'info');
+      }
+      closeDismissModal();
+      renderSuggestions();
+    }
+
+    function updateAutopilotEligibility() {
+      const count = App.session.appliedSuggestionsCount;
+      const lockBanner = document.getElementById('autopilot-locked-banner');
+      const unlockedSection = document.getElementById('autopilot-unlocked-section');
+      const progressText = document.getElementById('lock-progress-text');
+      const statusBadge = document.getElementById('autopilot-status-badge');
+
+      if (progressText) {
+        progressText.textContent = `پیشرفت فعلی: ${count} از ۳ تایید شده`;
+      }
+
+      if (count >= 3) {
+        if (lockBanner) lockBanner.style.display = 'none';
+        if (unlockedSection) unlockedSection.style.display = 'block';
+        if (statusBadge && !App.session.autopilotActive) {
+          statusBadge.className = 'badge badge-warning';
+          statusBadge.textContent = 'آماده فعال‌سازی';
+        }
+      }
+    }
+
+    function toggleAutopilot(checked) {
+      App.session.autopilotActive = checked;
+      const statusBadge = document.getElementById('autopilot-status-badge');
+      const logContainer = document.getElementById('autopilot-log-container');
+
+      if (checked) {
+        statusBadge.className = 'badge badge-success';
+        statusBadge.textContent = 'فعال (روشن)';
+        logContainer.style.display = 'block';
+        App.showToast('خلبان خودکار فعال شد! هوش مصنوعی تغییرات بهینه‌ساز کم‌ریسک را اعمال می‌کند.', 'success');
+      } else {
+        statusBadge.className = 'badge badge-secondary';
+        statusBadge.textContent = 'غیرفعال';
+        logContainer.style.display = 'none';
+        App.showToast('خلبان خودکار خاموش شد.', 'info');
+      }
+    }
+
+    function undoAutopilotAction() {
+      App.showToast('تغییر اعمال شده توسط Autopilot با موفقیت لغو شد (Undo Complete).', 'success');
+      const btn = document.getElementById('undo-autopilot-btn');
+      btn.disabled = true;
+      btn.textContent = '✓ بازگردانی انجام شد';
+    }
+
+    function topupWallet() {
+      const biz = window.MOCK.businesses[0];
+      biz.sms_wallet_balance_toman += 200000;
+      document.getElementById('sms-balance-display').textContent = App.formatToman(biz.sms_wallet_balance_toman);
+      App.showToast('مبلغ ۲۰۰,۰۰۰ تومان به کیف‌پول پیامک اضافه شد.', 'success');
+    }
+
+    function saveAiConstraints() {
+      const maxDisc = document.getElementById('constraint-max-discount').value;
+      const budget = document.getElementById('constraint-budget-ceiling').value;
+      App.showToast(`قیود جدید ذخیره شد: حداکثر تخفیف ${maxDisc}٪ و سقف بودجه ${App.formatToman(budget)}`, 'success');
+    }
+
+    function handleCategoryChange(catSlug) {
+      const cat = window.MOCK.businessCategories.find(c => c.slug === catSlug);
+      const label = document.getElementById('conditional-question-label');
+      const select = document.getElementById('conditional-answer-select');
+      if (cat) {
+        label.textContent = `پرسش اختصاصی ${cat.name_fa}: ${cat.conditional_question}`;
+        select.innerHTML = cat.conditional_options.map(opt => `<option>${opt}</option>`).join('');
+      }
+    }
+
+    function handleOnboardingSubmit(e) {
+      e.preventDefault();
+      const catSlug = document.getElementById('biz-category-select').value;
+      const goal = document.getElementById('campaign-goal-select').value;
+      const audience = document.getElementById('campaign-audience-input').value;
+
+      document.getElementById('ai-proposal-result').style.display = 'block';
+      document.getElementById('proposal-title').textContent = `کمپین پیشنهادی AI برای صنف ${catSlug} (هدف: ${goal === 'acquisition' ? 'جذب مشتری جدید' : 'حفظ مشتریان'})`;
+      App.showToast('پیشنهاد کمپین توسط هوش مصنوعی تولید شد!', 'success');
+    }
+
+    function launchCampaign() {
+      App.showToast('کمپین با موفقیت ایجاد و فعال شد!', 'success');
+      switchTab('dashboard-view');
+    }
+
+    function renderMicrositeBuilder() {
+      const gallery = document.getElementById('template-gallery-list');
+      if (gallery) {
+        gallery.innerHTML = window.MOCK.websiteTemplates.map(t => `
+          <div style="border: 2px solid ${t.id === 'wt_cafe' ? 'var(--primary)' : 'var(--border-color)'}; padding: 1rem; border-radius: var(--radius-sm); background: #fff;">
+            <div style="height: 110px; background: #e2e8f0; border-radius: var(--radius-sm); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: center; font-size: 2rem;">
+              ☕
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong>${t.name}</strong>
+              <span class="badge ${t.id === 'wt_cafe' ? 'badge-primary' : 'badge-secondary'}">${t.preview_badge}</span>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.5rem 0;">${t.description}</p>
+            <button class="btn ${t.id === 'wt_cafe' ? 'btn-primary' : 'btn-outline'} btn-sm btn-block" onclick="App.showToast('قالب انتخاب شد', 'info')">
+              ${t.id === 'wt_cafe' ? '✓ قالب فعال' : 'انتخاب این قالب'}
+            </button>
+          </div>
+        `).join('');
+      }
+
+      const modulesList = document.getElementById('modules-toggle-list');
+      if (modulesList) {
+        modulesList.innerHTML = window.MOCK.websiteModules.map(m => `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+            <div>
+              <strong style="font-size: 0.88rem;">${m.name_fa}</strong>
+              ${m.default_coffee ? '<span class="badge badge-low-risk" style="margin-right: 6px;">پیشنهاد AI</span>' : ''}
+            </div>
+            <label class="switch-label">
+              <input type="checkbox" class="switch-input" ${m.default_coffee ? 'checked' : ''}>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+        `).join('');
+      }
+    }
+
+    function saveMicrositeModules() {
+      App.showToast('تنظیمات بخش‌های میکروسایت ذخیره شد. پیش‌نمایش به‌روزرسانی شد.', 'success');
+    }
+
+    // Init page
+    renderActiveTasks();
+    renderActiveRewards();
+    renderInsights();
+    renderSuggestions();
+    renderMicrositeBuilder();
+    updateAutopilotEligibility();
+  </script>
+</body>
+</html>
