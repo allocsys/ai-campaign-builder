@@ -350,6 +350,31 @@ Generated insights (plan.md Phase 2).
 | suggested_action | text, nullable | human-readable summary; the actual structured, Apply-able version of this lives in `suggested_changes` (plan.md Phase 3, decided 2026-09-08) |
 | created_at | timestamp | |
 
+### `onboarding_checklist_items` (global config, decided 2026-09-08)
+Defines the "Next Steps" checklist shown on the business owner's Dashboard after launch (plan.md "Post-launch guidance for the business owner") — config-driven like `task_patterns`, so a new checklist item later is a new row, not new code.
+| Field | Type | Notes |
+|---|---|---|
+| item_key | text, PK | e.g. ai_constraints_saved, contacts_imported |
+| label_fa | text | Persian checklist label |
+| description_fa | text | short helper text shown under the label |
+| detection_type | enum | ai_constraints_saved, contacts_imported — maps to the real backend event that auto-completes this item |
+| sort_order | int | display order in the checklist card |
+| active | boolean | lets an item be retired later without deleting historical `business_checklist_progress` rows |
+
+### `business_checklist_progress` (decided 2026-09-08)
+Per-business completion state against `onboarding_checklist_items`. One row per (business, item) pair, seeded when the business is created.
+| Field | Type | Notes |
+|---|---|---|
+| business_id | uuid | FK → businesses |
+| item_key | text | FK → onboarding_checklist_items |
+| completed_at | timestamp, nullable | set automatically when the item's detection event fires — never set by a manual user click (plan.md: auto-detected, not self-reported) |
+
+Composite PK (business_id, item_key). Detection triggers:
+- `ai_constraints_saved` — set the first time `business_ai_constraints` is inserted/updated for that business.
+- `contacts_imported` — set on the first `business_contacts` row created for that business (source = manual_upload or self_joined).
+
+Dashboard queries this table to render the checklist card, and auto-hides it once every active item for the business has a non-null `completed_at`.
+
 ### `business_ai_constraints` (decided 2026-09-08)
 One-time (editable) guardrails a business owner sets, which the AI must respect when generating Phase 3 suggestions (plan.md Phase 3 "What the business owner tells the AI"). One row per business.
 | Field | Type | Notes |
