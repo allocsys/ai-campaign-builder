@@ -34,6 +34,7 @@ The business owner account.
 | sms_wallet_balance_toman | numeric | default 0 (plan.md "SMS cost control") — prepaid credit; SMS sends deduct from this, skipped if insufficient |
 | sms_monthly_cap_toman | numeric, nullable | optional hard cap on SMS spend per calendar month (plan.md "Optional monthly spending cap"); null = no cap, governed by wallet balance alone. Enforced by summing current month's `deduction` rows in `sms_wallet_transactions` before each send |
 | instagram_handle | text, nullable | used for size-tier signal if connected |
+| autopilot_enabled | boolean | default false (plan.md Phase 4) — explicit opt-in, only offered in UI once the business has 3+ manually-applied `suggested_changes`; can be switched off anytime |
 | size_tier | enum, computed | micro / small / medium / large (see plan.md size-tier mapping) |
 | created_at | timestamp | |
 
