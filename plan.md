@@ -68,9 +68,13 @@ Every customer who joins a campaign (signs up, typically via phone number) gets 
 - Manual-only admin review doesn't scale once there are many businesses/customers — AI review as the primary check, with the option to spot-check manually later if fraud patterns emerge.
 - The personal code embedded in shared content solves what a screenshot alone can't: proving *which* customer posted it, not just that *a* post exists.
 
+### POS-side UX (decided 2026-09-07)
+- **Staff device:** primary is a **web app (PWA)** on the staff's own phone/tablet — no install, no app-store friction, works on whatever device the business already has. A dedicated installable app is offered as a secondary option later (from app stores), but web-first is the priority since it removes onboarding friction for small businesses.
+- **Code entry:** **hybrid** — QR is the primary method (staff scans with phone camera via the PWA, fastest path), with a **short numeric backup code** always available on the customer's screen in case the QR scan fails (bad lighting, camera issue, no data connection to load the QR image, etc.). Staff can type the short code manually as a fallback without breaking the checkout flow.
+
 ### Open follow-up (needs implementation-level design, not blocking)
-- Exact UX for staff at POS (dedicated small app? web page accessible from any phone/tablet at checkout? manual code entry as fallback if QR scan fails?)
 - What the AI vision review flags as pass/fail/uncertain, and what happens on "uncertain" (auto-reject, hold for manual review, or auto-approve with low weight?)
+- Offline handling: what happens if the staff device has no internet at the moment of checkout (queue locally and sync later, or block the scan)?
 
 ---
 
