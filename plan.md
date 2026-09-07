@@ -73,6 +73,13 @@ Covers the common real-world case: staff or customer forgets to scan/enter the c
   - **Rate limiting:** cap how many retroactive claims one customer can submit in a given period, to blunt repeated abuse attempts.
   - **Default to more cautious review** than the direct-scan path — since there's no staff witness, retroactive claims should lean toward manual review (or a stricter AI confidence threshold) rather than being auto-approved as easily as a live POS scan.
 
+### Point expiry & carryover (decided 2026-09-07)
+Hybrid approach — not a clean pick of "expire" vs "carry over", but both combined:
+1. **2-day grace period after campaign end.** Once a campaign's end_date passes, customers keep full access to their remaining point balance for 2 more days — they can still redeem any reward they've already earned enough for. An "ending soon" style notification (reusing the Phase 0.75 notification infrastructure) should also fire once the grace period itself is about to close, so customers don't lose track of the deadline.
+2. **After the grace period, 30% of the remaining balance carries over; 70% is forfeited.** Whatever points a customer hasn't redeemed by the end of the grace window: 70% expires outright, and 30% is preserved as a **carryover credit** tied to that customer + business (not a specific future campaign, since the next campaign doesn't exist yet).
+3. **Carryover is applied automatically when the same customer joins that business's next campaign** — the moment they get a new personal code for the new campaign, any pending carryover credit from a prior campaign of the same business is added to their new campaign's point balance as a starting bonus. Carryover credit has no separate expiry of its own once granted — it just becomes normal points in whatever campaign consumes it, subject to that campaign's own expiry rules.
+4. If the business never runs another campaign, the carryover credit simply sits unconsumed — no separate cleanup logic needed for v1.
+
 ### Referral abuse prevention (decided 2026-09-07)
 Three layers, all active in v1:
 1. **OTP phone verification at signup** — applies to every customer joining any campaign (not referral-specific), not just referrals. A phone number must be confirmed via SMS OTP before the signup counts as real. This is the baseline identity check the other two layers build on — without it, self-referral via a second unverified number would be nearly free.
@@ -222,7 +229,7 @@ No auto-apply in this phase. Just surfaced insights.
 - [x] How does a business import its initial customer contacts? — **decided: hybrid, manual CSV/Excel upload + public join link/QR** (see Phase 0.75 "Initial audience acquisition" above; new `business_contacts` table in architecture.md).
 - [x] Physical reward fulfillment — **decided: one-time, short-lived redemption code/QR generated on Redeem tap**, separate from the standing personal campaign code (see Phase 0.5 "Reward redemption fulfillment" above).
 - [x] Referral abuse prevention — **decided: three layers, all v1 — OTP phone verification at signup, referral reward gated on referred customer's first purchase (not just signup), and a per-campaign cap on referrals counted per referrer** (see Phase 0.5 "Referral abuse prevention" above).
-- [ ] Do unused points expire when a campaign ends, or carry over? If they expire, how/when is the customer warned?
+- [x] Point expiry — **decided: hybrid — 2-day grace period after campaign end, then 70% of remaining points forfeited and 30% preserved as a carryover credit automatically applied when the customer joins the same business's next campaign** (see Phase 0.5 "Point expiry & carryover" above).
 - [ ] Revenue/pricing model: how does this product itself make money from businesses (subscription, per-campaign fee, take-rate on rewards, etc.)?
 - [ ] Business owner authentication & onboarding: how does a business sign up / log in to the platform itself (separate from the customer-facing campaign flow)?
 - [ ] SMS budget/cost control: since SMS has a real per-message cost, does a business need a spending cap or usage limit on notification sends?
