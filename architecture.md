@@ -242,6 +242,13 @@ The curated template gallery businesses pick from — config-driven like task/re
 | preview_image_url | text | shown in the template picker |
 | theme_identifier | text | maps to the actual frontend theme/component set used at render time |
 
+### `website_template_categories` (decided 2026-09-08)
+Many-to-many join so the template gallery can be filtered by business category (a template can suit more than one category). Business owner only sees templates joined to their own `businesses.category_id`.
+| Field | Type | Notes |
+|---|---|---|
+| website_template_id | uuid | FK → website_templates |
+| business_category_id | uuid | FK → business_categories |
+
 ### `website_modules` (global config, decided 2026-09-08)
 Reusable content sections a microsite can be composed of (plan.md "Business microsite scope") — same config-driven pattern as `task_patterns`. Adding a new module type is a new row, not new code.
 | Field | Type | Notes |
