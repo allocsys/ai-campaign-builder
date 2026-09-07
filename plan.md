@@ -285,7 +285,7 @@ A structured `suggested_changes` row per suggestion (see architecture.md) — no
   5. **`mid_campaign_reminder`** — fires once per customer per campaign, at the campaign's halfway point (50% of `campaigns` duration elapsed), only if that customer hasn't completed any task yet. Nudges inactive joiners rather than spamming already-engaged ones.
   6. **`referral_joined`** — fires immediately to the referrer when a new customer signs up using their referral code (i.e. `customer_campaign_codes.referred_by_code_id` gets set) — a quick "your friend joined!" ping. Distinct from the eventual points-awarded moment (once the referred customer's first purchase clears), which is already covered by the existing `submission_reviewed` trigger — so this is purely an early encouragement message, not a payout notice.
   Both follow the same config-driven `notification_templates` (trigger_type × channel → template) pattern as the original 4 — no new architecture needed beyond adding two enum values and template rows.
-- [ ] Phase 3 (AI-suggested changes with an Apply button) — conceptually described in the plan but not specified at implementation depth; needs real design now.
+- [x] Phase 3 (AI-suggested changes with an Apply button) — **designed 2026-09-08**, see the Phase 3 section above for full detail (inputs the AI reviews, owner-set constraints, two risk tiers, `suggested_changes` Apply mechanism).
 - [ ] Phase 4 (opt-in autopilot) — same: conceptually described, needs real design now if it's going into the main build rather than a true future phase.
 
 **Newly surfaced (2026-09-07), not yet resolved:**
