@@ -182,6 +182,31 @@ Append-only transaction log — the source of truth for a customer's point balan
 | sample_size | int | |
 | updated_at | timestamp | |
 
+### `subscription_plans` (global config, decided 2026-09-07)
+One row per size tier — reuses the existing Micro/Small/Medium/Large tiers (plan.md decision #3) as the subscription pricing tiers too.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| tier | enum | micro, small, medium, large — matches businesses.size_tier |
+| monthly_price_toman | numeric | exact price points TBD (business/finance decision, plan.md Phase 0.9) |
+
+### `business_subscriptions`
+A business's current subscription status against a plan.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| business_id | uuid | FK → businesses |
+| subscription_plan_id | uuid | FK → subscription_plans |
+| status | enum | trialing, active, past_due, cancelled |
+| current_period_start / current_period_end | timestamp | |
+
+### `sms_pricing` (global config)
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| price_per_sms_toman | numeric | exact rate TBD; kept as its own config row (not hardcoded) so pricing can change without a migration |
+| effective_from | timestamp | supports future rate changes without losing history |
+
 ### `business_contacts` (decided 2026-09-07)
 A business's raw phone-number list, independent of campaign enrollment — feeds the campaign_invite notification. Not the same as `customers`/`customer_campaign_codes`, which only exist once someone has actually joined a campaign.
 | Field | Type | Notes |
@@ -212,6 +237,8 @@ A business's deployed instance of a chosen template. One business can have at mo
 | content | jsonb | logo_url, tagline, description, image_urls, contact_info — the only business-editable fields within the fixed template |
 | featured_campaign_id | uuid, nullable | FK → campaigns — which campaign's public_join_slug/QR is embedded on the site |
 | published | boolean | default false until business confirms |
+| addon_monthly_price_toman | numeric | the separate optional add-on fee for having a microsite (plan.md Phase 0.9); exact price TBD |
+| addon_status | enum | active, cancelled — independent of the main business_subscriptions status, since the microsite is opt-in on top of the base tier subscription |
 | created_at / updated_at | timestamp | |
 
 ### `point_carryovers` (decided 2026-09-07)
@@ -245,6 +272,7 @@ One row per actual send attempt — audit trail + delivery status.
 | channel | enum | sms, telegram (denormalized copy for quick filtering) |
 | status | enum | sent, failed, skipped (skipped = telegram attempted but customer not opted in) |
 | provider_message_id | text, nullable | id returned by SMS gateway / Telegram Bot API, for delivery-status lookups |
+| cost_toman | numeric, nullable | populated for channel=sms from sms_pricing at send time (plan.md Phase 0.9 — SMS billed separately by volume); null for telegram (bundled/free) |
 | sent_at | timestamp | |
 
 ### `insights`
