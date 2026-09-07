@@ -322,7 +322,7 @@ Config-driven, like `category_pattern_weights` — adding a trigger or channel l
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid | PK |
-| trigger_type | enum | campaign_invite, ending_soon, reward_unlocked, submission_reviewed, mid_campaign_reminder, referral_joined (v1's 6 triggers, last two added 2026-09-08) |
+| trigger_type | enum | campaign_invite, ending_soon, reward_unlocked, submission_reviewed, mid_campaign_reminder, referral_joined, autopilot_change_applied (7 triggers; last three added 2026-09-08). `autopilot_change_applied` (plan.md Phase 4) goes to the business owner, not customers — tells them what autopilot just changed and links to the Undo action |
 | channel | enum | sms, telegram |
 | body_template | text | supports placeholders, e.g. {{business_name}}, {{reward_description}} |
 
