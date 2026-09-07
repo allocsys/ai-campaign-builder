@@ -196,7 +196,7 @@ No auto-apply in this phase. Just surfaced insights.
 ## Open Questions / To Decide
 
 **Newly surfaced (2026-09-07), not yet resolved:**
-- [ ] How does a business import its initial customer contacts (for the campaign-invite notification)? Manual list upload, Instagram connector, phone contacts, or a combination?
+- [x] How does a business import its initial customer contacts? — **decided: hybrid, manual CSV/Excel upload + public join link/QR** (see Phase 0.75 "Initial audience acquisition" above; new `business_contacts` table in architecture.md).
 - [ ] Physical reward fulfillment: when a customer redeems, how does in-store staff verify/confirm the redemption is legitimate? (Likely reuses the personal code/QR from Phase 0.5, but not yet specified.)
 - [ ] Referral abuse prevention: what stops a customer from self-referring via a second phone number to double-dip on referral rewards?
 - [ ] Do unused points expire when a campaign ends, or carry over? If they expire, how/when is the customer warned?
