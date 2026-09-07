@@ -250,6 +250,15 @@ No auto-apply in this phase. Just surfaced insights.
 
 ## Open Questions / To Decide
 
+**Reclassified from "later/v2" to "main version, under review" (2026-09-07)** — project has no separate MVP stage, going straight to the full build, so these previously-deferred items are being brought forward for the same one-at-a-time review process:
+- [ ] Installable staff app (beyond the PWA) — build now as part of the main version, or is PWA-only still sufficient?
+- [ ] Referral anomaly detection (suspicious referral-cluster pattern matching) — was noted as "good Phase 2+ addition"; needs its actual detection logic/rules defined for the main version.
+- [ ] Monthly SMS spending cap on top of the prepaid wallet — was left as "add later if requested"; decide now whether it's needed alongside the wallet.
+- [ ] Business microsite as a real multi-page site/CMS (vs. the current fixed-template gallery) — was explicitly scoped out; revisit whether the main version should support this.
+- [ ] Additional notification triggers (mid-campaign task reminders, referral-success pings) beyond the current 4 — were left as "can add later"; decide if they belong in the main version.
+- [ ] Phase 3 (AI-suggested changes with an Apply button) — conceptually described in the plan but not specified at implementation depth; needs real design now.
+- [ ] Phase 4 (opt-in autopilot) — same: conceptually described, needs real design now if it's going into the main build rather than a true future phase.
+
 **Newly surfaced (2026-09-07), not yet resolved:**
 - [x] How does a business import its initial customer contacts? — **decided: hybrid, manual CSV/Excel upload + public join link/QR** (see Phase 0.75 "Initial audience acquisition" above; new `business_contacts` table in architecture.md).
 - [x] Physical reward fulfillment — **decided: one-time, short-lived redemption code/QR generated on Redeem tap**, separate from the standing personal campaign code (see Phase 0.5 "Reward redemption fulfillment" above).
