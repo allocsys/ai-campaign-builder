@@ -31,6 +31,7 @@ The business owner account.
 | phone | text, unique | also the login identity — business owner authenticates via phone + SMS OTP only (plan.md "Business owner authentication"), no email/password |
 | phone_verified | boolean | default false — set true once owner confirms an SMS OTP |
 | phone_verified_at | timestamp, nullable | |
+| sms_wallet_balance_toman | numeric | default 0 (plan.md "SMS cost control") — prepaid credit; SMS sends deduct from this, skipped if insufficient |
 | instagram_handle | text, nullable | used for size-tier signal if connected |
 | size_tier | enum, computed | micro / small / medium / large (see plan.md size-tier mapping) |
 | created_at | timestamp | |
@@ -201,6 +202,18 @@ A business's current subscription status against a plan.
 | subscription_plan_id | uuid | FK → subscription_plans |
 | status | enum | trialing, active, past_due, cancelled |
 | current_period_start / current_period_end | timestamp | |
+
+### `sms_wallet_transactions`
+Audit trail of prepaid wallet activity — top-ups and deductions.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| business_id | uuid | FK → businesses |
+| type | enum | topup, deduction |
+| amount_toman | numeric | positive for topup, negative for deduction |
+| notification_log_id | uuid, nullable | FK → notifications_log — set for deduction rows, linking the charge to the specific SMS sent |
+| balance_after_toman | numeric | wallet balance snapshot right after this transaction |
+| created_at | timestamp | |
 
 ### `sms_pricing` (global config)
 | Field | Type | Notes |
