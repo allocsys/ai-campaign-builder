@@ -28,7 +28,9 @@ The business owner account.
 | id | uuid | PK |
 | name | text | |
 | category_id | uuid | FK → business_categories (was a hardcoded enum, changed 2026-09-07 for migration-free category additions) |
-| phone | text | |
+| phone | text, unique | also the login identity — business owner authenticates via phone + SMS OTP only (plan.md "Business owner authentication"), no email/password |
+| phone_verified | boolean | default false — set true once owner confirms an SMS OTP |
+| phone_verified_at | timestamp, nullable | |
 | instagram_handle | text, nullable | used for size-tier signal if connected |
 | size_tier | enum, computed | micro / small / medium / large (see plan.md size-tier mapping) |
 | created_at | timestamp | |
