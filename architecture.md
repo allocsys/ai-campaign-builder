@@ -5,7 +5,7 @@ Companion to `plan.md`. This translates the product decisions in plan.md into a 
 ## Stack
 - **Backend:** Node.js / TypeScript
 - **Database:** PostgreSQL
-- **Staff POS interface:** Web app (PWA), works on any phone/tablet, no install required
+- **Staff POS interface:** Web app (PWA), works on any phone/tablet, no install required. **Decided 2026-09-08:** stays PWA-only for the main version (no native app built now), but the backend is API-first — the PWA is just one client consuming documented REST endpoints (auth, code scan, offline sync, reward fulfillment), with no PWA-specific logic embedded in the business layer. This means a native app (Android/iOS) can be added later purely as an additional client, no backend rework needed.
 
 ---
 
