@@ -95,6 +95,8 @@ A person, identified by phone number, independent of any one campaign.
 |---|---|---|
 | id | uuid | PK |
 | phone_number | text, unique | primary identity |
+| telegram_chat_id | text, nullable | set once customer starts a conversation with our Telegram bot (plan.md Phase 0.75 opt-in flow) |
+| telegram_opted_in | boolean | default false; Telegram sends only happen if true, SMS always sends regardless |
 | created_at | timestamp | |
 
 ### `customer_campaign_codes`
@@ -167,6 +169,27 @@ Append-only transaction log — the source of truth for a customer's point balan
 | completion_rate | numeric | |
 | sample_size | int | |
 | updated_at | timestamp | |
+
+### `notification_templates` (global config, plan.md Phase 0.75)
+Config-driven, like `category_pattern_weights` — adding a trigger or channel later is a new row, not new code.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| trigger_type | enum | campaign_invite, ending_soon, reward_unlocked, submission_reviewed (v1's 4 triggers) |
+| channel | enum | sms, telegram |
+| body_template | text | supports placeholders, e.g. {{business_name}}, {{reward_description}} |
+
+### `notifications_log`
+One row per actual send attempt — audit trail + delivery status.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| customer_campaign_code_id | uuid | FK → customer_campaign_codes |
+| notification_template_id | uuid | FK → notification_templates |
+| channel | enum | sms, telegram (denormalized copy for quick filtering) |
+| status | enum | sent, failed, skipped (skipped = telegram attempted but customer not opted in) |
+| provider_message_id | text, nullable | id returned by SMS gateway / Telegram Bot API, for delivery-status lookups |
+| sent_at | timestamp | |
 
 ### `insights`
 Generated insights (plan.md Phase 2).
