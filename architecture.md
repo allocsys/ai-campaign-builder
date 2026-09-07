@@ -314,7 +314,7 @@ Config-driven, like `category_pattern_weights` — adding a trigger or channel l
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid | PK |
-| trigger_type | enum | campaign_invite, ending_soon, reward_unlocked, submission_reviewed (v1's 4 triggers) |
+| trigger_type | enum | campaign_invite, ending_soon, reward_unlocked, submission_reviewed, mid_campaign_reminder, referral_joined (v1's 6 triggers, last two added 2026-09-08) |
 | channel | enum | sms, telegram |
 | body_template | text | supports placeholders, e.g. {{business_name}}, {{reward_description}} |
 
