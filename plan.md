@@ -152,6 +152,18 @@ For businesses that don't already have a website: an **optional** extra beyond t
 
 ---
 
+## Phase 0.9 — Pricing & Revenue Model — decided 2026-09-07
+
+Three components, combined:
+
+1. **Monthly subscription, priced by size tier.** Reuses the existing Micro/Small/Medium/Large size-tier system (plan.md decision #3) — each tier has its own monthly subscription price. This covers ongoing access to the core campaign builder (onboarding flow, task/reward generation, dashboard, insights).
+2. **SMS billed separately, by volume.** SMS has a real per-message cost to us, so it's **not** bundled into the flat subscription — businesses are billed based on actual SMS notification volume sent (plan.md Phase 0.75 notification triggers). Telegram sends stay free/bundled since they don't carry a comparable per-message cost.
+3. **Business microsite is a separate optional add-on fee.** The template-based landing page/website (plan.md Phase 0.75 "Business microsite") is not included in the base subscription — a business that wants one pays an additional add-on charge on top of their tier subscription.
+
+Not decided yet / left for implementation: exact price points per tier, exact SMS per-message rate, and exact microsite add-on price — these are business/finance decisions to set closer to launch, not architecture. What's fixed here is the **shape** of the pricing model (tier subscription + metered SMS + optional paid add-on), so the schema can be built now.
+
+---
+
 ## Phase 1 — Abstraction Layer (Task & Reward Patterns)
 
 Instead of hardcoding tasks/rewards per business type, define reusable behavioral patterns and weight them per category. This keeps the system scalable — adding a new business type later means adjusting weights, not building a new task/reward set.
@@ -230,7 +242,7 @@ No auto-apply in this phase. Just surfaced insights.
 - [x] Physical reward fulfillment — **decided: one-time, short-lived redemption code/QR generated on Redeem tap**, separate from the standing personal campaign code (see Phase 0.5 "Reward redemption fulfillment" above).
 - [x] Referral abuse prevention — **decided: three layers, all v1 — OTP phone verification at signup, referral reward gated on referred customer's first purchase (not just signup), and a per-campaign cap on referrals counted per referrer** (see Phase 0.5 "Referral abuse prevention" above).
 - [x] Point expiry — **decided: hybrid — 2-day grace period after campaign end, then 70% of remaining points forfeited and 30% preserved as a carryover credit automatically applied when the customer joins the same business's next campaign** (see Phase 0.5 "Point expiry & carryover" above).
-- [ ] Revenue/pricing model: how does this product itself make money from businesses (subscription, per-campaign fee, take-rate on rewards, etc.)?
+- [x] Revenue/pricing model — **decided: monthly subscription priced by size tier + SMS billed separately by volume + business microsite as a separate optional paid add-on** (see new Phase 0.9 "Pricing & Revenue Model" above). Exact price points left for a later business/finance decision.
 - [ ] Business owner authentication & onboarding: how does a business sign up / log in to the platform itself (separate from the customer-facing campaign flow)?
 - [ ] SMS budget/cost control: since SMS has a real per-message cost, does a business need a spending cap or usage limit on notification sends?
 
