@@ -162,6 +162,14 @@ Three components, combined:
 
 Not decided yet / left for implementation: exact price points per tier, exact SMS per-message rate, and exact microsite add-on price — these are business/finance decisions to set closer to launch, not architecture. What's fixed here is the **shape** of the pricing model (tier subscription + metered SMS + optional paid add-on), so the schema can be built now.
 
+### SMS cost control: prepaid wallet (decided 2026-09-07)
+Since SMS is billed by volume (not flat-rate), a business needs a way to control spend so a high-traffic campaign can't produce a surprise bill. Chosen: **prepaid credit wallet**, familiar territory for this market (similar to how existing Iranian SMS gateway panels work).
+- Business tops up their SMS wallet in advance (amount TBD/flexible).
+- Every SMS notification (campaign_invite, ending_soon, reward_unlocked, submission_reviewed — plan.md Phase 0.75) deducts its cost (from `sms_pricing`) from the wallet balance at send time.
+- If the wallet balance is insufficient to cover a send, that specific SMS is **skipped** (not sent, not charged) — it does **not** block the rest of the platform (campaign still runs, Telegram sends for opted-in customers still go out since Telegram is free/bundled).
+- The business should be alerted when their wallet runs low/out (via Telegram to the owner or the dashboard, since SMS itself may be unavailable at zero balance) so they can top up.
+- No monthly spending cap on top of this for v1 — the prepaid nature is itself the spend control (can't overspend what hasn't been loaded); a configurable monthly cap can be added later if requested.
+
 ---
 
 ### Business owner authentication (decided 2026-09-07)
@@ -249,7 +257,7 @@ No auto-apply in this phase. Just surfaced insights.
 - [x] Point expiry — **decided: hybrid — 2-day grace period after campaign end, then 70% of remaining points forfeited and 30% preserved as a carryover credit automatically applied when the customer joins the same business's next campaign** (see Phase 0.5 "Point expiry & carryover" above).
 - [x] Revenue/pricing model — **decided: monthly subscription priced by size tier + SMS billed separately by volume + business microsite as a separate optional paid add-on** (see new Phase 0.9 "Pricing & Revenue Model" above). Exact price points left for a later business/finance decision.
 - [x] Business owner authentication — **decided: phone number + SMS OTP only**, no email/password (see new "Business owner authentication" section above).
-- [ ] SMS budget/cost control: since SMS has a real per-message cost, does a business need a spending cap or usage limit on notification sends?
+- [x] SMS budget/cost control — **decided: prepaid SMS wallet** — business tops up credit in advance, each SMS deducts its cost, sends are skipped (not blocked/charged) if balance is insufficient (see Phase 0.9 "SMS cost control" above).
 
 ---
 
