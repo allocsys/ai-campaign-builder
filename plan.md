@@ -121,7 +121,10 @@ No auto-apply in this phase. Just surfaced insights.
 ## Open Questions / To Decide
 - [x] Final list of business categories for v1 — **decided: 6 categories (see Phase 0 above)**
 - [x] Exact weighting values per pattern per category — **decided: v1 draft table set (9 patterns, see Phase 1 above), intuition-based, to refine once real campaign data exists**
-- [ ] How campaign duration/points scale with business size (small shop vs. large chain)
+- [x] How campaign duration/points scale with business size — **decided: hybrid proxy, no extra onboarding question:**
+  1. **Primary signal (if a connector is linked):** follower count / existing customer count from Instagram or the business's app. Higher count → scale up points/budget/duration.
+  2. **Fallback signal (always available):** infer from the offer/budget the owner types in Q4 ("چه چیزی می‌تونی بدی؟") — e.g. a flat discount amount or free-item cost implies a rough per-customer cost ceiling, which caps how many points/tasks make sense before the reward becomes unprofitable.
+  3. No dedicated "business size" question is added to onboarding — keeps the 30-second flow intact. Needs a simple size-tier mapping (e.g. small/medium/large → point multiplier + suggested duration) to be defined during implementation.
 - [ ] Data source for "benchmark" credibility (real campaign data vs. reasonable defaults) — needed so AI suggestions don't feel generic/templated
 - [ ] Metric definitions for Phase 2 insights (what counts as "low completion rate", etc.)
 
