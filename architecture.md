@@ -11,13 +11,23 @@ Companion to `plan.md`. This translates the product decisions in plan.md into a 
 
 ## Core Entities
 
+### `business_categories` (lookup table, decided 2026-09-07)
+Replaces a hardcoded `category` enum so a new category can be added later via a plain row insert, no schema migration needed.
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| slug | text, unique | e.g. coffee_shop, clothing, restaurant, online_store, gym, beauty_clinic (v1's 6 seed rows) |
+| name_fa | text | Persian display name |
+| active | boolean | lets a category be retired without deleting historical data |
+| created_at | timestamp | |
+
 ### `businesses`
 The business owner account.
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid | PK |
 | name | text | |
-| category | enum | coffee_shop, clothing, restaurant, online_store, gym, beauty_clinic (v1's 6 categories) |
+| category_id | uuid | FK → business_categories (was a hardcoded enum, changed 2026-09-07 for migration-free category additions) |
 | phone | text | |
 | instagram_handle | text, nullable | used for size-tier signal if connected |
 | size_tier | enum, computed | micro / small / medium / large (see plan.md size-tier mapping) |
@@ -50,7 +60,7 @@ The 9 base patterns from plan.md Phase 1. Seeded once, not created per business.
 The weighting table from plan.md Phase 1 — one row per (category, pattern) pair.
 | Field | Type | Notes |
 |---|---|---|
-| business_category | enum | |
+| business_category_id | uuid | FK → business_categories (was enum, see decision above) |
 | task_pattern_id | uuid | FK → task_patterns |
 | weight | int (0-3) | drives which patterns get suggested/how prominently |
 
@@ -139,7 +149,7 @@ Append-only transaction log — the source of truth for a customer's point balan
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid | PK |
-| business_category | enum | |
+| business_category_id | uuid | FK → business_categories (was enum, see decision above) |
 | task_pattern_id | uuid | FK → task_patterns |
 | source | enum | industry_data (Phase A), early_adopter (Phase B) |
 | completion_rate | numeric | |
@@ -174,6 +184,6 @@ businesses 1──* campaigns 1──* campaign_tasks *──1 task_patterns
 ```
 
 ## Open implementation questions (not blocking, to resolve during build)
-- [ ] Exact enum values / migration strategy for adding a 7th business category later (v2, e.g. beauty clinic already in v1 — next candidates unspecified)
+- [x] **Decided (2026-09-07):** business category moved from a hardcoded enum to a `business_categories` lookup table (see above). Adding a 7th+ category later is a plain row insert, no migration. `businesses.category_id`, `category_pattern_weights.business_category_id`, and `benchmark_stats.business_category_id` all FK into it; the 6 v1 categories are seed rows.
 - [ ] Where AI screenshot review actually runs (separate microservice vs inline API call) — affects `task_submissions.ai_confidence_score` population flow
 - [ ] Whether `points_ledger` also needs a `redeemed_reward_id` reference for tracking which reward a redemption paid for
