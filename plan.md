@@ -114,6 +114,12 @@ Rather than hardcoding channel-specific logic per event, follow the same abstrac
 
 Other candidate triggers (task reminders mid-campaign, referral-success pings) were not requested for v1 — can be added later as more `notification_templates` rows, no architecture change needed.
 
+### Initial audience acquisition (decided 2026-09-07) — hybrid
+The campaign_invite trigger needs a list of phone numbers to send to. Two complementary sources, both v1:
+1. **Manual list upload** — business uploads a CSV/Excel of existing customer phone numbers during onboarding or before launch. Covers businesses that already keep a contact list (POS exports, WhatsApp groups, etc.).
+2. **Public join link / QR** — every campaign gets a shareable public link + QR code (for Instagram bio, a printed poster in-store, etc.) that lets a new customer self-join directly — enters their phone number, gets their personal code, no pre-existing contact record needed. This is the primary path for businesses with no list at all, and it also keeps growing the contact base after initial launch, not just at launch time.
+Instagram-follower-list import was explicitly ruled out — Instagram's API doesn't expose follower phone numbers/DMs for this kind of use, so it only works for the existing size-tier follower *count* signal (plan.md decision #3), not for actually reaching people.
+
 ---
 
 ## Phase 1 — Abstraction Layer (Task & Reward Patterns)
