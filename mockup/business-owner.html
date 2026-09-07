@@ -641,9 +641,23 @@
       const container = document.getElementById('suggestions-list-container');
       if (!container) return;
 
-      const pending = window.MOCK.suggestedChanges.filter(s => s.status === 'pending');
+      const allSuggestions = window.MOCK.suggestedChanges || [];
+      const pending = allSuggestions.filter(s => s.status === 'pending');
       document.getElementById('pending-suggestions-badge').textContent = pending.length;
       document.getElementById('applied-counter-badge').textContent = `تایید شده در این نشست: ${App.session.appliedSuggestionsCount}`;
+
+      if (allSuggestions.length === 0) {
+        container.innerHTML = `
+          <div class="card">
+            <div class="empty-state">
+              <div class="empty-state-icon">⚡</div>
+              <h3>هنوز پیشنهادی تولید نشده</h3>
+              <p>پیشنهادهای هوشمند بر اساس بینش‌های فاز ۲ (تب قبلی) ساخته می‌شن، پس وقتی اولین بینش آماده بشه، پیشنهادها هم اینجا ظاهر می‌شن.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
 
       if (pending.length === 0) {
         container.innerHTML = `
