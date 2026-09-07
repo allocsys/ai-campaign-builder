@@ -32,6 +32,7 @@ The business owner account.
 | phone_verified | boolean | default false — set true once owner confirms an SMS OTP |
 | phone_verified_at | timestamp, nullable | |
 | sms_wallet_balance_toman | numeric | default 0 (plan.md "SMS cost control") — prepaid credit; SMS sends deduct from this, skipped if insufficient |
+| sms_monthly_cap_toman | numeric, nullable | optional hard cap on SMS spend per calendar month (plan.md "Optional monthly spending cap"); null = no cap, governed by wallet balance alone. Enforced by summing current month's `deduction` rows in `sms_wallet_transactions` before each send |
 | instagram_handle | text, nullable | used for size-tier signal if connected |
 | size_tier | enum, computed | micro / small / medium / large (see plan.md size-tier mapping) |
 | created_at | timestamp | |
