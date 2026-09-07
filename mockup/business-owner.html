@@ -606,6 +606,20 @@
     function renderInsights() {
       const container = document.getElementById('insights-cards-container');
       if (!container) return;
+
+      if (!window.MOCK.insights || window.MOCK.insights.length === 0) {
+        container.innerHTML = `
+          <div class="card">
+            <div class="empty-state">
+              <div class="empty-state-icon">💡</div>
+              <h3>هنوز بینشی برای نمایش نیست</h3>
+              <p>بینش‌های هوش مصنوعی معمولاً از ۳ تا ۵ روز بعد از شروع کمپین، وقتی داده رفتاری کافی جمع بشه، اینجا ظاهر می‌شن.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
       container.innerHTML = window.MOCK.insights.map(item => `
         <div class="card">
           <div class="card-header">
