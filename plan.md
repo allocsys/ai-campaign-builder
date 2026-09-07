@@ -140,7 +140,7 @@ No auto-apply in this phase. Just surfaced insights.
   **Signal conflict rule:** if the follower/customer signal and the offer-budget signal point to different tiers, use the **higher** tier (assume more available resources rather than being conservative).
 - [x] Data source for "benchmark" credibility — **decided: hybrid, run in parallel:**
   1. **Phase A (launch placeholder):** pull general industry/marketing data (loyalty program reports, retail & F&B marketing studies) to set reasonable initial defaults (e.g. typical acquisition discount %, typical referral task completion rates). Available immediately, but generic/not Iran-market-specific.
-2. **Phase B (parallel, ongoing):** onboard a small batch of real early-adopter businesses (~5–10, free, manual/pre-product) from day one, run real campaigns manually (tracked via spreadsheet/WhatsApp, not the actual app — no need to wait for the product to be built), collect real completion/conversion data.
+  2. **Phase B (parallel, ongoing):** onboard a small batch of real early-adopter businesses (~5–10, free, manual/pre-product) from day one, run real campaigns manually (tracked via spreadsheet/WhatsApp, not the actual app — no need to wait for the product to be built), collect real completion/conversion data.
 
      **Early-adopter acquisition plan (v1):**
      - **Scope:** 1–2 businesses from each of the 6 v1 categories (roughly 6–12 total) rather than concentrating in just one or two categories — gives at least a thin data point per category instead of leaving some categories with zero real signal.
