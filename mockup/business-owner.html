@@ -1292,6 +1292,88 @@
       renderSendsLog();
     }
 
+    // --- Point expiry & carryover simulation (plan.md Phase 0.5, decided 2026-09-08) ---
+    function simulateCarryoverDemo() {
+      const bizId = window.MOCK.businesses[0].id;
+      const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId) || window.MOCK.campaigns[0];
+      const results = App.simulateCampaignEndCarryover(activeCampaign);
+      renderCarryoverResults(results, activeCampaign);
+      renderPendingCarryovers();
+      if (results.length > 0) {
+        App.showToast(`مهلت ${App.formatNumber(activeCampaign.grace_period_days)} روزه سپری شد: موجودی ${App.formatNumber(results.length)} مشتری پردازش شد (مصادره/Carryover).`, 'success');
+      } else {
+        App.showToast('هیچ مشتری با موجودی باقیمانده برای پردازش پیدا نشد.', 'info');
+      }
+      renderActiveTasks();
+    }
+
+    function renderCarryoverResults(results, campaign) {
+      const container = document.getElementById('carryover-results-container');
+      if (!container) return;
+      if (!results || results.length === 0) {
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">هیچ مشتری با موجودی باقیمانده برای پردازش پیدا نشد.</p>`;
+        return;
+      }
+      const forfeitPct = 100 - campaign.carryover_percentage;
+      container.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>مشتری</th>
+              <th>موجودی قبل</th>
+              <th>مصادره شده (٪${App.formatNumber(forfeitPct)})</th>
+              <th>Carryover (٪${App.formatNumber(campaign.carryover_percentage)})</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${results.map(r => `
+              <tr>
+                <td style="font-weight: 600;">${r.customerName}</td>
+                <td>${App.formatNumber(r.before)}</td>
+                <td><span class="badge badge-danger">-${App.formatNumber(r.forfeited)}</span></td>
+                <td><span class="badge badge-success">+${App.formatNumber(r.carried)} (در انتظار مصرف)</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderPendingCarryovers() {
+      const container = document.getElementById('pending-carryovers-list');
+      if (!container) return;
+      const bizId = window.MOCK.businesses[0].id;
+      const pending = App.getPendingCarryovers(bizId);
+      if (!pending.length) {
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">اعتبار انتقالی در انتظار مصرفی وجود ندارد.</p>`;
+        return;
+      }
+      container.innerHTML = pending.map(p => {
+        const customer = window.MOCK.customers.find(c => c.id === p.customer_id);
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.9rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <strong style="font-size: 0.88rem;">${customer ? customer.name : p.customer_id}</strong>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">+${App.formatNumber(p.points)} امتیاز از کمپین قبلی باقی مانده</div>
+            </div>
+            <button class="btn btn-outline-primary btn-sm" onclick="applyCarryoverRow('${p.id}')">اعمال به عنوان مشتری کمپین بعدی</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function applyCarryoverRow(carryoverId) {
+      const bizId = window.MOCK.businesses[0].id;
+      const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId) || window.MOCK.campaigns[0];
+      const applied = App.applyCarryoverById(carryoverId, activeCampaign.id);
+      if (applied) {
+        App.showToast(`${App.formatNumber(applied.points)} امتیاز Carryover به عنوان بونوس شروع به کمپین جدید مشتری اضافه شد.`, 'success');
+        renderPendingCarryovers();
+      } else {
+        App.showToast('اعمال ناموفق بود: این مشتری هنوز کد فعال در این کمپین ندارد.', 'warning');
+      }
+    }
+
     function renderMicrositeBuilder() {
       const gallery = document.getElementById('template-gallery-list');
       if (gallery) {
