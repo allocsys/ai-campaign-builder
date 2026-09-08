@@ -38,7 +38,7 @@ No real backend/AI/SMS/OTP/payment calls. No persistence across reloads. Not pix
 ---
 
 ## Deployment
-Live on a **Cloudflare Worker** (not Pages) at `ampaign-builder.pachoolai24.workers.dev` — static files served directly, no build step.
+Live on a **Cloudflare Worker** (not Pages) at `ai-campaign-builder.pachoolai24.workers.dev` — static files served directly, no build step. (Note: this URL previously had a typo dropping the `ai-c` prefix — fixed 2026-09-08; verified against the actual Cloudflare Worker script id via `cf_workers_list`.)
 
 ---
 
