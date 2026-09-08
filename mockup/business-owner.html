@@ -35,496 +35,547 @@
       </div>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="tabs">
-      <button class="tab-btn" onclick="switchTab('onboarding-view')" id="tab-onboarding-btn">🎯 پرسشنامه هوشمند Onboarding</button>
-      <button class="tab-btn active" onclick="switchTab('dashboard-view')" id="tab-dashboard-btn">📊 داشبورد و آمار</button>
-      <button class="tab-btn" onclick="switchTab('insights-view')" id="tab-insights-btn">💡 بینش‌های هوش مصنوعی (Phase 2)</button>
-      <button class="tab-btn" onclick="switchTab('suggestions-view')" id="tab-suggestions-btn">
-        ⚡ تغییرات پیشنهادی (Phase 3)
-        <span class="badge badge-warning" id="pending-suggestions-badge" style="margin-right: 4px;">۴</span>
-      </button>
-      <button class="tab-btn" onclick="switchTab('autopilot-view')" id="tab-autopilot-btn">🤖 حالت خلبان خودکار (Phase 4)</button>
-      <button class="tab-btn" onclick="switchTab('microsite-builder-view')" id="tab-microsite-btn">🎨 سازنده میکروسایت</button>
-      <button class="tab-btn" onclick="switchTab('settings-view')" id="tab-settings-btn">⚙️ تنظیمات و کیف‌پول</button>
-    </div>
+    <!-- Navigation Accordion (replaces horizontal tabs, decided 2026-09-08) -->
+    <div class="accordion" id="main-accordion">
 
-    <!-- 1. DASHBOARD TAB -->
-    <div id="dashboard-view" class="tab-content">
+      <!-- 7. ONBOARDING WIZARD -->
+      <div class="acc-item" data-tab="onboarding-view">
+        <button class="acc-header" onclick="toggleAccordionItem('onboarding-view')" id="tab-onboarding-btn">
+          <span class="acc-header-title">🎯 پرسشنامه هوشمند Onboarding</span>
+          <span class="acc-chevron">▾</span>
+        </button>
+        <div class="acc-panel">
+          <div id="onboarding-view" class="tab-content">
+            <div class="section-heading">
+              <h2>🎯 طراحی کمپین جدید با هوش مصنوعی <span class="section-subtitle">۵ سوال کوتاه، نتیجه در کمتر از ۳۰ ثانیه</span></h2>
+            </div>
+            <div class="card" style="max-width: 800px; margin: 0 auto;">
+              <div class="card-header">
+                <span class="card-title">پرسشنامه هوشمند ساخت کمپین (Phase 0)</span>
+              </div>
+              <div class="card-body">
+                <!-- Step Progress -->
+                <div style="margin-bottom: 1.75rem;">
+                  <div class="progress-container">
+                    <div class="progress-fill" id="onboarding-progress-fill" style="width: 20%;"></div>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); margin-top: 0.4rem;">
+                    <strong id="onboarding-step-label" style="color: var(--primary);">مرحله ۱ از ۵</strong>
+                    <span id="onboarding-step-title">صنف کسب‌وکار</span>
+                  </div>
+                </div>
 
-      <!-- NEXT STEPS CHECKLIST (post-launch guidance, decided 2026-09-08 — auto-hides once complete) -->
-      <div class="card" id="next-steps-card" style="border-right: 4px solid var(--primary);">
-        <div class="card-header">
-          <span class="card-title">🧭 قدم‌های بعدی</span>
-          <span class="badge badge-secondary" id="checklist-progress-badge"></span>
-        </div>
-        <div class="card-body" id="next-steps-list">
-          <!-- Rendered via JS -->
+                <form id="onboarding-form" onsubmit="return false;">
+                  <!-- Step 1: Category -->
+                  <div class="onboarding-step" data-step="1">
+                    <div class="form-group">
+                      <label class="form-label">۱. صنف و نوع کسب‌وکارت چیه؟</label>
+                      <select id="biz-category-select" class="form-select" onchange="handleCategoryChange(this.value)">
+                        <option value="coffee_shop">کافی‌شاپ / کافه</option>
+                        <option value="clothing">فروشگاه لباس / پوشاک</option>
+                        <option value="restaurant">رستوران / فست‌فود</option>
+                        <option value="online_store">فروشگاه آنلاین (غیر پوشاک)</option>
+                        <option value="gym">باشگاه / سالن ورزشی</option>
+                        <option value="beauty_clinic">کلینیک زیبایی</option>
+                      </select>
+                    </div>
+
+                    <!-- Conditional Q (Based on Q1) -->
+                    <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.85rem; border-radius: var(--radius-sm);">
+                      <label class="form-label" id="conditional-question-label" style="color: #166534;">
+                        پرسش اختصاصی کافی‌شاپ: مشتری بیشتر حضوریه یا آنلاین/دلیوری؟
+                      </label>
+                      <select id="conditional-answer-select" class="form-select">
+                        <option>اکثراً حضوری در سالن</option>
+                        <option>سفارش بیرون‌بر و اسنپ‌فود</option>
+                        <option>ترکیبی متوازن</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Step 2: Goal -->
+                  <div class="onboarding-step" data-step="2" style="display: none;">
+                    <div class="form-group">
+                      <label class="form-label">۲. هدف اصلی این کمپین چیه؟</label>
+                      <select id="campaign-goal-select" class="form-select">
+                        <option value="acquisition">جذب مشتری جدید (Acquisition)</option>
+                        <option value="retention">نگه‌داشتن و سفارش مجدد مشتریان قبلی (Retention)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Step 3: Audience -->
+                  <div class="onboarding-step" data-step="3" style="display: none;">
+                    <div class="form-group">
+                      <label class="form-label">۳. مخاطب هدفت کیه؟</label>
+                      <input type="text" id="campaign-audience-input" class="form-control" value="دانشجویان و جوانان محدوده مرکز شهر، علاقه‌مند به کار یا دورهمی در کافه">
+                    </div>
+                  </div>
+
+                  <!-- Step 4: Offer -->
+                  <div class="onboarding-step" data-step="4" style="display: none;">
+                    <div class="form-group">
+                      <label class="form-label">۴. چه چیزی می‌تونی به مشتری هدیه بدی؟ (آفر / پاداش)</label>
+                      <input type="text" id="campaign-offer-input" class="form-control" value="یک فنجان قهوه دمی، ۲۰٪ تخفیف روی سفارش دوم، یا ماگ اختصاصی">
+                    </div>
+                  </div>
+
+                  <!-- Step 5: Review -->
+                  <div class="onboarding-step" data-step="5" style="display: none;">
+                    <div class="alert alert-info" style="margin-bottom: 1rem;">
+                      <span>🔍 قبل از ساخت کمپین، پاسخ‌هایت رو مرور کن:</span>
+                    </div>
+                    <div id="onboarding-review-summary" style="font-size: 0.92rem; line-height: 2.1; background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1rem 1.25rem;"></div>
+                  </div>
+
+                  <!-- Wizard Nav -->
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.75rem;">
+                    <button type="button" class="btn btn-outline" id="onboarding-back-btn" onclick="onboardingPrevStep()" style="visibility: hidden;">→ مرحله قبل</button>
+                    <button type="button" class="btn btn-primary" id="onboarding-next-btn" onclick="onboardingNextStep()">مرحله بعد ←</button>
+                    <button type="button" class="btn btn-primary btn-lg" id="onboarding-generate-btn" onclick="handleOnboardingSubmit()" style="display: none;">
+                      ✨ ساخت خودکار کمپین با هوش مصنوعی
+                    </button>
+                  </div>
+                </form>
+
+                <!-- Proposal Result Modal / Container -->
+                <div id="ai-proposal-result" style="display: none; margin-top: 2rem; border-top: 2px dashed var(--border-color); padding-top: 1.5rem;">
+                  <div class="section-heading">
+                    <h2>✨ پیشنهاد کمپین آماده شد <span class="section-subtitle">قابل ویرایش قبل از راه‌اندازی</span></h2>
+                  </div>
+                  <div class="alert alert-success">
+                    <span>🎉 <strong>پیشنهاد اولیه کمپین توسط هوش مصنوعی آماده شد!</strong> وزن‌دهی تسک‌ها بر اساس الگوهای انتزاعی فاز ۱ انجام گرفت.</span>
+                  </div>
+
+                  <div class="card" style="border: 2px solid var(--primary);">
+                    <div class="card-header" style="background: var(--primary-light);">
+                      <strong id="proposal-title">کمپین پیشنهادی: رشد و جذب اعضای جدید</strong>
+                      <span class="badge badge-primary">مدت پیشنهادی: ۱۴ روز</span>
+                    </div>
+                    <div class="card-body">
+                      <div style="margin-bottom: 1rem;">
+                        <strong>تسک‌های وزن‌دهی شده:</strong>
+                        <ul id="proposal-tasks" style="padding-right: 1.5rem; margin-top: 0.5rem; font-size: 0.88rem;">
+                          <li>استوری اینستاگرام از کافه با درج کد اختصاصی (۵۰ امتیاز)</li>
+                          <li>دعوت دوست با لینک و اولین خرید او (۸۰ امتیاز)</li>
+                          <li>سفارش در ساعات خلوت روز (۴۵ امتیاز)</li>
+                        </ul>
+                      </div>
+                      <div style="margin-bottom: 1rem;">
+                        <strong>پاداش‌های چندسطحی:</strong>
+                        <ul id="proposal-rewards" style="padding-right: 1.5rem; margin-top: 0.5rem; font-size: 0.88rem;">
+                          <li>سطح ۱ (۱۲۰ امتیاز): قهوه دمی رایگان</li>
+                          <li>سطح ۲ (۲۲۰ امتیاز): ۲۰٪ تخفیف کل فاکتور</li>
+                        </ul>
+                      </div>
+                      <div class="alert alert-warning" style="margin-bottom: 0;">
+                        <span>🏆 <strong>چالش تکمیلی هوش مصنوعی:</strong> ۳ بار مراجعه در طول مدت کمپین → دریافت ۲۰۰ امتیاز ویژه!</span>
+                      </div>
+                    </div>
+                    <div class="card-footer">
+                      <button class="btn btn-outline" onclick="App.showToast('حالت ویرایش تسک‌ها فعال شد.', 'info')">✏️ ویرایش جزییات کمپین</button>
+                      <button class="btn btn-success" onclick="launchCampaign()">🚀 تایید و راه‌اندازی کمپین (Launch)</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- SECTION: Overview stats, grouped as one panel instead of floating boxes -->
-      <div class="section-heading">
-        <h2>📊 نمای کلی عملکرد <span class="section-subtitle">آمار تجمیعی تمام کمپین‌ها تا امروز</span></h2>
-      </div>
-      <div class="stats-panel">
-        <div class="grid grid-4">
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">👥</div>
-            <div>
-              <div class="stat-value">۱۴۸</div>
-              <div class="stat-label">اعضای کل باشگاه</div>
+      <!-- 1. DASHBOARD (default open) -->
+      <div class="acc-item open" data-tab="dashboard-view">
+        <button class="acc-header" onclick="toggleAccordionItem('dashboard-view')" id="tab-dashboard-btn">
+          <span class="acc-header-title">📊 داشبورد و آمار</span>
+          <span class="acc-chevron">▾</span>
+        </button>
+        <div class="acc-panel">
+          <div id="dashboard-view" class="tab-content">
+
+            <!-- NEXT STEPS CHECKLIST (post-launch guidance, decided 2026-09-08 — auto-hides once complete) -->
+            <div class="card" id="next-steps-card" style="border-right: 4px solid var(--primary);">
+              <div class="card-header">
+                <span class="card-title">🧭 قدم‌های بعدی</span>
+                <span class="badge badge-secondary" id="checklist-progress-badge"></span>
+              </div>
+              <div class="card-body" id="next-steps-list">
+                <!-- Rendered via JS -->
+              </div>
             </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #ecfdf5; color: #10b981;">💎</div>
-            <div class="stat-value">۱۹,۴۵۰</div>
-            <div class="stat-label">امتیاز اعطا شده</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #fffbeb; color: #f59e0b;">🎁</div>
-            <div class="stat-value">۳۱</div>
-            <div class="stat-label">پاداش‌های تحویل شده</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon" style="background: #f5f3ff; color: #8b5cf6;">📈</div>
-            <div class="stat-value">۲۴.۵٪</div>
-            <div class="stat-label">نرخ تبدیل مراجعین</div>
+
+            <!-- SECTION: Overview stats, grouped as one panel instead of floating boxes -->
+            <div class="section-heading">
+              <h2>📊 نمای کلی عملکرد <span class="section-subtitle">آمار تجمیعی تمام کمپین‌ها تا امروز</span></h2>
+            </div>
+            <div class="stats-panel">
+              <div class="grid grid-4">
+                <div class="stat-card">
+                  <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">👥</div>
+                  <div>
+                    <div class="stat-value">۱۴۸</div>
+                    <div class="stat-label">اعضای کل باشگاه</div>
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-icon" style="background: #ecfdf5; color: #10b981;">💎</div>
+                  <div class="stat-value">۱۹,۴۵۰</div>
+                  <div class="stat-label">امتیاز اعطا شده</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-icon" style="background: #fffbeb; color: #f59e0b;">🎁</div>
+                  <div class="stat-value">۳۱</div>
+                  <div class="stat-label">پاداش‌های تحویل شده</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-icon" style="background: #f5f3ff; color: #8b5cf6;">📈</div>
+                  <div class="stat-value">۲۴.۵٪</div>
+                  <div class="stat-label">نرخ تبدیل مراجعین</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION: Active campaign details -->
+            <div class="section-heading">
+              <h2>🚀 کمپین در حال اجرا</h2>
+            </div>
+            <div class="grid grid-2">
+              <!-- Active Campaign Summary Card -->
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">📌 وضعیت کمپین</span>
+                  <span class="badge badge-success">فعال (روز ۷ از ۱۴)</span>
+                </div>
+                <div class="card-body">
+                  <h3 style="margin-bottom: 0.75rem;">کمپین وفاداری پاییزه کافه نارون</h3>
+
+                  <!-- Compact meta chips replacing the long inline sentence -->
+                  <div class="meta-chip-row">
+                    <div class="meta-chip">
+                      <span class="meta-chip-label">هدف</span>
+                      <span class="meta-chip-value">جذب مشتری جدید</span>
+                    </div>
+                    <div class="meta-chip">
+                      <span class="meta-chip-label">ضریب امتیازات</span>
+                      <span class="meta-chip-value">۱.۰ برابر پایه</span>
+                    </div>
+                    <div class="meta-chip">
+                      <span class="meta-chip-label">مهلت بازخرید (Grace Period)</span>
+                      <span class="meta-chip-value">۲ روز • حفظ ۳۰٪ اعتبار</span>
+                    </div>
+                  </div>
+
+                  <div class="alert alert-info" style="font-size: 0.85rem;">
+                    <span>🏆 <strong>چالش فعال:</strong> ۳ فعالیت در ۷ روز → ۱۵۰ امتیاز هدیه + نشان کافه‌باز حرفه‌ای</span>
+                  </div>
+
+                  <div style="margin-top: 1rem;">
+                    <span class="form-label" style="font-size: 0.85rem;">زمان سپری شده از کمپین:</span>
+                    <div class="progress-container">
+                      <div class="progress-fill" style="width: 50%;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted);">
+                      <span>شروع: ۱ مهر</span>
+                      <span>۵۰٪ سپری شده</span>
+                      <span>پایان: ۱۵ مهر</span>
+                    </div>
+                  </div>
+
+                  <div style="margin-top: 1.25rem; display: flex; gap: 0.5rem;">
+                    <a href="customer.html" class="btn btn-outline btn-sm">🔗 لینک عمومی کمپین (narvan-autumn)</a>
+                    <button class="btn btn-outline-primary btn-sm" onclick="App.showToast('لینک عمومی در کلیپ‌بورد کپی شد!', 'success')">📋 کپی لینک</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Campaign Tasks List -->
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">📋 تسک‌های فعال در کمپین</span>
+                  <span class="badge badge-secondary">۴ تسک</span>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                  <div id="active-tasks-list">
+                    <!-- Rendered via JS -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION: Rewards -->
+            <div class="section-heading">
+              <h2>🎁 پاداش‌ها</h2>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">پاداش‌های قابل دریافت توسط مشتریان</span>
+                <span class="badge badge-secondary">۳ سطح جایزه</span>
+              </div>
+              <div class="card-body">
+                <div class="grid grid-3" id="active-rewards-list">
+                  <!-- Rendered via JS -->
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- SECTION: Active campaign details -->
-      <div class="section-heading">
-        <h2>🚀 کمپین در حال اجرا</h2>
-      </div>
-      <div class="grid grid-2">
-        <!-- Active Campaign Summary Card -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">📌 وضعیت کمپین</span>
-            <span class="badge badge-success">فعال (روز ۷ از ۱۴)</span>
-          </div>
-          <div class="card-body">
-            <h3 style="margin-bottom: 0.75rem;">کمپین وفاداری پاییزه کافه نارون</h3>
-
-            <!-- Compact meta chips replacing the long inline sentence -->
-            <div class="meta-chip-row">
-              <div class="meta-chip">
-                <span class="meta-chip-label">هدف</span>
-                <span class="meta-chip-value">جذب مشتری جدید</span>
-              </div>
-              <div class="meta-chip">
-                <span class="meta-chip-label">ضریب امتیازات</span>
-                <span class="meta-chip-value">۱.۰ برابر پایه</span>
-              </div>
-              <div class="meta-chip">
-                <span class="meta-chip-label">مهلت بازخرید (Grace Period)</span>
-                <span class="meta-chip-value">۲ روز • حفظ ۳۰٪ اعتبار</span>
-              </div>
+      <!-- 2. PHASE 2 INSIGHTS -->
+      <div class="acc-item" data-tab="insights-view">
+        <button class="acc-header" onclick="toggleAccordionItem('insights-view')" id="tab-insights-btn">
+          <span class="acc-header-title">💡 بینش‌های هوش مصنوعی (Phase 2)</span>
+          <span class="acc-chevron">▾</span>
+        </button>
+        <div class="acc-panel">
+          <div id="insights-view" class="tab-content">
+            <div class="section-heading">
+              <h2>💡 بینش‌های هوش مصنوعی <span class="section-subtitle">Phase 2 — صرفاً تحلیلی، چیزی خودکار تغییر نمی‌کند</span></h2>
+            </div>
+            <div class="alert alert-info">
+              <span>سیستم با مقایسه دیتای رفتاری کمپین شما با میانگین صنف و ترندهای تاریخی، این بینش‌ها را استخراج کرده است.</span>
             </div>
 
-            <div class="alert alert-info" style="font-size: 0.85rem;">
-              <span>🏆 <strong>چالش فعال:</strong> ۳ فعالیت در ۷ روز → ۱۵۰ امتیاز هدیه + نشان کافه‌باز حرفه‌ای</span>
-            </div>
-
-            <div style="margin-top: 1rem;">
-              <span class="form-label" style="font-size: 0.85rem;">زمان سپری شده از کمپین:</span>
-              <div class="progress-container">
-                <div class="progress-fill" style="width: 50%;"></div>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted);">
-                <span>شروع: ۱ مهر</span>
-                <span>۵۰٪ سپری شده</span>
-                <span>پایان: ۱۵ مهر</span>
-              </div>
-            </div>
-
-            <div style="margin-top: 1.25rem; display: flex; gap: 0.5rem;">
-              <a href="customer.html" class="btn btn-outline btn-sm">🔗 لینک عمومی کمپین (narvan-autumn)</a>
-              <button class="btn btn-outline-primary btn-sm" onclick="App.showToast('لینک عمومی در کلیپ‌بورد کپی شد!', 'success')">📋 کپی لینک</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Campaign Tasks List -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">📋 تسک‌های فعال در کمپین</span>
-            <span class="badge badge-secondary">۴ تسک</span>
-          </div>
-          <div class="card-body" style="padding: 0;">
-            <div id="active-tasks-list">
+            <div class="grid grid-3" id="insights-cards-container">
               <!-- Rendered via JS -->
             </div>
           </div>
         </div>
       </div>
 
-      <!-- SECTION: Rewards -->
-      <div class="section-heading">
-        <h2>🎁 پاداش‌ها</h2>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">پاداش‌های قابل دریافت توسط مشتریان</span>
-          <span class="badge badge-secondary">۳ سطح جایزه</span>
-        </div>
-        <div class="card-body">
-          <div class="grid grid-3" id="active-rewards-list">
-            <!-- Rendered via JS -->
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 2. PHASE 2 INSIGHTS TAB -->
-    <div id="insights-view" class="tab-content" style="display: none;">
-      <div class="section-heading">
-        <h2>💡 بینش‌های هوش مصنوعی <span class="section-subtitle">Phase 2 — صرفاً تحلیلی، چیزی خودکار تغییر نمی‌کند</span></h2>
-      </div>
-      <div class="alert alert-info">
-        <span>سیستم با مقایسه دیتای رفتاری کمپین شما با میانگین صنف و ترندهای تاریخی، این بینش‌ها را استخراج کرده است.</span>
-      </div>
-
-      <div class="grid grid-3" id="insights-cards-container">
-        <!-- Rendered via JS -->
-      </div>
-    </div>
-
-    <!-- 3. PHASE 3 SUGGESTED CHANGES TAB -->
-    <div id="suggestions-view" class="tab-content" style="display: none;">
-      <div class="section-heading">
-        <h2>⚡ پیشنهادات هوشمند <span class="section-subtitle">Human-in-the-Loop — تا تایید نکنید اجرایی نمی‌شود</span></h2>
-        <span class="badge badge-secondary" id="applied-counter-badge">تایید شده در این نشست: ۰</span>
-      </div>
-      <p style="margin: -0.5rem 0 1.25rem 0; color: var(--text-muted); font-size: 0.88rem;">
-        هوش مصنوعی بر اساس بینش‌های فاز ۲، این تنظیمات را به شما پیشنهاد می‌دهد. هر پیشنهاد تا زمانی که روی دکمه «اعمال پیشنهاد» کلیک نکنید، اجرایی نخواهد شد.
-      </p>
-
-      <div id="suggestions-list-container">
-        <!-- Rendered via JS -->
-      </div>
-    </div>
-
-    <!-- 4. PHASE 4 AUTOPILOT TAB -->
-    <div id="autopilot-view" class="tab-content" style="display: none;">
-      <div class="section-heading">
-        <h2>🤖 حالت خلبان خودکار <span class="section-subtitle">Phase 4 — اختیاری و مشروط به سابقه</span></h2>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">وضعیت خلبان خودکار</span>
-          <span class="badge badge-secondary" id="autopilot-status-badge">غیرفعال (قفل است)</span>
-        </div>
-        <div class="card-body">
-          <div id="autopilot-locked-banner" class="alert alert-warning">
-            <span>
-              🔒 <strong>این قابلیت در حال حاضر قفل است:</strong>
-              طبق ضوابط ایمنی، برای فعال‌سازی خلبان خودکار ابتدا باید اعتماد به پیشنهادات سنجیده شود. لطفاً ابتدا حداقل <strong>۳ پیشنهاد</strong> را در تب «تغییرات پیشنهادی (Phase 3)» به صورت دستی بررسی و تایید کنید.
-              <br>
-              <strong id="lock-progress-text">پیشرفت فعلی: ۰ از ۳ تایید شده</strong>
-            </span>
-          </div>
-
-          <div id="autopilot-unlocked-section" style="display: none;">
-            <div class="alert alert-success">
-              <span>🎉 <strong>شما واجد شرایط استفاده از حالت خودکار هستید!</strong> (حداقل ۳ پیشنهاد با موفقیت تایید دستی شد).</span>
+      <!-- 3. PHASE 3 SUGGESTED CHANGES -->
+      <div class="acc-item" data-tab="suggestions-view">
+        <button class="acc-header" onclick="toggleAccordionItem('suggestions-view')" id="tab-suggestions-btn">
+          <span class="acc-header-title">
+            ⚡ تغییرات پیشنهادی (Phase 3)
+            <span class="badge badge-warning" id="pending-suggestions-badge" style="margin-right: 4px;">۴</span>
+          </span>
+          <span class="acc-chevron">▾</span>
+        </button>
+        <div class="acc-panel">
+          <div id="suggestions-view" class="tab-content">
+            <div class="section-heading">
+              <h2>⚡ پیشنهادات هوشمند <span class="section-subtitle">Human-in-the-Loop — تا تایید نکنید اجرایی نمی‌شود</span></h2>
+              <span class="badge badge-secondary" id="applied-counter-badge">تایید شده در این نشست: ۰</span>
             </div>
-
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1.25rem; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
-              <div style="min-width: 220px; flex: 1;">
-                <h3 style="margin-bottom: 0.25rem;">فعال‌سازی حالت خودکار (Autopilot)</h3>
-                <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
-                  در صورت فعال بودن، تنظیمات کم‌ریسک (مانند امتیاز تسک، آستانه پاداش و تمدید مدت) به صورت آنی توسط سیستم اعمال می‌شوند. تغییرات با ریسک مالی یا تغییر نوع پاداش کماکان نیازمند تایید شما خواهند بود.
-                </p>
-              </div>
-              <label class="switch-label">
-                <input type="checkbox" id="autopilot-toggle" class="switch-input" onchange="toggleAutopilot(this.checked)">
-                <span class="switch-slider"></span>
-              </label>
-            </div>
-
-            <!-- Autopilot Action Log Simulation -->
-            <div id="autopilot-log-container" style="display: none;">
-              <h3 style="margin-bottom: 0.75rem;">📋 لاگ آخرین اقدام خودکار انجام شده:</h3>
-              <div class="card" style="border-right: 4px solid var(--purple);">
-                <div class="card-body" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                  <div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
-                      <span class="badge badge-info">Autopilot Applied</span>
-                      <strong>کاهش آستانه پاداش «فنجان قهوه رایگان» از ۱۲۰ به ۱۰۰ امتیاز</strong>
-                    </div>
-                    <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
-                      علت اعمال خودکار: نرخ ریزش اعضا در هفته اول افزایش یافته بود. سیستم برای تسریع در دریافت جایزه آستانه را تعدیل کرد.
-                    </p>
-                  </div>
-                  <div>
-                    <button class="btn btn-outline-primary btn-sm" id="undo-autopilot-btn" onclick="undoAutopilotAction()">
-                      ↩️ بازگردانی (Undo Action)
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 5. MICROSITE BUILDER TAB -->
-    <div id="microsite-builder-view" class="tab-content" style="display: none;">
-      <div class="section-heading">
-        <h2>🎨 سازنده میکروسایت <span class="section-subtitle">قالب را انتخاب کن، بخش‌ها را تنظیم کن</span></h2>
-        <a href="microsite-preview.html" class="btn btn-primary btn-sm" target="_blank">🌐 پیش‌نمایش زنده ↗</a>
-      </div>
-
-      <!-- Step 1: Template Selection -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">۱. انتخاب قالب (فیلتر شده بر اساس کافی‌شاپ)</span>
-          <span class="badge badge-info">پیشنهاد AI: کافه دنج</span>
-        </div>
-        <div class="card-body">
-          <div class="grid grid-3" id="template-gallery-list">
-            <!-- Rendered via JS -->
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 2: Content Modules Toggle -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">۲. بخش‌های محتوایی (Modular Sections)</span>
-          <span class="badge badge-secondary">پیشنهاد هوشمند AI فعال است</span>
-        </div>
-        <div class="card-body">
-          <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem;">
-            تیک بخش‌هایی که مایلید در میکروسایت اختصاصی شما در آدرس <code>narvan.domain.com</code> نمایش داده شوند را فعال یا غیرفعال کنید:
-          </p>
-          <div class="grid grid-2" id="modules-toggle-list">
-            <!-- Rendered via JS -->
-          </div>
-          <div style="margin-top: 1.5rem; text-align: left;">
-            <button class="btn btn-success" onclick="saveMicrositeModules()">ذخیره تغییرات میکروسایت</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 6. SETTINGS TAB -->
-    <div id="settings-view" class="tab-content" style="display: none;">
-      <div class="section-heading">
-        <h2>⚙️ تنظیمات و کیف‌پول <span class="section-subtitle">کانال‌های اطلاع‌رسانی و خطوط قرمز هوش مصنوعی</span></h2>
-      </div>
-      <div class="grid grid-2">
-        <!-- SMS Wallet & Notification Settings -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">💳 کیف‌پول پیامک و اطلاع‌رسانی</span>
-            <span class="badge badge-success">حساب فعال</span>
-          </div>
-          <div class="card-body">
-            <div style="background: #f8fafc; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1rem;">
-              <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">موجودی کیف‌پول پیامک (Prepaid Wallet)</span>
-              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem;">
-                <span style="font-size: 1.35rem; font-weight: 700; color: #0f172a;" id="sms-balance-display">۴۲۰,۰۰۰ تومان</span>
-                <button class="btn btn-outline-primary btn-sm" onclick="topupWallet()">+ شارژ ۲۰۰,۰۰۰</button>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">سقف ماهانه هزینه پیامک (Monthly Spending Cap):</label>
-              <div style="display: flex; gap: 0.5rem;">
-                <input type="text" id="sms-cap-input" class="form-control" value="۶۰۰,۰۰۰ تومان">
-                <button class="btn btn-outline" onclick="App.showToast('سقف ماهانه ذخیره شد.', 'success')">ذخیره سقف</button>
-              </div>
-              <small style="color: var(--text-muted); font-size: 0.78rem;">جهت محافظت در برابر ارسال‌های غیرمنتظره ترافیک بالا (اختیاری).</small>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.25rem 0;">
-
-            <div class="form-group">
-              <label class="form-label">وضعیت کانال‌های ارسال:</label>
-              <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.88rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-                  <span>📱 پیامک به شماره موبایل (SMS)</span>
-                  <span class="badge badge-success">همواره فعال (پیش‌فرض)</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-                  <span>✈️ بات تلگرام (Telegram Opt-in)</span>
-                  <span class="badge badge-info">فعال برای مشتریان عضو</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- AI Constraints Settings -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">🛡️ خطوط قرمز و قیود هوش مصنوعی (AI Constraints)</span>
-          </div>
-          <div class="card-body">
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
-              این قیود توسط هوش مصنوعی هنگام ارائه پیشنهادات در فاز ۳ و فاز ۴ با دقت رعایت می‌شوند:
+            <p style="margin: -0.5rem 0 1.25rem 0; color: var(--text-muted); font-size: 0.88rem;">
+              هوش مصنوعی بر اساس بینش‌های فاز ۲، این تنظیمات را به شما پیشنهاد می‌دهد. هر پیشنهاد تا زمانی که روی دکمه «اعمال پیشنهاد» کلیک نکنید، اجرایی نخواهد شد.
             </p>
 
-            <div class="form-group">
-              <label class="form-label">حداکثر درصد تخفیف مجاز (Max Discount %):</label>
-              <input type="number" id="constraint-max-discount" class="form-control" value="25" min="5" max="90">
-              <small style="color: var(--text-muted); font-size: 0.78rem;">هوش مصنوعی هرگز تخفیفی بالاتر از این درصد پیشنهاد نخواهد داد.</small>
+            <div id="suggestions-list-container">
+              <!-- Rendered via JS -->
             </div>
-
-            <div class="form-group">
-              <label class="form-label">سقف بودجه پاداش به ازای هر مشتری (تومان):</label>
-              <input type="number" id="constraint-budget-ceiling" class="form-control" value="150000" step="10000">
-              <small style="color: var(--text-muted); font-size: 0.78rem;">حداکثر ارزش مالی کل پاداش‌های دریافتی یک مشتری در طول کمپین.</small>
-            </div>
-
-            <button class="btn btn-primary btn-block" onclick="saveAiConstraints()">ذخیره قیود هوش مصنوعی</button>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 7. ONBOARDING WIZARD TAB -->
-    <div id="onboarding-view" class="tab-content" style="display: none;">
-      <div class="section-heading">
-        <h2>🎯 طراحی کمپین جدید با هوش مصنوعی <span class="section-subtitle">۵ سوال کوتاه، نتیجه در کمتر از ۳۰ ثانیه</span></h2>
-      </div>
-      <div class="card" style="max-width: 800px; margin: 0 auto;">
-        <div class="card-header">
-          <span class="card-title">پرسشنامه هوشمند ساخت کمپین (Phase 0)</span>
-        </div>
-        <div class="card-body">
-          <!-- Step Progress -->
-          <div style="margin-bottom: 1.75rem;">
-            <div class="progress-container">
-              <div class="progress-fill" id="onboarding-progress-fill" style="width: 20%;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted); margin-top: 0.4rem;">
-              <strong id="onboarding-step-label" style="color: var(--primary);">مرحله ۱ از ۵</strong>
-              <span id="onboarding-step-title">صنف کسب‌وکار</span>
-            </div>
-          </div>
-
-          <form id="onboarding-form" onsubmit="return false;">
-            <!-- Step 1: Category -->
-            <div class="onboarding-step" data-step="1">
-              <div class="form-group">
-                <label class="form-label">۱. صنف و نوع کسب‌وکارت چیه؟</label>
-                <select id="biz-category-select" class="form-select" onchange="handleCategoryChange(this.value)">
-                  <option value="coffee_shop">کافی‌شاپ / کافه</option>
-                  <option value="clothing">فروشگاه لباس / پوشاک</option>
-                  <option value="restaurant">رستوران / فست‌فود</option>
-                  <option value="online_store">فروشگاه آنلاین (غیر پوشاک)</option>
-                  <option value="gym">باشگاه / سالن ورزشی</option>
-                  <option value="beauty_clinic">کلینیک زیبایی</option>
-                </select>
-              </div>
-
-              <!-- Conditional Q (Based on Q1) -->
-              <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.85rem; border-radius: var(--radius-sm);">
-                <label class="form-label" id="conditional-question-label" style="color: #166534;">
-                  پرسش اختصاصی کافی‌شاپ: مشتری بیشتر حضوریه یا آنلاین/دلیوری؟
-                </label>
-                <select id="conditional-answer-select" class="form-select">
-                  <option>اکثراً حضوری در سالن</option>
-                  <option>سفارش بیرون‌بر و اسنپ‌فود</option>
-                  <option>ترکیبی متوازن</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Step 2: Goal -->
-            <div class="onboarding-step" data-step="2" style="display: none;">
-              <div class="form-group">
-                <label class="form-label">۲. هدف اصلی این کمپین چیه؟</label>
-                <select id="campaign-goal-select" class="form-select">
-                  <option value="acquisition">جذب مشتری جدید (Acquisition)</option>
-                  <option value="retention">نگه‌داشتن و سفارش مجدد مشتریان قبلی (Retention)</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Step 3: Audience -->
-            <div class="onboarding-step" data-step="3" style="display: none;">
-              <div class="form-group">
-                <label class="form-label">۳. مخاطب هدفت کیه؟</label>
-                <input type="text" id="campaign-audience-input" class="form-control" value="دانشجویان و جوانان محدوده مرکز شهر، علاقه‌مند به کار یا دورهمی در کافه">
-              </div>
-            </div>
-
-            <!-- Step 4: Offer -->
-            <div class="onboarding-step" data-step="4" style="display: none;">
-              <div class="form-group">
-                <label class="form-label">۴. چه چیزی می‌تونی به مشتری هدیه بدی؟ (آفر / پاداش)</label>
-                <input type="text" id="campaign-offer-input" class="form-control" value="یک فنجان قهوه دمی، ۲۰٪ تخفیف روی سفارش دوم، یا ماگ اختصاصی">
-              </div>
-            </div>
-
-            <!-- Step 5: Review -->
-            <div class="onboarding-step" data-step="5" style="display: none;">
-              <div class="alert alert-info" style="margin-bottom: 1rem;">
-                <span>🔍 قبل از ساخت کمپین، پاسخ‌هایت رو مرور کن:</span>
-              </div>
-              <div id="onboarding-review-summary" style="font-size: 0.92rem; line-height: 2.1; background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1rem 1.25rem;"></div>
-            </div>
-
-            <!-- Wizard Nav -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.75rem;">
-              <button type="button" class="btn btn-outline" id="onboarding-back-btn" onclick="onboardingPrevStep()" style="visibility: hidden;">→ مرحله قبل</button>
-              <button type="button" class="btn btn-primary" id="onboarding-next-btn" onclick="onboardingNextStep()">مرحله بعد ←</button>
-              <button type="button" class="btn btn-primary btn-lg" id="onboarding-generate-btn" onclick="handleOnboardingSubmit()" style="display: none;">
-                ✨ ساخت خودکار کمپین با هوش مصنوعی
-              </button>
-            </div>
-          </form>
-
-          <!-- Proposal Result Modal / Container -->
-          <div id="ai-proposal-result" style="display: none; margin-top: 2rem; border-top: 2px dashed var(--border-color); padding-top: 1.5rem;">
+      <!-- 4. PHASE 4 AUTOPILOT -->
+      <div class="acc-item" data-tab="autopilot-view">
+        <button class="acc-header" onclick="toggleAccordionItem('autopilot-view')" id="tab-autopilot-btn">
+          <span class="acc-header-title">🤖 حالت خلبان خودکار (Phase 4)</span>
+          <span class="acc-chevron">▾</span>
+        </button>
+        <div class="acc-panel">
+          <div id="autopilot-view" class="tab-content">
             <div class="section-heading">
-              <h2>✨ پیشنهاد کمپین آماده شد <span class="section-subtitle">قابل ویرایش قبل از راه‌اندازی</span></h2>
+              <h2>🤖 حالت خلبان خودکار <span class="section-subtitle">Phase 4 — اختیاری و مشروط به سابقه</span></h2>
             </div>
-            <div class="alert alert-success">
-              <span>🎉 <strong>پیشنهاد اولیه کمپین توسط هوش مصنوعی آماده شد!</strong> وزن‌دهی تسک‌ها بر اساس الگوهای انتزاعی فاز ۱ انجام گرفت.</span>
-            </div>
-
-            <div class="card" style="border: 2px solid var(--primary);">
-              <div class="card-header" style="background: var(--primary-light);">
-                <strong id="proposal-title">کمپین پیشنهادی: رشد و جذب اعضای جدید</strong>
-                <span class="badge badge-primary">مدت پیشنهادی: ۱۴ روز</span>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">وضعیت خلبان خودکار</span>
+                <span class="badge badge-secondary" id="autopilot-status-badge">غیرفعال (قفل است)</span>
               </div>
               <div class="card-body">
-                <div style="margin-bottom: 1rem;">
-                  <strong>تسک‌های وزن‌دهی شده:</strong>
-                  <ul id="proposal-tasks" style="padding-right: 1.5rem; margin-top: 0.5rem; font-size: 0.88rem;">
-                    <li>استوری اینستاگرام از کافه با درج کد اختصاصی (۵۰ امتیاز)</li>
-                    <li>دعوت دوست با لینک و اولین خرید او (۸۰ امتیاز)</li>
-                    <li>سفارش در ساعات خلوت روز (۴۵ امتیاز)</li>
-                  </ul>
+                <div id="autopilot-locked-banner" class="alert alert-warning">
+                  <span>
+                    🔒 <strong>این قابلیت در حال حاضر قفل است:</strong>
+                    طبق ضوابط ایمنی، برای فعال‌سازی خلبان خودکار ابتدا باید اعتماد به پیشنهادات سنجیده شود. لطفاً ابتدا حداقل <strong>۳ پیشنهاد</strong> را در تب «تغییرات پیشنهادی (Phase 3)» به صورت دستی بررسی و تایید کنید.
+                    <br>
+                    <strong id="lock-progress-text">پیشرفت فعلی: ۰ از ۳ تایید شده</strong>
+                  </span>
                 </div>
-                <div style="margin-bottom: 1rem;">
-                  <strong>پاداش‌های چندسطحی:</strong>
-                  <ul id="proposal-rewards" style="padding-right: 1.5rem; margin-top: 0.5rem; font-size: 0.88rem;">
-                    <li>سطح ۱ (۱۲۰ امتیاز): قهوه دمی رایگان</li>
-                    <li>سطح ۲ (۲۲۰ امتیاز): ۲۰٪ تخفیف کل فاکتور</li>
-                  </ul>
+
+                <div id="autopilot-unlocked-section" style="display: none;">
+                  <div class="alert alert-success">
+                    <span>🎉 <strong>شما واجد شرایط استفاده از حالت خودکار هستید!</strong> (حداقل ۳ پیشنهاد با موفقیت تایید دستی شد).</span>
+                  </div>
+
+                  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1.25rem; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+                    <div style="min-width: 220px; flex: 1;">
+                      <h3 style="margin-bottom: 0.25rem;">فعال‌سازی حالت خودکار (Autopilot)</h3>
+                      <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
+                        در صورت فعال بودن، تنظیمات کم‌ریسک (مانند امتیاز تسک، آستانه پاداش و تمدید مدت) به صورت آنی توسط سیستم اعمال می‌شوند. تغییرات با ریسک مالی یا تغییر نوع پاداش کماکان نیازمند تایید شما خواهند بود.
+                      </p>
+                    </div>
+                    <label class="switch-label">
+                      <input type="checkbox" id="autopilot-toggle" class="switch-input" onchange="toggleAutopilot(this.checked)">
+                      <span class="switch-slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- Autopilot Action Log Simulation -->
+                  <div id="autopilot-log-container" style="display: none;">
+                    <h3 style="margin-bottom: 0.75rem;">📋 لاگ آخرین اقدام خودکار انجام شده:</h3>
+                    <div class="card" style="border-right: 4px solid var(--purple);">
+                      <div class="card-body" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                            <span class="badge badge-info">Autopilot Applied</span>
+                            <strong>کاهش آستانه پاداش «فنجان قهوه رایگان» از ۱۲۰ به ۱۰۰ امتیاز</strong>
+                          </div>
+                          <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
+                            علت اعمال خودکار: نرخ ریزش اعضا در هفته اول افزایش یافته بود. سیستم برای تسریع در دریافت جایزه آستانه را تعدیل کرد.
+                          </p>
+                        </div>
+                        <div>
+                          <button class="btn btn-outline-primary btn-sm" id="undo-autopilot-btn" onclick="undoAutopilotAction()">
+                            ↩️ بازگردانی (Undo Action)
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="alert alert-warning" style="margin-bottom: 0;">
-                  <span>🏆 <strong>چالش تکمیلی هوش مصنوعی:</strong> ۳ بار مراجعه در طول مدت کمپین → دریافت ۲۰۰ امتیاز ویژه!</span>
-                </div>
-              </div>
-              <div class="card-footer">
-                <button class="btn btn-outline" onclick="App.showToast('حالت ویرایش تسک‌ها فعال شد.', 'info')">✏️ ویرایش جزییات کمپین</button>
-                <button class="btn btn-success" onclick="launchCampaign()">🚀 تایید و راه‌اندازی کمپین (Launch)</button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- 5. MICROSITE BUILDER -->
+      <div class="acc-item" data-tab="microsite-builder-view">
+        <button class="acc-header" onclick="toggleAccordionItem('microsite-builder-view')" id="tab-microsite-btn">
+          <span class="acc-header-title">🎨 سازنده میکروسایت</span>
+          <span class="acc-chevron">▾</span>
+        </button>
+        <div class="acc-panel">
+          <div id="microsite-builder-view" class="tab-content">
+            <div class="section-heading">
+              <h2>🎨 سازنده میکروسایت <span class="section-subtitle">قالب را انتخاب کن، بخش‌ها را تنظیم کن</span></h2>
+              <a href="microsite-preview.html" class="btn btn-primary btn-sm" target="_blank">🌐 پیش‌نمایش زنده ↗</a>
+            </div>
+
+            <!-- Step 1: Template Selection -->
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">۱. انتخاب قالب (فیلتر شده بر اساس کافی‌شاپ)</span>
+                <span class="badge badge-info">پیشنهاد AI: کافه دنج</span>
+              </div>
+              <div class="card-body">
+                <div class="grid grid-3" id="template-gallery-list">
+                  <!-- Rendered via JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: Content Modules Toggle -->
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">۲. بخش‌های محتوایی (Modular Sections)</span>
+                <span class="badge badge-secondary">پیشنهاد هوشمند AI فعال است</span>
+              </div>
+              <div class="card-body">
+                <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem;">
+                  تیک بخش‌هایی که مایلید در میکروسایت اختصاصی شما در آدرس <code>narvan.domain.com</code> نمایش داده شوند را فعال یا غیرفعال کنید:
+                </p>
+                <div class="grid grid-2" id="modules-toggle-list">
+                  <!-- Rendered via JS -->
+                </div>
+                <div style="margin-top: 1.5rem; text-align: left;">
+                  <button class="btn btn-success" onclick="saveMicrositeModules()">ذخیره تغییرات میکروسایت</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. SETTINGS -->
+      <div class="acc-item" data-tab="settings-view">
+        <button class="acc-header" onclick="toggleAccordionItem('settings-view')" id="tab-settings-btn">
+          <span class="acc-header-title">⚙️ تنظیمات و کیف‌پول</span>
+          <span class="acc-chevron">▾</span>
+        </button>
+        <div class="acc-panel">
+          <div id="settings-view" class="tab-content">
+            <div class="section-heading">
+              <h2>⚙️ تنظیمات و کیف‌پول <span class="section-subtitle">کانال‌های اطلاع‌رسانی و خطوط قرمز هوش مصنوعی</span></h2>
+            </div>
+            <div class="grid grid-2">
+              <!-- SMS Wallet & Notification Settings -->
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">💳 کیف‌پول پیامک و اطلاع‌رسانی</span>
+                  <span class="badge badge-success">حساب فعال</span>
+                </div>
+                <div class="card-body">
+                  <div style="background: #f8fafc; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1rem;">
+                    <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">موجودی کیف‌پول پیامک (Prepaid Wallet)</span>
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem;">
+                      <span style="font-size: 1.35rem; font-weight: 700; color: #0f172a;" id="sms-balance-display">۴۲۰,۰۰۰ تومان</span>
+                      <button class="btn btn-outline-primary btn-sm" onclick="topupWallet()">+ شارژ ۲۰۰,۰۰۰</button>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">سقف ماهانه هزینه پیامک (Monthly Spending Cap):</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                      <input type="text" id="sms-cap-input" class="form-control" value="۶۰۰,۰۰۰ تومان">
+                      <button class="btn btn-outline" onclick="App.showToast('سقف ماهانه ذخیره شد.', 'success')">ذخیره سقف</button>
+                    </div>
+                    <small style="color: var(--text-muted); font-size: 0.78rem;">جهت محافظت در برابر ارسال‌های غیرمنتظره ترافیک بالا (اختیاری).</small>
+                  </div>
+
+                  <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.25rem 0;">
+
+                  <div class="form-group">
+                    <label class="form-label">وضعیت کانال‌های ارسال:</label>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.88rem;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                        <span>📱 پیامک به شماره موبایل (SMS)</span>
+                        <span class="badge badge-success">همواره فعال (پیش‌فرض)</span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                        <span>✈️ بات تلگرام (Telegram Opt-in)</span>
+                        <span class="badge badge-info">فعال برای مشتریان عضو</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- AI Constraints Settings -->
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title">🛡️ خطوط قرمز و قیود هوش مصنوعی (AI Constraints)</span>
+                </div>
+                <div class="card-body">
+                  <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    این قیود توسط هوش مصنوعی هنگام ارائه پیشنهادات در فاز ۳ و فاز ۴ با دقت رعایت می‌شوند:
+                  </p>
+
+                  <div class="form-group">
+                    <label class="form-label">حداکثر درصد تخفیف مجاز (Max Discount %):</label>
+                    <input type="number" id="constraint-max-discount" class="form-control" value="25" min="5" max="90">
+                    <small style="color: var(--text-muted); font-size: 0.78rem;">هوش مصنوعی هرگز تخفیفی بالاتر از این درصد پیشنهاد نخواهد داد.</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">سقف بودجه پاداش به ازای هر مشتری (تومان):</label>
+                    <input type="number" id="constraint-budget-ceiling" class="form-control" value="150000" step="10000">
+                    <small style="color: var(--text-muted); font-size: 0.78rem;">حداکثر ارزش مالی کل پاداش‌های دریافتی یک مشتری در طول کمپین.</small>
+                  </div>
+
+                  <button class="btn btn-primary btn-block" onclick="saveAiConstraints()">ذخیره قیود هوش مصنوعی</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
+    <!-- /accordion -->
   </div>
 
   <!-- Dismiss Reason Modal -->
@@ -555,24 +606,31 @@
 
     let currentDismissingId = null;
 
+    // --- Accordion navigation (replaces the old horizontal switchTab, decided 2026-09-08) ---
+    // toggleAccordionItem: used by clicking a header directly. Opens it (closing all others),
+    // or closes it if it was already the open one — no need to manually close before opening the next.
+    function toggleAccordionItem(tabId) {
+      const item = document.querySelector(`.acc-item[data-tab="${tabId}"]`);
+      if (!item) return;
+      const wasOpen = item.classList.contains('open');
+      document.querySelectorAll('.acc-item').forEach(el => el.classList.remove('open'));
+      if (!wasOpen) {
+        item.classList.add('open');
+        item.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // switchTab: used by every other button/link in the page that wants to jump to and open
+    // a specific section (e.g. "طراحی کمپین جدید", the Next Steps checklist CTAs, launchCampaign()).
+    // Kept under its original name so none of those call sites needed to change.
+    // Unlike toggleAccordionItem, this always opens the target (never toggles it closed).
     function switchTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-
-      const target = document.getElementById(tabId);
-      if (target) target.style.display = 'block';
-
-      const btnMap = {
-        'dashboard-view': 'tab-dashboard-btn',
-        'insights-view': 'tab-insights-btn',
-        'suggestions-view': 'tab-suggestions-btn',
-        'autopilot-view': 'tab-autopilot-btn',
-        'microsite-builder-view': 'tab-microsite-btn',
-        'settings-view': 'tab-settings-btn',
-        'onboarding-view': 'tab-onboarding-btn'
-      };
-      const activeBtn = document.getElementById(btnMap[tabId]);
-      if (activeBtn) activeBtn.classList.add('active');
+      document.querySelectorAll('.acc-item').forEach(el => el.classList.remove('open'));
+      const item = document.querySelector(`.acc-item[data-tab="${tabId}"]`);
+      if (item) {
+        item.classList.add('open');
+        item.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     function renderActiveTasks() {
