@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    direction: rtl;
+  }
+  body {
+    @apply font-sans bg-slate-950 text-slate-100 antialiased;
+    background-image: radial-gradient(circle at 20% 20%, rgba(99,102,241,0.25), transparent 40%),
+      radial-gradient(circle at 80% 0%, rgba(56,189,248,0.2), transparent 40%),
+      radial-gradient(circle at 50% 100%, rgba(168,85,247,0.18), transparent 40%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-glass-light backdrop-blur-md border border-glass-border rounded-xl2 shadow-glass;
+  }
+}
