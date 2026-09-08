@@ -1008,10 +1008,20 @@
     }
 
     function saveAiConstraints() {
-      const maxDisc = document.getElementById('constraint-max-discount').value;
-      const budget = document.getElementById('constraint-budget-ceiling').value;
-      App.showToast(`قیود جدید ذخیره شد: حداکثر تخفیف ${maxDisc}٪ و سقف بودجه ${App.formatToman(budget)}`, 'success');
+      const bizId = window.MOCK.businesses[0].id;
+      const maxDisc = Number(document.getElementById('constraint-max-discount').value) || null;
+      const budget = Number(document.getElementById('constraint-budget-ceiling').value) || null;
+
+      if (!window.MOCK.businessAiConstraints[bizId]) {
+        window.MOCK.businessAiConstraints[bizId] = { business_id: bizId };
+      }
+      window.MOCK.businessAiConstraints[bizId].max_discount_percent = maxDisc;
+      window.MOCK.businessAiConstraints[bizId].budget_ceiling_toman = budget;
+      window.MOCK.businessAiConstraints[bizId].updated_at = 'همین الان';
+
+      App.showToast(`قیود جدید ذخیره شد: حداکثر تخفیف ${maxDisc}٪ و سقف بودجه ${App.formatToman(budget)} — پیشنهادات فاز ۳ بازبینی شدند.`, 'success');
       completeChecklistItem('ai_constraints_saved');
+      renderSuggestions();
     }
 
     // --- Next Steps checklist (post-launch guidance, decided 2026-09-08) ---
