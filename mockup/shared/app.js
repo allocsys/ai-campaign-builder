@@ -586,6 +586,8 @@ window.App = (function () {
     isStructuralChangeType,
     isAutopilotEligibleChangeType,
     checkSuggestionAgainstConstraints,
+    getMicrositeModules,
+    saveMicrositeModules,
     renderHeader
   };
 })();
