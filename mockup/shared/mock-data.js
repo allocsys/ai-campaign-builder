@@ -595,6 +595,12 @@ window.MOCK = (function () {
     { key: "contact", name_fa: "اطلاعات تماس، لوکیشن و ساعات کاری (Contact)", default_coffee: true }
   ];
 
+  // Per-business microsite module on/off state (Gap #6 fix, 2026-09-08). Seed mirrors websiteModules.default_coffee.
+  // Builder writes here + to localStorage on Save; microsite-preview.html reads localStorage (separate page load) to stay in sync.
+  const businessMicrositeModules = {
+    b_narvan: { hero: true, campaign_highlight: true, about: true, product_menu: true, gallery: true, testimonials: false, booking_cta: false, contact: true }
+  };
+
   const notificationsLog = [
     {
       id: "notif_1",
