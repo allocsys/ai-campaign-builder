@@ -299,6 +299,24 @@ p {
 }
 .badge-high-risk .badge-dot { background: #dc2626; }
 
+.badge-scope {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+}
+.badge-scope-autopilot {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+.badge-scope-autopilot .badge-dot { background: #2563eb; }
+
+.badge-scope-manual {
+  background: #fdf4ff;
+  color: #86198f;
+  border: 1px solid #f5d0fe;
+}
+.badge-scope-manual .badge-dot { background: #a855f7; }
+
 .badge-tier {
   background: #f5f3ff;
   color: #6d28d9;
