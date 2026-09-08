@@ -12,13 +12,13 @@
 # the app folder, as raffle-app does) so npm can resolve and symlink
 # workspace packages — scripts target a specific app via `--workspace=`.
 #
-# STATUS (2026-09-08): only `business-owner` is scaffolded so far, so only its
-# job is wired up below. Add a job block for each of customer, staff-pos,
+# STATUS (2026-09-09): `business-owner` and `customer` are scaffolded, so both
+# jobs are wired up below. Add a job block for each of staff-pos,
 # review-console, microsite, and backend as those apps get scaffolded —
-# copy the `business-owner` job as the template (backend's job additionally
-# needs the migration-gating + secret-presence checks; see raffle-app's
-# `backend`/`migrate` jobs for that shape, adapted for `wrangler d1
-# migrations apply` instead of a direct Postgres/Hyperdrive connection,
+# copy the `business-owner`/`customer` job as the template (backend's job
+# additionally needs the migration-gating + secret-presence checks; see
+# raffle-app's `backend`/`migrate` jobs for that shape, adapted for `wrangler
+# d1 migrations apply` instead of a direct Postgres/Hyperdrive connection,
 # per plan.md's D1 decision).
 #
 # Per-app path filtering: each job only runs (typecheck + test + deploy) if
@@ -54,8 +54,9 @@ jobs:
       pull-requests: read
     outputs:
       business_owner: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.business_owner == 'true' }}
-      # customer / staff_pos / review_console / microsite / backend outputs go
-      # here once those apps' filters are added below.
+      customer: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.customer == 'true' }}
+      # staff_pos / review_console / microsite / backend outputs go here once
+      # those apps' filters are added below.
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -64,6 +65,11 @@ jobs:
           filters: |
             business_owner:
               - 'apps/business-owner/**'
+              - 'packages/**'
+              - 'package.json'
+              - '.github/workflows/deploy.yml'
+            customer:
+              - 'apps/customer/**'
               - 'packages/**'
               - 'package.json'
               - '.github/workflows/deploy.yml'
@@ -90,3 +96,26 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npm run deploy --workspace=apps/business-owner
+
+  customer:
+    needs: changes
+    if: needs.changes.outputs.customer == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-customer-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run typecheck --workspace=apps/customer
+      - run: npm test --workspace=apps/customer
+      - run: npm run build --workspace=apps/customer
+      - name: Deploy
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run deploy --workspace=apps/customer

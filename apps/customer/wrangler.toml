@@ -1,0 +1,18 @@
+# Cloudflare Worker config for the Customer persona app.
+# Self-contained per plan.md "Deployment architecture" — 5 separate deployments,
+# one per persona, each with its own wrangler.toml.
+#
+# Public, highest-traffic persona (plan.md: "kept as lean/fast as possible,
+# Iranian mobile data costs matter"). Build output is a static SPA (Vite
+# build → dist/), served as static assets. No D1 binding here — talks to the
+# backend API over HTTP; D1 is bound directly in apps/backend/wrangler.toml
+# only (once the backend exists).
+
+name = "ai-campaign-builder-customer"
+compatibility_date = "2026-09-08"
+
+[assets]
+directory = "dist"
+
+# TODO before first real deploy: set `routes` or a custom domain once business
+# domain/subdomain naming is decided.
