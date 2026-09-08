@@ -441,6 +441,23 @@ window.MOCK = (function () {
       rejection_reason: "تصویر ارسال شده با کافه نارون یا کد کاربری مطابقت ندارد.",
       points_awarded: 0,
       submitted_at: "۱۴۰۳/۰۷/۰۴ ۱۰:۱۵"
+    },
+    {
+      id: "sub_retro_seed_1",
+      customer_campaign_code_id: "code_cust_2",
+      campaign_task_id: "ct_3",
+      customer_name: "علی رضایی",
+      task_title: "ادعای خرید بازگشتی (فراموشی اسکن)",
+      submission_type: "retroactive_purchase_claim",
+      evidence_url: "receipt_scan_ali_9821.jpg",
+      receipt_number: "RCP-9821",
+      receipt_hash: "hash_ali_9821",
+      ai_confidence_score: 42,
+      status: "pending",
+      reviewed_by: null,
+      notes: "ادعای خرید بازگشتی (رسید فیزیکی). نیازمند بررسی دقیق دستی طبق قوانین فاز 0.5 (بدون شاهد صندوق).",
+      points_awarded: null,
+      submitted_at: "۱۴۰۳/۰۷/۰۵ ۱۲:۱۰"
     }
   ];
 
