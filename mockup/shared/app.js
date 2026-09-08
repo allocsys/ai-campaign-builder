@@ -259,6 +259,45 @@ window.App = (function () {
     return row;
   }
 
+  /**
+   * Phase 3/4 change-type scope classification (plan.md "What the AI can suggest" / Phase 4 "Scope").
+   * Structural change types always require a manual Apply, even with autopilot on.
+   * Autopilot-eligible types are the numeric/parameter-only subset autopilot may auto-apply.
+   */
+  const STRUCTURAL_CHANGE_TYPES = ['add_task', 'remove_task'];
+  const AUTOPILOT_ELIGIBLE_CHANGE_TYPES = ['task_points', 'reward_threshold', 'campaign_duration'];
+
+  function isStructuralChangeType(changeType) {
+    return STRUCTURAL_CHANGE_TYPES.includes(changeType);
+  }
+
+  function isAutopilotEligibleChangeType(changeType) {
+    return AUTOPILOT_ELIGIBLE_CHANGE_TYPES.includes(changeType);
+  }
+
+  /**
+   * Phase 3 constraint enforcement (plan.md "What the business owner tells the AI" / business_ai_constraints):
+   * checks a high-risk (reward_depth) suggestion's suggested discount against the business's configured
+   * max_discount_percent before it's shown as actionable. Low-risk suggestions are never blocked by this check
+   * (constraints mainly matter for the high-risk tier per plan.md Phase 4 note).
+   * Returns { blocked, reason } — reason is a human-readable Persian explanation, or null if not blocked.
+   */
+  function checkSuggestionAgainstConstraints(suggestion, businessId) {
+    const constraints = window.MOCK && window.MOCK.businessAiConstraints ? window.MOCK.businessAiConstraints[businessId] : null;
+    if (!constraints) return { blocked: false, reason: null };
+
+    if (suggestion.risk_tier === 'high' && suggestion.change_type === 'reward_depth') {
+      const suggestedDiscount = suggestion.suggested_value && suggestion.suggested_value.discount_percent;
+      if (suggestedDiscount != null && constraints.max_discount_percent != null && suggestedDiscount > constraints.max_discount_percent) {
+        return {
+          blocked: true,
+          reason: `این پیشنهاد (${suggestedDiscount}٪ تخفیف) از سقف تخفیف مجاز شما (${constraints.max_discount_percent}٪ — تنظیم‌شده در تب «تنظیمات») فراتر می‌رود، بنابراین قابل اعمال نیست مگر ابتدا سقف را افزایش دهید.`
+        };
+      }
+    }
+    return { blocked: false, reason: null };
+  }
+
   function showToast(message, type = 'info') {
     let container = document.getElementById('toast-container');
     if (!container) {
