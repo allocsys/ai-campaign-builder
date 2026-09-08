@@ -610,25 +610,13 @@
     // toggleAccordionItem: used by clicking a header directly. Opens it (closing all others),
     // or closes it if it was already the open one — no need to manually close before opening the next.
     function toggleAccordionItem(tabId) {
-      const allItems = Array.from(document.querySelectorAll('.acc-item'));
-      const item = allItems.find(el => el.dataset.tab === tabId);
+      const item = document.querySelector(`.acc-item[data-tab="${tabId}"]`);
       if (!item) return;
       const wasOpen = item.classList.contains('open');
-      allItems.forEach(el => el.classList.remove('open'));
-
+      document.querySelectorAll('.acc-item').forEach(el => el.classList.remove('open'));
       if (!wasOpen) {
-        // Was closed -> just open it, no auto-advance.
         item.classList.add('open');
         item.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-      }
-
-      // Was open and got closed by clicking its own header -> auto-advance to the next section below it.
-      const currentIndex = allItems.indexOf(item);
-      const next = allItems[currentIndex + 1];
-      if (next) {
-        next.classList.add('open');
-        next.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
 
