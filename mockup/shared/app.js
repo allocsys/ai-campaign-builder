@@ -333,22 +333,46 @@ window.App = (function () {
         text: `دعوت‌نامه کمپین «${campaign.name}» برای ${contact.phone_number} (تکراری - چشم‌پوشی توسط Dedup)`,
         status: 'skipped',
         business_contact_id: contactId,
-        campaign_id: campaignId
+        campaign_id: campaignId,
+        skip_reason: 'dedup'
       });
-      return false; // skipped
-    } else {
+      return false; // skipped: dedup
+    }
+
+    // Not a duplicate — attempt to deduct the SMS cost from the business's prepaid wallet before sending.
+    const walletResult = deductForSmsSend(businessId);
+
+    if (!walletResult.allowed) {
+      const reasonText = walletResult.reason === 'monthly_cap_reached'
+        ? 'سقف ماهانه هزینه پیامک این کسب‌وکار پر شده است'
+        : 'موجودی کیف‌پول پیامک کافی نیست';
       logNotification({
         business_id: businessId,
         customer: `${customerName} (${contact.phone_number})`,
         channel: 'sms',
         trigger: 'campaign_invite',
-        text: `دعوت‌نامه کمپین «${campaign.name}» برای ${contact.phone_number} ارسال شد. لینک عضویت: narvan.com/join`,
-        status: 'sent',
+        text: `ارسال دعوت‌نامه کمپین «${campaign.name}» برای ${contact.phone_number} ناموفق بود: ${reasonText}.`,
+        status: 'skipped',
         business_contact_id: contactId,
-        campaign_id: campaignId
+        campaign_id: campaignId,
+        skip_reason: walletResult.reason,
+        cost_toman: walletResult.costToman
       });
-      return true; // sent
+      return false; // skipped: wallet/cap
     }
+
+    logNotification({
+      business_id: businessId,
+      customer: `${customerName} (${contact.phone_number})`,
+      channel: 'sms',
+      trigger: 'campaign_invite',
+      text: `دعوت‌نامه کمپین «${campaign.name}» برای ${contact.phone_number} ارسال شد. لینک عضویت: narvan.com/join`,
+      status: 'sent',
+      business_contact_id: contactId,
+      campaign_id: campaignId,
+      cost_toman: walletResult.costToman
+    });
+    return true; // sent
   }
 
   function renderHeader(currentPersona) {
