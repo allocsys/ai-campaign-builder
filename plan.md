@@ -253,7 +253,12 @@ Each app is a fully self-contained Vite project, deployed as its own Cloudflare 
 
 **Code modularity requirement (added 2026-09-08):** the 5 apps must not duplicate shared logic/UI independently. Common pieces (design tokens, UI kit from Phase 5 Step 2, API client, shared types, auth/OTP flow logic) live in a shared location — starting as `apps/*/src/shared` or a lightweight `packages/` workspace, promotable to a proper shared package later if duplication becomes a real problem. Decide the exact shared-code mechanism (npm workspace vs. simple relative imports) when the restructure actually happens, not before.
 
-**NEXT STEP when resuming:** restructure the existing `frontend/` scaffold (branch `frontend-scaffold`, commit `18dba46`) into this `apps/business-owner/` layout (or decide which persona to scaffold first into the new structure), then add the path-filtered `deploy.yml`. Business domain/subdomain names and Cloudflare account/project details are not yet decided — confirm before wiring actual `wrangler.toml` routes. **Not started yet per user request (2026-09-08) — holding until explicitly told to proceed.**
+**Status (updated 2026-09-08, this note had gone stale — the restructure below was actually completed the same day):** Steps 1–4 are done on branch `monorepo-apps-restructure` (not yet merged to `main`):
+- Step 1 (scaffold) + Step 2 (shared `packages/ui-kit`, npm workspaces) + Step 3 (routing/auth shell, phone+OTP) are complete for the Business Owner app.
+- Step 4 (Business Owner screens) is complete: all 8 tabs (Onboarding/Dashboard/Insights/Suggestions/Autopilot/Microsite Builder/Settings/Sends Log) built against `mock-data.ts`, assembled into `BusinessOwnerHome` via the accordion nav (mirrors the mockup's pattern, no auto-advance), and wired into the app's `/` route.
+- `apps/business-owner/wrangler.toml` exists but routes are still TODO placeholders. `.github/workflows/deploy.yml` is path-filtered but only the `business-owner` job is wired up so far.
+
+**NEXT STEP when resuming:** either (a) Step 5 — scaffold the Customer persona app (reuses the same phone+OTP auth pattern already built for Business Owner), or (b) a real npm install/build/run pass (still hasn't happened once in this branch — CI/CD will catch issues, so this is optional, not blocking). Business domain/subdomain names and Cloudflare account/project details are still not decided — confirm before wiring real `wrangler.toml` routes. Not yet merged to `main`.
 
 ---
 
