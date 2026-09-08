@@ -202,6 +202,25 @@ All 9 are live in `mockup/` on `main`. See git history for implementation detail
 
 ---
 
+## Phase 5 — Production Frontend Build (decided 2026-09-08)
+
+**Stack:** React + Vite, Tailwind CSS, Framer Motion. Chosen for build speed, easy glassmorphism (Tailwind `backdrop-blur`/opacity utilities), and performant animation without hand-rolled CSS. Mockup's HTML/CSS/JS is reference-only, not upgraded in place.
+
+**Steps:**
+1. Scaffold: Vite + React + TypeScript project, Tailwind config (RTL + Persian font), base design tokens (glass surface, color palette, spacing) as a small shared UI kit.
+2. Shared component library first: buttons, cards, badges, modals, accordion, form inputs, toasts — built glassmorphism-styled and animated once, reused across all personas (mirrors mockup's `shared/` pattern).
+3. Routing/app shell + auth screens (phone+OTP) for business owner and customer personas.
+4. Business Owner persona: onboarding wizard → dashboard → insights → suggestions → autopilot → microsite builder → settings → sends log, one screen at a time, wired to real API endpoints as they come online (mock/stub data until then).
+5. Customer persona: join/OTP → code/QR → tasks → rewards → redemption → retroactive claim.
+6. Staff POS persona (PWA): scan/enter code, log purchase, fulfill reward, offline queue+sync.
+7. Review Console persona (central team): submissions queue, referral flags queue.
+8. Microsite renderer (public-facing, template + modules).
+9. Polish pass: animation/transition consistency, performance audit (bundle size, lazy-loading per persona route), accessibility.
+
+Each step ships against the real backend once its endpoints exist; until then, stub with the same shape as `mock-data.js` so the frontend isn't blocked on backend sequencing.
+
+---
+
 ## Status Log
 - **2026-09-07** — Repo created. Core onboarding + abstraction layer agreed. All 5 initial open questions resolved (categories, weighting table, size-tier scaling, benchmark strategy, Phase 2 metrics).
 - **2026-09-07** — Phase 0.5 (Attribution & Tracking) fully specified: personal code system, POS UX, offline handling, retroactive claims, 3-tier AI review.
