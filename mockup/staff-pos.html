@@ -55,16 +55,16 @@
             </div>
             <div class="card-body">
               <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
-                <input type="text" id="pos-customer-code" class="form-control" placeholder="کد ۵ رقمی یا اسکن بارکد" style="font-size: 1.1rem; letter-spacing: 2px;">
+                <input type="text" id="pos-customer-code" class="form-control" placeholder="کد ۵ رقمی یا اسکن بارکد" style="font-size: 1.1rem; letter-spacing: 2px;" value="48291">
                 <button class="btn btn-outline-primary" onclick="simulateBarcodeScan('48291')" title="شبیه‌سازی خواندن بارکد با دوربین">
                   📷 اسکن بارکد
                 </button>
               </div>
 
               <!-- Customer lookup preview -->
-              <div id="customer-preview-box" style="background: #f8fafc; border: 1px solid var(--border-color); padding: 0.65rem; border-radius: var(--radius-sm); margin-bottom: 1rem; display: none;">
+              <div id="customer-preview-box" style="background: #f8fafc; border: 1px solid var(--border-color); padding: 0.65rem; border-radius: var(--radius-sm); margin-bottom: 1rem; display: block;">
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                  <strong id="found-cust-name">سارا احمدی</strong>
+                  <strong id="found-cust-name">سارا احمدی (کد 48291)</strong>
                   <span class="badge badge-success" id="found-cust-tier">مشتری دائم • ۱۹۰ امتیاز</span>
                 </div>
               </div>
@@ -75,7 +75,7 @@
               </div>
 
               <div class="alert alert-info" style="font-size: 0.82rem; margin-bottom: 1rem;">
-                <span>✨ <strong>امتیاز قابل اعطا:</strong> به ازای این خرید ۶۰ امتیاز (تسویه اولین خرید + ساعت عادی) محاسبه می‌شود.</span>
+                <span>✨ <strong>امتیاز قابل اعطا:</strong> به ازای این خرید ۶۰ امتیاز ثبت می‌شود. (اگر این مشتری با کد معرف ثبت‌نام کرده باشد، با ثبت اولین خرید، پاداش معرفی معرف آزاد و به حساب او واریز می‌شود).</span>
               </div>
 
               <button class="btn btn-primary btn-lg btn-block" onclick="submitPurchase()">
@@ -164,6 +164,13 @@
       document.getElementById('pos-customer-code').value = code;
       const preview = document.getElementById('customer-preview-box');
       preview.style.display = 'block';
+      const custCode = window.MOCK.customerCampaignCodes.find(c => c.personal_code === code);
+      if (custCode) {
+        const cust = window.MOCK.customers.find(cu => cu.id === custCode.customer_id);
+        const name = cust ? cust.name : 'مشتری';
+        document.getElementById('found-cust-name').textContent = `${name} (کد ${code})`;
+        document.getElementById('found-cust-tier').textContent = `مشتری • ${App.formatNumber(custCode.points_balance)} امتیاز`;
+      }
       App.showToast('بارکد مشتری خوانده شد: ' + code, 'info');
     }
 
@@ -209,12 +216,25 @@
     }
 
     function submitPurchase() {
-      const code = document.getElementById('pos-customer-code').value || '48291';
+      const codeInput = document.getElementById('pos-customer-code').value.trim() || '48291';
       const amount = document.getElementById('pos-purchase-amount').value || '180000';
+
+      const customerCode = window.MOCK.customerCampaignCodes.find(c => c.personal_code === codeInput);
+      let purchasePoints = 60;
+      let referralMsg = '';
+
+      if (customerCode) {
+        customerCode.points_balance += purchasePoints;
+        // First purchase gating clearance for referral
+        const refRelease = App.processFirstPurchaseForCustomer(customerCode.id);
+        if (refRelease) {
+          referralMsg = ` (✓ پاداش معرفی معرف «${refRelease.referrerName}» آزاد شد: +${refRelease.pts} امتیاز)`;
+        }
+      }
 
       const entry = {
         type: 'purchase',
-        text: `ثبت فاکتور ${App.formatToman(amount)} برای کد ${code} (+۶۰ امتیاز)`,
+        text: `ثبت فاکتور ${App.formatToman(amount)} برای کد ${codeInput} (+${purchasePoints} امتیاز)${referralMsg}`,
         time: 'همین الان',
         status: isOffline ? 'queued' : 'synced'
       };
@@ -226,7 +246,7 @@
         document.getElementById('offline-queue-badge').textContent = `${offlineQueue.length} در صف`;
         App.showToast('تراکنش در صف آفلاین دستگاه ذخیره شد و پس از اتصال اینترنت همگام می‌شود.', 'warning');
       } else {
-        App.showToast(`خرید با موفقیت ثبت شد و ۶۰ امتیاز به کد ${code} اعطا گردید.`, 'success');
+        App.showToast(`خرید با موفقیت ثبت شد و ${purchasePoints} امتیاز به کد ${codeInput} اعطا گردید.${referralMsg}`, 'success');
       }
 
       document.getElementById('pos-customer-code').value = '';
