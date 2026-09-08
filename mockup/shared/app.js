@@ -279,7 +279,9 @@ window.App = (function () {
         status: arg1.status || 'sent',
         customer_campaign_code_id: arg1.customer_campaign_code_id || null,
         business_contact_id: arg1.business_contact_id || null,
-        campaign_id: arg1.campaign_id || null
+        campaign_id: arg1.campaign_id || null,
+        cost_toman: arg1.cost_toman != null ? arg1.cost_toman : null,
+        skip_reason: arg1.skip_reason || null
       };
     } else {
       entry = {
@@ -293,7 +295,9 @@ window.App = (function () {
         status: extra.status || 'sent',
         customer_campaign_code_id: extra.customer_campaign_code_id || null,
         business_contact_id: extra.business_contact_id || null,
-        campaign_id: extra.campaign_id || null
+        campaign_id: extra.campaign_id || null,
+        cost_toman: extra.cost_toman != null ? extra.cost_toman : null,
+        skip_reason: extra.skip_reason || null
       };
     }
     if (window.MOCK && window.MOCK.notificationsLog) {
