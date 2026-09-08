@@ -438,11 +438,31 @@ p {
 /* Tables (Sends Log, etc.) */
 table {
   width: 100%;
-  min-width: 640px; /* prevents mobile auto table-layout from crushing narrow columns (e.g. متن پیام) down to near-zero width, which forces word-break to wrap every single character onto its own line. Container has overflow-x:auto, so this scrolls horizontally on narrow screens instead. */
   border-collapse: collapse;
   text-align: right;
   font-size: 0.88rem;
 }
+
+/* Sends Log table: table-layout:fixed gives every column a guaranteed width
+   regardless of content. Without this, the browser's auto table-layout
+   algorithm computes each column's minimum width from its content, and a
+   word-break/overflow-wrap cell (like متن پیام) can report a minimum as
+   small as a single character, so the algorithm starves it down to almost
+   nothing while unbreakable badge cells keep their full width — producing
+   one word (or one letter) per line. Fixed widths below + overflow-x:auto
+   on the wrapping div means the table scrolls horizontally on narrow
+   screens instead of any column collapsing. */
+.sends-log-table {
+  table-layout: fixed;
+  min-width: 760px;
+}
+
+.sends-log-table .col-contact { width: 130px; }
+.sends-log-table .col-channel { width: 110px; }
+.sends-log-table .col-trigger { width: 150px; }
+.sends-log-table .col-status  { width: 150px; }
+.sends-log-table .col-text    { width: 220px; word-break: break-word; }
+.sends-log-table .col-time    { width: 100px; }
 
 th, td {
   padding: 0.75rem 1rem;
