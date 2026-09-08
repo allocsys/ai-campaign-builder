@@ -551,6 +551,9 @@ window.App = (function () {
     simulateCampaignEndCarryover,
     getPendingCarryovers,
     applyCarryoverById,
+    isStructuralChangeType,
+    isAutopilotEligibleChangeType,
+    checkSuggestionAgainstConstraints,
     renderHeader
   };
 })();
