@@ -331,13 +331,17 @@ One row per actual send attempt — audit trail + delivery status.
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid | PK |
-| customer_campaign_code_id | uuid | FK → customer_campaign_codes |
+| customer_campaign_code_id | uuid, nullable | FK → customer_campaign_codes — set for all post-join triggers (ending_soon, reward_unlocked, submission_reviewed, mid_campaign_reminder, referral_joined, autopilot_change_applied). Null for pre-join `campaign_invite` sends (see business_contact_id below) — schema gap identified 2026-09-08: campaign_invite targets business_contacts who haven't joined the campaign yet, so it can't hang off a customer_campaign_code |
+| business_contact_id | uuid, nullable | FK → business_contacts — set only for `campaign_invite` sends, since the recipient hasn't joined the campaign yet and has no customer_campaign_codes row. Exactly one of customer_campaign_code_id / business_contact_id is set per row |
+| campaign_id | uuid, nullable | FK → campaigns — set only alongside business_contact_id (campaign_invite rows), since business_contacts itself isn't campaign-scoped and the dedup check (below) needs to know which campaign a given invite was for. Redundant/derivable via customer_campaign_code_id → campaign for all other trigger types, so left null there |
 | notification_template_id | uuid | FK → notification_templates |
 | channel | enum | sms, telegram (denormalized copy for quick filtering) |
-| status | enum | sent, failed, skipped (skipped = telegram attempted but customer not opted in) |
+| status | enum | sent, failed, skipped (skipped = telegram attempted but customer not opted in, or campaign_invite deduped — see below) |
 | provider_message_id | text, nullable | id returned by SMS gateway / Telegram Bot API, for delivery-status lookups |
 | cost_toman | numeric, nullable | populated for channel=sms from sms_pricing at send time (plan.md Phase 0.9 — SMS billed separately by volume); null for telegram (bundled/free) |
 | sent_at | timestamp | |
+
+**Campaign invite dedup (decided 2026-09-08):** before sending a `campaign_invite`, check for an existing `notifications_log` row with the same `(business_contact_id, campaign_id, trigger_type=campaign_invite)` — if one exists, skip (status=skipped) rather than resend. This covers both firing points (plan.md "Campaign invite sending & confirmation"): the launch-time batch over all contacts, and the per-new-contact send when `business_contacts` grows mid-campaign — the launch batch naturally skips anyone already invited, and the per-contact send only ever targets contacts too new to have a prior row anyway.
 
 ### `insights`
 Generated insights (plan.md Phase 2).
