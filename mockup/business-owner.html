@@ -907,8 +907,36 @@
     function topupWallet() {
       const biz = window.MOCK.businesses[0];
       biz.sms_wallet_balance_toman += 200000;
-      document.getElementById('sms-balance-display').textContent = App.formatToman(biz.sms_wallet_balance_toman);
+      App.recordSmsWalletTransaction(biz.id, 'topup', 200000, null);
+      updateWalletDisplay();
       App.showToast('مبلغ ۲۰۰,۰۰۰ تومان به کیف‌پول پیامک اضافه شد.', 'success');
+    }
+
+    function parseTomanInput(str) {
+      const digits = String(str).replace(/[^0-9]/g, '');
+      return digits ? Number(digits) : null;
+    }
+
+    function saveSmsCap() {
+      const biz = window.MOCK.businesses[0];
+      const raw = document.getElementById('sms-cap-input').value;
+      const parsed = parseTomanInput(raw);
+      biz.sms_monthly_cap_toman = parsed; // null = no cap, governed by wallet balance alone
+      updateWalletDisplay();
+      App.showToast(parsed != null ? `سقف ماهانه روی ${App.formatToman(parsed)} تنظیم شد.` : 'سقف ماهانه حذف شد — فقط موجودی کیف‌پول کنترل می‌کند.', 'success');
+    }
+
+    function updateWalletDisplay() {
+      const biz = window.MOCK.businesses[0];
+      if (!biz) return;
+      const balanceEl = document.getElementById('sms-balance-display');
+      const priceEl = document.getElementById('sms-price-display');
+      const spendEl = document.getElementById('sms-monthly-spend-display');
+      const capEl = document.getElementById('sms-cap-display');
+      if (balanceEl) balanceEl.textContent = App.formatToman(biz.sms_wallet_balance_toman);
+      if (priceEl) priceEl.textContent = App.formatToman(App.getSmsPricePerSms());
+      if (spendEl) spendEl.textContent = App.formatToman(App.getMonthlySmsSpend(biz.id));
+      if (capEl) capEl.textContent = biz.sms_monthly_cap_toman != null ? App.formatToman(biz.sms_monthly_cap_toman) : 'نامحدود';
     }
 
     function saveAiConstraints() {
