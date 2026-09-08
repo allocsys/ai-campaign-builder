@@ -502,6 +502,20 @@ window.MOCK = (function () {
     }
   ];
 
+  const suggestedChanges5 = {
+    id: "sc_5",
+    campaign_id: "c_narvan_autumn",
+    risk_tier: "low",
+    change_type: "add_task",
+    title: "افزودن تسک جدید: ثبت نظر در گوگل‌مپ",
+    current_value: null,
+    suggested_value: { task_pattern_id: "tp_review", points: 70 },
+    rationale: "تسک review_ugc برای این دسته وزن بالایی دارد و هنوز به کمپین اضافه نشده؛ افزودن آن می‌تواند مسیر تعامل تازه‌ای برای اعضای فعلی باز کند.",
+    status: "pending",
+    applied_by: null
+  };
+  suggestedChanges.push(suggestedChanges5);
+
   const referralFlags = [
     {
       id: "rf_1",
