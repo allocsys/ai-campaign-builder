@@ -854,25 +854,51 @@
 
     function applySuggestion(id) {
       const item = window.MOCK.suggestedChanges.find(s => s.id === id);
-      if (item) {
-        item.status = 'applied';
-        item.applied_by = 'business_owner';
-        App.session.appliedSuggestionsCount++;
+      if (!item) return;
 
-        if (item.change_type === 'task_points') {
-          const task = window.MOCK.campaignTasks.find(t => t.id === item.target_id || t.id === 'ct_1');
-          if (task) task.points_value = item.suggested_value.points;
-        } else if (item.change_type === 'reward_threshold') {
-          const reward = window.MOCK.campaignRewards.find(r => r.id === item.target_id || r.id === 'cr_1');
-          if (reward) reward.threshold_points = item.suggested_value.threshold;
-        }
-
-        App.showToast(`پیشنهاد «${item.title}» با موفقیت اعمال شد.`, 'success');
-        updateAutopilotEligibility();
-        renderActiveTasks();
-        renderActiveRewards();
-        renderSuggestions();
+      const bizId = window.MOCK.businesses[0].id;
+      const constraintCheck = App.checkSuggestionAgainstConstraints(item, bizId);
+      if (constraintCheck.blocked) {
+        App.showToast(`اعمال مسدود شد: ${constraintCheck.reason}`, 'error');
+        return;
       }
+
+      item.status = 'applied';
+      item.applied_by = 'business_owner';
+      App.session.appliedSuggestionsCount++;
+
+      if (item.change_type === 'task_points') {
+        const task = window.MOCK.campaignTasks.find(t => t.id === item.target_id || t.id === (item.current_value && item.current_value.task_id) || t.id === 'ct_1');
+        if (task) task.points_value = item.suggested_value.points;
+      } else if (item.change_type === 'reward_threshold') {
+        const reward = window.MOCK.campaignRewards.find(r => r.id === item.target_id || r.id === (item.current_value && item.current_value.reward_id) || r.id === 'cr_1');
+        if (reward) reward.threshold_points = item.suggested_value.threshold;
+      } else if (item.change_type === 'campaign_duration') {
+        const campaign = window.MOCK.campaigns.find(c => c.id === item.campaign_id) || window.MOCK.campaigns[0];
+        if (campaign) campaign.duration_days = item.suggested_value.duration_days;
+      } else if (item.change_type === 'add_task') {
+        // Structural change (always manual, never autopilot) — actually append a new campaign_tasks row.
+        const pattern = window.MOCK.taskPatterns.find(p => p.id === item.suggested_value.task_pattern_id);
+        if (pattern) {
+          const campaign = window.MOCK.campaigns.find(c => c.id === item.campaign_id) || window.MOCK.campaigns[0];
+          window.MOCK.campaignTasks.push({
+            id: 'ct_added_' + Date.now(),
+            campaign_id: campaign.id,
+            task_pattern_id: pattern.id,
+            title: pattern.name_fa,
+            verification_method: pattern.verification_method,
+            points_value: item.suggested_value.points || pattern.base_points,
+            display_order: window.MOCK.campaignTasks.length + 1,
+            instruction: `تسک مرتبط با ${pattern.name_fa} همراه با درج کد اختصاصی شما.`
+          });
+        }
+      }
+
+      App.showToast(`پیشنهاد «${item.title}» با موفقیت اعمال شد.`, 'success');
+      updateAutopilotEligibility();
+      renderActiveTasks();
+      renderActiveRewards();
+      renderSuggestions();
     }
 
     function promptDismiss(id) {
