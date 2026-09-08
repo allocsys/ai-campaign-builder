@@ -49,6 +49,25 @@ window.MOCK = (function () {
     }
   ];
 
+  // Business size-tier dynamic scaling configuration (plan.md / architecture.md)
+  const sizeTierConfig = {
+    tiers: [
+      { key: "micro", name_fa: "میکرو (Micro)", maxFollowers: 500, maxBudgetToman: 30000, pointMultiplier: 0.7, suggestedDurationDays: 10 },
+      { key: "small", name_fa: "کوچک (Small)", maxFollowers: 2000, maxBudgetToman: 100000, pointMultiplier: 1.0, suggestedDurationDays: 14 },
+      { key: "medium", name_fa: "متوسط (Medium)", maxFollowers: 20000, maxBudgetToman: 500000, pointMultiplier: 1.5, suggestedDurationDays: 21 },
+      { key: "large", name_fa: "بزرگ (Large)", maxFollowers: Infinity, maxBudgetToman: Infinity, pointMultiplier: 2.0, suggestedDurationDays: 30 }
+    ],
+    // Weighting table for Phase 1 Abstraction Layer (0 to 3)
+    patternWeights: {
+      coffee_shop: { social_proof: 3, referral: 2, repeat_purchase: 2, milestone_streak: 1, specific_product_push: 3, review_ugc: 1, first_action: 2, off_peak: 2, anniversary_birthday: 1 },
+      clothing: { social_proof: 2, referral: 2, repeat_purchase: 2, milestone_streak: 0, specific_product_push: 1, review_ugc: 1, first_action: 2, off_peak: 0, anniversary_birthday: 2 },
+      restaurant: { social_proof: 2, referral: 2, repeat_purchase: 3, milestone_streak: 0, specific_product_push: 2, review_ugc: 2, first_action: 2, off_peak: 2, anniversary_birthday: 1 },
+      online_store: { social_proof: 1, referral: 2, repeat_purchase: 2, milestone_streak: 0, specific_product_push: 1, review_ugc: 3, first_action: 3, off_peak: 0, anniversary_birthday: 1 },
+      gym: { social_proof: 1, referral: 2, repeat_purchase: 0, milestone_streak: 3, specific_product_push: 0, review_ugc: 1, first_action: 2, off_peak: 2, anniversary_birthday: 2 },
+      beauty_clinic: { social_proof: 3, referral: 2, repeat_purchase: 1, milestone_streak: 1, specific_product_push: 0, review_ugc: 2, first_action: 2, off_peak: 1, anniversary_birthday: 2 }
+    }
+  };
+
   const businesses = [
     {
       id: "b_narvan",
@@ -59,6 +78,8 @@ window.MOCK = (function () {
       sms_wallet_balance_toman: 420000,
       sms_monthly_cap_toman: 600000,
       instagram_handle: "narvan_cafe",
+      follower_count: 1450,
+      offer_budget_toman: 85000,
       autopilot_enabled: false,
       size_tier: "small",
       created_at: "1403/06/15"
@@ -72,6 +93,8 @@ window.MOCK = (function () {
       sms_wallet_balance_toman: 950000,
       sms_monthly_cap_toman: 1200000,
       instagram_handle: "sarina_boutique",
+      follower_count: 8500,
+      offer_budget_toman: 250000,
       autopilot_enabled: false,
       size_tier: "medium",
       created_at: "1403/06/18"
@@ -85,6 +108,8 @@ window.MOCK = (function () {
       sms_wallet_balance_toman: 1800000,
       sms_monthly_cap_toman: 2000000,
       instagram_handle: "energy_gym_tehran",
+      follower_count: 24000,
+      offer_budget_toman: 600000,
       autopilot_enabled: false,
       size_tier: "large",
       created_at: "1403/05/20"
@@ -569,6 +594,7 @@ window.MOCK = (function () {
 
   return {
     businessCategories,
+    sizeTierConfig,
     businesses,
     businessAiConstraints,
     checklistItems,
