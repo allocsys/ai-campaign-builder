@@ -403,6 +403,29 @@ p {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
+/* Tables (Sends Log, etc.) */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: right;
+  font-size: 0.88rem;
+}
+
+th, td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+tbody tr:hover {
+  background: #fafbfc;
+}
+
 /* Toggle Switch */
 .switch-label {
   display: inline-flex;
