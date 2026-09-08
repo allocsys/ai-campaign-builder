@@ -1261,8 +1261,9 @@
           const res = App.sendCampaignInvite(c, activeCampaign);
           if (res) sentCount++; else skippedCount++;
         });
-        App.showToast(`ارسال دعوت‌نامه کمپین: ${App.formatNumber(sentCount)} ارسال شد، ${App.formatNumber(skippedCount)} تکراری (dedup رد شد).`, 'success');
+        App.showToast(`ارسال دعوت‌نامه کمپین: ${App.formatNumber(sentCount)} ارسال شد، ${App.formatNumber(skippedCount)} تکراری/ناموفق (dedup یا کیف‌پول/سقف).`, 'success');
       }
+      updateWalletDisplay();
       renderSendsLog();
     }
 
@@ -1317,6 +1318,7 @@
     renderOnboardingStep();
     renderNextStepsChecklist();
     renderSendsLog();
+    updateWalletDisplay();
   </script>
 </body>
 </html>
