@@ -70,6 +70,9 @@ Staff device: web app (PWA), the only client for v1 (no native app) — backend 
 ### AI review decision system
 Three-tier outcome per AI-reviewed submission: auto-approve (high confidence) / auto-reject (low confidence, resubmit allowed) / manual hold (uncertain). Central team reviews uncertain cases initially (move to per-business review later). Points stay **Pending** until final approval. Offline: staff-side queue stores locally, final verification/dedup happens server-side once synced.
 
+### Review Console authentication (decided 2026-09-09)
+The mockup hardcodes `reviewed_by` as a fixed `'central_team'` string, with no individual identification. For the production build, each central-team member authenticates with their **own phone + SMS OTP** (not a shared PIN like Staff POS, and not no-auth) — this gives the audit log (`reviewed_by` on submissions, resolver identity on referral flags) a real per-person identity instead of one shared label. Same OTP mechanism as the Business Owner and Customer apps, just scoped to a team member's phone number rather than a business or customer.
+
 ---
 
 ## Phase 0.75 — Notifications (SMS + Telegram)
