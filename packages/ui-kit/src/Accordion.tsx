@@ -36,6 +36,8 @@ export function Accordion({ items, openId, onOpenChange, defaultOpenId }: Accord
     <div className="flex flex-col gap-2">
       {items.map((item) => {
         const isOpen = activeId === item.id
+        const panelId = `accordion-panel-${item.id}`
+        const headerId = `accordion-header-${item.id}`
         return (
           <div
             key={item.id}
@@ -43,18 +45,23 @@ export function Accordion({ items, openId, onOpenChange, defaultOpenId }: Accord
           >
             <button
               type="button"
+              id={headerId}
               onClick={() => handleToggle(item.id)}
               className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-100"
               aria-expanded={isOpen}
+              aria-controls={panelId}
             >
               {item.header}
-              <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+              <motion.span aria-hidden="true" animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
                 ▾
               </motion.span>
             </button>
             <AnimatePresence initial={false}>
               {isOpen && (
                 <motion.div
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={headerId}
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
