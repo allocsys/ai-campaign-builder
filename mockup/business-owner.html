@@ -574,6 +574,46 @@
         </div>
       </div>
 
+      <!-- 8. SENDS LOG (لاگ ارسال‌ها) -->
+      <div class="acc-item" data-tab="sends-log-view">
+        <button class="acc-header" onclick="toggleAccordionItem('sends-log-view')" id="tab-sends-log-btn">
+          <span class="acc-header-title">📨 لاگ ارسال‌ها (Sends Log)</span>
+          <span class="badge badge-secondary" id="sends-log-count-badge">۰ پیام</span>
+        </button>
+        <div class="acc-panel">
+          <div id="sends-log-view" class="tab-content">
+            <div class="section-heading">
+              <h2>📨 لاگ ارسال پیامک و تلگرام <span class="section-subtitle">تاریخچه کامل ارسال‌ها، وضعیت تحویل و مکانیزم Dedup کمپین</span></h2>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">تاریخچه ارسال‌های کسب‌وکار</span>
+                <button class="btn btn-outline btn-sm" onclick="renderSendsLog()">🔄 به‌روزرسانی لاگ</button>
+              </div>
+              <div class="card-body" style="padding: 0;">
+                <div style="overflow-x: auto;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>مخاطب / مشتری</th>
+                        <th>کانال</th>
+                        <th>نوع تریگر</th>
+                        <th>وضعیت</th>
+                        <th>متن پیام</th>
+                        <th>زمان</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sends-log-tbody">
+                      <!-- Rendered via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
     <!-- /accordion -->
   </div>
@@ -914,18 +954,85 @@
 
     function simulateContactImport() {
       const bizId = window.MOCK.businesses[0].id;
-      const newContacts = ['09121234567', '09359876543', '09141112233'];
-      newContacts.forEach(phone => {
-        window.MOCK.businessContacts.push({
-          id: 'contact_' + Date.now() + Math.random().toString(36).slice(2, 6),
-          business_id: bizId,
-          phone_number: phone,
-          source: 'manual_upload',
-          imported_at: new Date().toISOString()
-        });
+      const newPhones = ['09121234567', '09359876543', '09141112233'];
+      const newlyAdded = [];
+      newPhones.forEach(phone => {
+        let existing = window.MOCK.businessContacts.find(c => c.business_id === bizId && c.phone_number === phone);
+        if (!existing) {
+          const newContact = {
+            id: 'contact_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            business_id: bizId,
+            phone_number: phone,
+            source: 'manual_upload',
+            imported_at: new Date().toISOString()
+          };
+          window.MOCK.businessContacts.push(newContact);
+          newlyAdded.push(newContact);
+        }
       });
-      App.showToast(`${App.formatNumber(newContacts.length)} مخاطب از فایل CSV بارگذاری شد.`, 'success');
+      App.showToast(`${App.formatNumber(newlyAdded.length)} مخاطب جدید از فایل CSV بارگذاری شد.`, 'success');
       completeChecklistItem('contacts_imported');
+
+      // Wire contact-import flow: immediately send/log campaign_invite for ONLY the newly-added contacts if there is an active campaign
+      const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId && c.status === 'active');
+      if (activeCampaign && newlyAdded.length > 0) {
+        newlyAdded.forEach(contact => {
+          App.sendCampaignInvite(contact, activeCampaign);
+        });
+        App.showToast(`دعوت‌نامه کمپین برای ${App.formatNumber(newlyAdded.length)} مخاطب جدید به‌صورت آنی ارسال شد.`, 'success');
+      }
+      renderSendsLog();
+    }
+
+    function renderSendsLog() {
+      const tbody = document.getElementById('sends-log-tbody');
+      const badge = document.getElementById('sends-log-count-badge');
+      if (!tbody) return;
+
+      const bizId = window.MOCK.businesses[0].id;
+      const logs = (window.MOCK.notificationsLog || []).filter(l => l.business_id === bizId);
+
+      if (badge) {
+        badge.textContent = `${App.formatNumber(logs.length)} پیام`;
+      }
+
+      if (logs.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+              هیچ پیام یا لاگ ارسالی برای این کسب‌وکار ثبت نشده است.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = logs.map(l => {
+        let statusBadge = '';
+        if (l.status === 'sent') {
+          statusBadge = '<span class="badge badge-success">ارسال شده (sent)</span>';
+        } else if (l.status === 'skipped') {
+          statusBadge = '<span class="badge badge-warning">چشم‌پوشی/dedup (skipped)</span>';
+        } else if (l.status === 'failed') {
+          statusBadge = '<span class="badge badge-danger">ناموفق (failed)</span>';
+        } else {
+          statusBadge = `<span class="badge badge-secondary">${l.status}</span>`;
+        }
+
+        const channelBadge = l.channel === 'sms' ? '📱 پیامک (SMS)' : '✈️ تلگرام (Telegram)';
+        const triggerBadge = `<span class="badge badge-info">${l.trigger}</span>`;
+
+        return `
+          <tr>
+            <td style="font-weight: 600;">${l.customer || '-'}</td>
+            <td>${channelBadge}</td>
+            <td>${triggerBadge}</td>
+            <td>${statusBadge}</td>
+            <td style="color: #334155; max-width: 320px; word-break: break-word;">${l.text || ''}</td>
+            <td style="color: var(--text-muted); font-size: 0.82rem;">${l.time || 'همین الان'}</td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function handleCategoryChange(catSlug) {
@@ -1025,6 +1132,21 @@
       onboardingStep = 1;
       document.getElementById('ai-proposal-result').style.display = 'none';
       renderOnboardingStep();
+
+      // Wire launchCampaign: loop over window.MOCK.businessContacts for current business and send/log campaign_invite respecting dedup
+      const bizId = window.MOCK.businesses[0].id;
+      const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId && c.status === 'active') || window.MOCK.campaigns[0];
+      const contacts = window.MOCK.businessContacts.filter(c => c.business_id === bizId);
+      if (activeCampaign && contacts.length > 0) {
+        let sentCount = 0;
+        let skippedCount = 0;
+        contacts.forEach(c => {
+          const res = App.sendCampaignInvite(c, activeCampaign);
+          if (res) sentCount++; else skippedCount++;
+        });
+        App.showToast(`ارسال دعوت‌نامه کمپین: ${App.formatNumber(sentCount)} ارسال شد، ${App.formatNumber(skippedCount)} تکراری (dedup رد شد).`, 'success');
+      }
+      renderSendsLog();
     }
 
     function renderMicrositeBuilder() {
@@ -1077,6 +1199,7 @@
     updateAutopilotEligibility();
     renderOnboardingStep();
     renderNextStepsChecklist();
+    renderSendsLog();
   </script>
 </body>
 </html>
