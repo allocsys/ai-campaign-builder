@@ -101,6 +101,19 @@
             <button class="btn btn-outline-primary btn-sm" onclick="optinTelegram()">فعال‌سازی در بات</button>
           </div>
 
+          <!-- Retroactive Purchase Claim Entry (Gap #8) -->
+          <div class="card" style="border: 2px dashed var(--primary-border); background: #f8fafc;">
+            <div class="card-body" style="text-align: center;">
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.35rem;">❓ فراموش کردید کد خود را در صندوق اسکن کنید؟</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                می‌توانید رسید خرید یا سفارش خود را تا ۷۲ ساعت بعد آپلود کنید تا پس از بررسی تیم مرکزی امتیاز شما ثبت شود.
+              </p>
+              <button class="btn btn-outline-primary btn-sm" onclick="openRetroModal()">
+                🧾 ثبت ادعای خرید بازگشتی (فراموشی اسکن)
+              </button>
+            </div>
+          </div>
+
           <!-- Rewards Progress Section -->
           <div class="card">
             <div class="card-header">
@@ -173,6 +186,49 @@
     </div>
   </div>
 
+  <!-- Retroactive Purchase Claim Modal (Gap #8) -->
+  <div id="retro-claim-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">ثبت ادعای خرید بازگشتی (فراموشی اسکن)</div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+          رسید فیزیکی یا اسکرین‌شات سفارش آنلاین خود را بارگذاری کرده و در صورت نیاز شماره رسید را وارد کنید.
+        </p>
+        <div class="form-group">
+          <label class="form-label">شماره رسید / فاکتور (اختیاری):</label>
+          <input type="text" id="retro-receipt-num" class="form-control" placeholder="مثال: RCP-8492">
+        </div>
+        <div class="form-group">
+          <label class="form-label">تصویر رسید خرید:</label>
+          <div style="border: 2px dashed var(--border-color); padding: 1.25rem; text-align: center; border-radius: var(--radius-sm); background: #fafbfc; cursor: pointer;" onclick="document.getElementById('retro-file-input').click()">
+            <span style="font-size: 1.5rem; display: block; margin-bottom: 0.2rem;">📷</span>
+            <span style="font-size: 0.82rem; color: var(--text-muted);" id="retro-file-name">انتخاب فایل رسید (یا استفاده از پیش‌فرض)</span>
+            <input type="file" id="retro-file-input" style="display: none;" onchange="handleRetroFile(this)">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">زمان خرید (مهلت قانونی: ۴۸ تا ۷۲ ساعت):</label>
+          <select id="retro-hours-ago" class="form-control">
+            <option value="12">امروز (۱۲ ساعت پیش)</option>
+            <option value="24">دیروز (۲۴ ساعت پیش)</option>
+            <option value="48">دو روز پیش (۴۸ ساعت پیش)</option>
+            <option value="72">سه روز پیش (۷۲ ساعت پیش)</option>
+            <option value="90">بیش از ۷۲ ساعت پیش (خارج از مهلت)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">شبیه‌سازی رسید تکراری (Duplicate Hash):</label>
+          <input type="text" id="retro-hash-input" class="form-control" placeholder="خالی بگذارید یا هش تکراری برای تست وارد کنید">
+        </div>
+        <small style="color: var(--text-muted); font-size: 0.78rem;">ادعاهای خرید بازگشتی به دلیل عدم حضور صندوق‌دار با ضریب اطمینان احتیاطی (بررسی دستی) ثبت می‌شوند.</small>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeRetroModal()">انصراف</button>
+        <button class="btn btn-primary" onclick="submitRetroClaim()">ارسال ادعا به صف بررسی</button>
+      </div>
+    </div>
+  </div>
+
   <script src="shared/mock-data.js"></script>
   <script src="shared/app.js"></script>
   <script>
@@ -182,6 +238,7 @@
     let currentCode = window.MOCK.customerCampaignCodes[0];
     let selectedTaskId = null;
     let activeTimer = null;
+    let selectedRetroFileName = 'receipt_scan_default.jpg';
 
     function sendOtp() {
       document.getElementById('auth-phone-step').style.display = 'none';
@@ -448,6 +505,47 @@
       currentCustomer.telegram_opted_in = true;
       document.getElementById('telegram-optin-banner').innerHTML = '<span>✅ اتصال به تلگرام فعال شد</span>';
       App.showToast('اتصال به تلگرام تایید شد. از این پس پیام‌ها در تلگرام نیز ارسال می‌شوند.', 'success');
+    }
+
+    function openRetroModal() {
+      document.getElementById('retro-claim-modal').style.display = 'flex';
+    }
+
+    function closeRetroModal() {
+      document.getElementById('retro-claim-modal').style.display = 'none';
+    }
+
+    function handleRetroFile(input) {
+      if (input.files && input.files[0]) {
+        selectedRetroFileName = input.files[0].name;
+        document.getElementById('retro-file-name').textContent = 'فایل انتخاب شد: ' + selectedRetroFileName;
+      }
+    }
+
+    function submitRetroClaim() {
+      const receiptNum = document.getElementById('retro-receipt-num').value.trim();
+      const hoursAgo = Number(document.getElementById('retro-hours-ago').value) || 12;
+      const customHash = document.getElementById('retro-hash-input').value.trim();
+      const receiptHash = customHash || (selectedRetroFileName + '_' + (receiptNum || 'default'));
+
+      const activeCampaign = window.MOCK.campaigns[0];
+      const res = App.submitRetroactivePurchaseClaim(currentCode.id, activeCampaign.id, receiptHash, receiptNum, hoursAgo);
+
+      if (res.success) {
+        App.showToast('ادعای خرید بازگشتی با موفقیت ثبت شد و به صف بررسی دستی منتقل گردید.', 'success');
+        closeRetroModal();
+        renderCustomerData();
+      } else {
+        if (res.reason === 'outside_time_window') {
+          App.showToast('خطا: مهلت ارسال ادعای خرید بازگشتی (حداکثر ۷۲ ساعت) به پایان رسیده است.', 'error');
+        } else if (res.reason === 'duplicate_receipt') {
+          App.showToast('خطا: این رسید قبلاً ثبت شده است (تشخیص رسید تکراری / Duplicate Receipt).', 'error');
+        } else if (res.reason === 'rate_limited') {
+          App.showToast('خطا: شما به سقف مجاز ادعای خرید بازگشتی در این کمپین (۳ بار) رسیده‌اید.', 'error');
+        } else {
+          App.showToast('خطا در ثبت ادعای خرید بازگشتی.', 'error');
+        }
+      }
     }
   </script>
 </body>
