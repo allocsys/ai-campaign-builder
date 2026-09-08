@@ -482,6 +482,82 @@ p {
   border-bottom-color: var(--primary);
 }
 
+/* Accordion navigation (business-owner dashboard, replaces horizontal tabs, decided 2026-09-08) */
+.accordion {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1.5rem;
+}
+
+.acc-item + .acc-item {
+  border-top: 1px solid var(--border-color);
+}
+
+.acc-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-align: right;
+  transition: background 0.15s ease;
+}
+
+.acc-header:hover {
+  background: #fafbfc;
+}
+
+.acc-item.open > .acc-header {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.acc-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.acc-chevron {
+  transition: transform 0.2s ease;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.acc-item.open .acc-chevron {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+.acc-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  background: #fcfcfd;
+}
+
+.acc-item.open .acc-panel {
+  max-height: 8000px;
+}
+
+.acc-panel .tab-content {
+  padding: 1.25rem;
+  border-top: 1px dashed var(--border-color);
+}
+
 /* Progress bar */
 .progress-container {
   background: #e2e8f0;
