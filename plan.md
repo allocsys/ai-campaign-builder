@@ -371,6 +371,29 @@ Of the 5 low-risk `change_type`s from Phase 3, autopilot may auto-apply: **`task
 
 ---
 
+## Mockup Gap Analysis & Prioritization (2026-09-08)
+
+A full comparison of plan.md/architecture.md against the actual mockup files (`mockup/*.html`, `mockup/shared/*`) surfaced 9 documented decisions with no corresponding implementation (functional/data gaps only, not visual/cosmetic ones). Prioritized below for the next round of mockup work — highest priority first.
+
+### P0 — In progress / do next
+1. **Campaign invite Sends Log** (Phase 0.75 "Campaign invite sending & confirmation") — business owner needs a دedicated "لاگ ارسال‌ها" view; sending logic (fire at launch + on new contact add, with dedup) also still needs wiring. Already scoped as the current open thread before this analysis — stays #1 since it's furthest along and the docs are already fully committed.
+
+### P1 — High-value, demonstrates core differentiators
+2. **Business size-tier scaling** (Phase 0 / size-tier mapping) — dynamic tier resolution (Micro/Small/Medium/Large) from onboarding inputs, with automatic point multiplier and duration scaling, plus Goal-driven First Action/Conversion weighting. This is one of the product's core "AI does the work" selling points and is currently just a hardcoded static value in mock data — a high-visibility gap in any demo of the onboarding flow.
+3. **SMS wallet real deduction + monthly cap enforcement** (Phase 0.9) — wallet balance and monthly cap are currently static text fields with no actual deduction-per-send or cap-block simulation. Directly demonstrates the prepaid-wallet architecture that's already fully designed; natural companion to the Sends Log work in P0 since both touch the same notification-sending code path.
+4. **Point expiry, grace period & carryover** (Phase 0.5) — grace-period countdown, 70/30 forfeit/carryover math, and automatic credit into the next campaign are undemonstrated; currently only a static carryover number on one customer. Core to the product's retention story.
+
+### P2 — Meaningful gaps, lower demo visibility
+5. **Phase 3 constraint enforcement + Phase 4 scope distinction** — AI suggestions aren't checked against `business_ai_constraints` before display, and the autopilot mockup doesn't visibly distinguish structural (add/remove_task, always manual) from numeric (autopilot-eligible) change types. Matters for correctness of the human-in-the-loop/autopilot story but is a refinement of an already-working flow, not a missing flow.
+6. **Microsite module toggles → live preview sync** — `microsite-preview.html` is hardcoded and doesn't reflect the module on/off toggles saved in the business-owner builder. Cosmetic-adjacent but does affect the credibility of a click-through demo that shows both screens back to back.
+7. **Referral anomaly detection & per-campaign cap enforcement** — anomaly flags are static-seeded rather than rule-generated, and the per-campaign referral cap (10) plus first-purchase payout gating aren't enforced in the customer/review-console interactions. Backend-rule-driven and less visually demonstrable than other gaps.
+
+### P3 — Edge-case flows, lowest priority for a click-through mockup
+8. **Retroactive purchase claims** (Phase 0.5) — no UI/simulation for uploading a receipt after a missed POS scan (duplicate-hash detection, time limit, rate limiting). Real for production but a secondary/fallback path, not the primary flow a demo walks through.
+9. **Staff POS offline queue server-side verification** — offline toggle currently just simulates a delay via toast; no real duplicate/validity check on sync. Same reasoning as #8 — an edge-case resilience feature, least likely to be exercised in a demo.
+
+---
+
 ## Status Log
 - **2026-09-07** — Repo created, initial plan drafted. Core onboarding flow + abstraction layer concept agreed on.
 - **2026-09-07** — All 5 initial open questions resolved:
