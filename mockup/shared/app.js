@@ -26,21 +26,23 @@ window.App = (function () {
     const fCount = Number(followerCount) || 0;
     const bToman = Number(offerBudgetToman) || 0;
 
-    let followerTierIndex = 0;
-    for (let i = 0; i < tiers.length; i++) {
-      if (fCount <= tiers[i].maxFollowers) {
-        followerTierIndex = i;
-        break;
+    // Boundary rule (fixed 2026-09-08 — see plan.md tier table wording): only the SECOND-TO-LAST tier's
+    // own boundary is inclusive (matches "Large is strictly greater than X"); earlier tier boundaries are
+    // exclusive-upper, since plan.md's ranges mean e.g. exactly 500 followers belongs to Small, not Micro.
+    function findTierIndex(value, key) {
+      for (let i = 0; i < tiers.length; i++) {
+        if (i === tiers.length - 1) break; // last tier is the catch-all fallback below
+        const bound = tiers[i][key];
+        const isSecondToLast = i === tiers.length - 2;
+        if (isSecondToLast ? value <= bound : value < bound) {
+          return i;
+        }
       }
+      return tiers.length - 1;
     }
 
-    let budgetTierIndex = 0;
-    for (let i = 0; i < tiers.length; i++) {
-      if (bToman <= tiers[i].maxBudgetToman) {
-        budgetTierIndex = i;
-        break;
-      }
-    }
+    const followerTierIndex = findTierIndex(fCount, 'maxFollowers');
+    const budgetTierIndex = findTierIndex(bToman, 'maxBudgetToman');
 
     // Signal conflict rule: use the HIGHER tier index
     const resolvedIndex = Math.max(followerTierIndex, budgetTierIndex);
