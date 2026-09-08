@@ -495,6 +495,38 @@ window.App = (function () {
     return true; // sent
   }
 
+  /**
+   * Microsite module toggles (Gap #6 fix, 2026-09-08): business-owner.html (the builder) and
+   * microsite-preview.html are two separate static page loads with no shared server, so in-memory
+   * window.MOCK state alone can't bridge them. localStorage is used as the persistence layer between
+   * the two pages (this is a real static mockup site, not a claude.ai Artifact sandbox, so localStorage
+   * is available). Falls back to the in-memory seed (businessMicrositeModules) if nothing saved yet.
+   */
+  function micrositeModulesStorageKey(businessId) {
+    return `ms_modules_${businessId}`;
+  }
+
+  function getMicrositeModules(businessId) {
+    try {
+      const raw = window.localStorage.getItem(micrositeModulesStorageKey(businessId));
+      if (raw) return JSON.parse(raw);
+    } catch (e) { /* fall through to seed default */ }
+    const seed = window.MOCK && window.MOCK.businessMicrositeModules ? window.MOCK.businessMicrositeModules[businessId] : null;
+    return seed ? { ...seed } : {};
+  }
+
+  function saveMicrositeModules(businessId, modulesObj) {
+    if (window.MOCK && window.MOCK.businessMicrositeModules) {
+      window.MOCK.businessMicrositeModules[businessId] = { ...modulesObj };
+    }
+    try {
+      window.localStorage.setItem(micrositeModulesStorageKey(businessId), JSON.stringify(modulesObj));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function renderHeader(currentPersona) {
     const items = [
       { id: 'index', title: 'صفحه اصلی موکاپ', href: 'index.html' },
