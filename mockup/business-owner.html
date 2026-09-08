@@ -10,6 +10,44 @@
   <div id="header-root"></div>
 
   <div class="container">
+    <!-- OWNER AUTH GATE (phone + SMS OTP only — no email/password, matches customer-facing flow, plan.md "Business owner authentication") -->
+    <div id="owner-auth-section">
+      <div style="text-align: center; margin: 2.5rem 0 1.5rem;">
+        <div style="font-size: 3rem; margin-bottom: 0.5rem;">🔐</div>
+        <h2>ورود صاحب کسب‌وکار</h2>
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 0.5rem;">
+          ورود فقط با شماره موبایل و کد تایید پیامکی (OTP) — بدون ایمیل یا رمز عبور.
+        </p>
+      </div>
+
+      <!-- Step 1: Owner phone entry -->
+      <div id="owner-auth-phone-step" class="card" style="max-width: 420px; margin: 0 auto;">
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">شماره موبایل صاحب کسب‌وکار:</label>
+            <input type="tel" id="owner-phone-input" class="form-control" value="09121111111" placeholder="۰۹۱۲XXXXXXX">
+          </div>
+          <button class="btn btn-primary btn-block" onclick="sendOwnerOtp()">دریافت کد تایید پیامکی (OTP)</button>
+        </div>
+      </div>
+
+      <!-- Step 2: OTP entry (hidden by default) -->
+      <div id="owner-auth-otp-step" class="card" style="display: none; max-width: 420px; margin: 0 auto;">
+        <div class="card-body">
+          <div class="alert alert-info" style="font-size: 0.82rem;">
+            کد پیامک شده به صورت شبیه‌سازی: <strong>۷۷۱۲</strong>
+          </div>
+          <div class="form-group">
+            <label class="form-label">کد ۴ رقمی تایید پیامک:</label>
+            <input type="text" id="owner-otp-input" class="form-control" value="7712" style="letter-spacing: 6px; font-size: 1.2rem; text-align: center;">
+          </div>
+          <button class="btn btn-success btn-block" onclick="verifyOwnerOtp()">تایید و ورود به پنل</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN PANEL (shown only after owner auth succeeds) -->
+    <div id="owner-main-section" style="display: none;">
     <!-- Top Business Header -->
     <div class="page-header">
       <div>
