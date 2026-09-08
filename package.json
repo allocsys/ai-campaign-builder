@@ -1,0 +1,8 @@
+{
+  "name": "ai-campaign-builder",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
