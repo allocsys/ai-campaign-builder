@@ -1426,6 +1426,16 @@
     renderNextStepsChecklist();
     renderSendsLog();
     updateWalletDisplay();
+
+    (function initCarryoverSection() {
+      const bizId = window.MOCK.businesses[0].id;
+      const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId) || window.MOCK.campaigns[0];
+      const badge = document.getElementById('carryover-rule-badge');
+      if (badge && activeCampaign) {
+        badge.textContent = `${App.formatNumber(activeCampaign.grace_period_days)} روز مهلت • حفظ ٪${App.formatNumber(activeCampaign.carryover_percentage)}`;
+      }
+      renderPendingCarryovers();
+    })();
   </script>
 </body>
 </html>
