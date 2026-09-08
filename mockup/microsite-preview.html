@@ -121,9 +121,19 @@
   <script>
     document.getElementById('header-root').innerHTML = App.renderHeader('microsite');
 
-    const activeModules = window.MOCK.websiteModules.filter(m => m.default_coffee);
+    // Gap #6 fix (2026-09-08): read the live toggle state saved by the business owner's builder
+    // (business-owner.html → saveMicrositeModules), instead of a hardcoded default_coffee filter.
+    const bizId = window.MOCK.businesses[0].id;
+    const modulesState = App.getMicrositeModules(bizId);
+    let activeCount = 0;
+    window.MOCK.websiteModules.forEach(m => {
+      const isOn = modulesState[m.key] != null ? modulesState[m.key] : m.default_coffee;
+      const section = document.getElementById(`module-${m.key}`);
+      if (section) section.style.display = isOn ? '' : 'none';
+      if (isOn) activeCount++;
+    });
     document.getElementById('active-modules-badge').innerHTML =
-      `<span class="badge badge-success">${App.formatNumber(activeModules.length)} ماژول فعال</span>`;
+      `<span class="badge badge-success">${App.formatNumber(activeCount)} ماژول فعال</span>`;
   </script>
 </body>
 </html>
