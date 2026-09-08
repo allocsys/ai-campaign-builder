@@ -516,6 +516,52 @@ window.MOCK = (function () {
   };
   suggestedChanges.push(suggestedChanges5);
 
+  // Suggestions demonstrating Phase 3 constraint enforcement (Gap #5, SUB-GAP A)
+  // These violate the business's business_ai_constraints (max_discount_percent: 25%, budget_ceiling_toman: 150000)
+  // and must be filtered out BEFORE display in the Suggestions tab ("before being shown at all").
+  const suggestedChangesViolating1 = {
+    id: "sc_violating_discount",
+    campaign_id: "c_narvan_autumn",
+    risk_tier: "high",
+    change_type: "reward_depth",
+    title: "افزایش تخفیف فاکتور به ۳۵٪ (تخلف از قید سقف تخفیف ۲۵٪)",
+    current_value: { discount_percent: 20, reward_id: "cr_2" },
+    suggested_value: { discount_percent: 35 },
+    rationale: "این پیشنهاد تخفیف ۳۵٪ می‌دهد که از سقف ۲۵٪ مالک فراتر است و نباید اصلاً به کاربر نمایش داده شود.",
+    status: "pending",
+    applied_by: null
+  };
+  suggestedChanges.push(suggestedChangesViolating1);
+
+  const suggestedChangesViolating2 = {
+    id: "sc_violating_budget",
+    campaign_id: "c_narvan_autumn",
+    risk_tier: "high",
+    change_type: "reward_depth",
+    title: "پک هدیه ویژه ۲۰۰ هزار تومانی (تخلف از سقف بودجه ۱۵۰ هزار تومان)",
+    current_value: { cost_toman: 120000, reward_id: "cr_3" },
+    suggested_value: { cost_toman: 200000 },
+    rationale: "هزینه این پاداش ۲۰۰ هزار تومان است که سقف بودجه پاداش ۱۵۰ هزار تومانی تعیین‌شده توسط کسب‌وکار را نقض می‌کند.",
+    status: "pending",
+    applied_by: null
+  };
+  suggestedChanges.push(suggestedChangesViolating2);
+
+  // Low-risk structural change to demonstrate remove_task ("همیشه دستی" scope)
+  const suggestedChanges6 = {
+    id: "sc_6",
+    campaign_id: "c_narvan_autumn",
+    risk_tier: "low",
+    change_type: "remove_task",
+    title: "حذف/توقف تسک کم‌بازده: مراجعه در ساعت خلوت",
+    current_value: { task_id: "ct_4" },
+    suggested_value: { task_id: "ct_4", action: "pause" },
+    rationale: "نرخ مشارکت در این تسک کمتر از ۵٪ بوده و حذف آن تمرکز مشتریان را بر تسک‌های دعوت و استوری بیشتر می‌کند.",
+    status: "pending",
+    applied_by: null
+  };
+  suggestedChanges.push(suggestedChanges6);
+
   const referralFlags = [
     {
       id: "rf_1",
