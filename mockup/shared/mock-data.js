@@ -633,6 +633,7 @@ window.MOCK = (function () {
     checklistItems,
     businessChecklistProgress,
     businessContacts,
+    pointCarryovers,
     campaigns,
     taskPatterns,
     campaignTasks,
