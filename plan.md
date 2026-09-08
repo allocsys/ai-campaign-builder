@@ -67,6 +67,8 @@ Separate one-time, short-lived (5–10 min) redemption code/QR generated on Rede
 ### POS-side UX
 Staff device: web app (PWA), the only client for v1 (no native app) — backend built API-first so a native client can be added later without backend rework. Code entry: QR primary, short numeric backup code always shown as fallback.
 
+**Staff authentication (decided 2026-09-09):** shared device PIN, not per-staff phone+OTP. One PIN unlocks the whole POS device for a shift; whoever is at the counter uses the same PIN — simpler for a shop counter tablet than individual staff logins. Chosen over per-staff phone+OTP (unnecessary friction for a shared counter device) and over no-auth-at-all (device-level access with no login screen, as the mockup currently has). PIN is device/business-scoped, not tied to an individual staff identity — revisit if per-staff audit trails become a requirement later.
+
 ### AI review decision system
 Three-tier outcome per AI-reviewed submission: auto-approve (high confidence) / auto-reject (low confidence, resubmit allowed) / manual hold (uncertain). Central team reviews uncertain cases initially (move to per-business review later). Points stay **Pending** until final approval. Offline: staff-side queue stores locally, final verification/dedup happens server-side once synced.
 
