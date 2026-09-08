@@ -1071,6 +1071,49 @@
       App.showToast(parsed != null ? `سقف ماهانه روی ${App.formatToman(parsed)} تنظیم شد.` : 'سقف ماهانه حذف شد — فقط موجودی کیف‌پول کنترل می‌کند.', 'success');
     }
 
+    function renderSubscriptionCard() {
+      const bizId = window.MOCK.businesses[0].id;
+      const sub = App.getSubscriptionStatus(bizId);
+      const body = document.getElementById('subscription-card-body');
+      const statusBadge = document.getElementById('subscription-status-badge');
+      if (!body) return;
+
+      if (!sub || !sub.plan) {
+        body.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">هیچ طرح اشتراکی برای این کسب‌وکار ثبت نشده است.</p>`;
+        return;
+      }
+
+      if (statusBadge) {
+        statusBadge.textContent = sub.status === 'active' ? 'فعال' : sub.status;
+        statusBadge.className = `badge ${sub.status === 'active' ? 'badge-success' : 'badge-secondary'}`;
+      }
+
+      const micrositeLine = sub.microsite_addon_enabled
+        ? `<div class="meta-chip"><span class="meta-chip-label">افزونه میکروسایت</span><span class="meta-chip-value">فعال (+${App.formatToman(sub.microsite_addon_price_toman)}/ماه)</span></div>`
+        : `<div class="meta-chip"><span class="meta-chip-label">افزونه میکروسایت</span><span class="meta-chip-value">غیرفعال</span></div>`;
+
+      body.innerHTML = `
+        <div class="meta-chip-row" style="margin-bottom: 1rem;">
+          <div class="meta-chip">
+            <span class="meta-chip-label">طرح فعلی (بر اساس رده کسب‌وکار)</span>
+            <span class="meta-chip-value">${sub.plan.name_fa}</span>
+          </div>
+          <div class="meta-chip">
+            <span class="meta-chip-label">هزینه ماهانه طرح</span>
+            <span class="meta-chip-value">${sub.plan.monthly_price_toman > 0 ? App.formatToman(sub.plan.monthly_price_toman) : 'رایگان'}</span>
+          </div>
+          <div class="meta-chip">
+            <span class="meta-chip-label">تاریخ صورتحساب بعدی</span>
+            <span class="meta-chip-value">${sub.next_billing_date}</span>
+          </div>
+          ${micrositeLine}
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">
+          قیمت طرح بر اساس رده کسب‌وکار شما (محاسبه‌شده از روی فالوور/بودجه) تعیین می‌شود و جدا از کیف‌پول پیامکی محاسبه می‌شود. هزینه پیامک/تلگرام مصرفی از کیف‌پول پیامک در بالا کسر می‌شود، جدا از اشتراک ماهانه.
+        </p>
+      `;
+    }
+
     function updateWalletDisplay() {
       const biz = window.MOCK.businesses[0];
       if (!biz) return;
@@ -1562,6 +1605,7 @@
     renderInsights();
     renderSuggestions();
     renderMicrositeBuilder();
+    renderSubscriptionCard();
     updateAutopilotEligibility();
     renderOnboardingStep();
     renderNextStepsChecklist();
