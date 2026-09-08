@@ -5,6 +5,13 @@
 # from raffle-app's 2 frontend apps + backend to this repo's eventual 5
 # frontend apps + backend.
 #
+# npm workspaces (added 2026-09-08, root package.json workspaces: apps/*,
+# packages/*): unlike raffle-app, each app here can depend on shared code in
+# packages/* (e.g. packages/ui-kit). This means `npm ci`/`npm run <script>`
+# must run from the REPO ROOT (not `defaults.run.working-directory` inside
+# the app folder, as raffle-app does) so npm can resolve and symlink
+# workspace packages — scripts target a specific app via `--workspace=`.
+#
 # STATUS (2026-09-08): only `business-owner` is scaffolded so far, so only its
 # job is wired up below. Add a job block for each of customer, staff-pos,
 # review-console, microsite, and backend as those apps get scaffolded —
@@ -15,13 +22,14 @@
 # per plan.md's D1 decision).
 #
 # Per-app path filtering: each job only runs (typecheck + test + deploy) if
-# its own apps/<name>/** folder changed, or this workflow file itself changed.
+# its own apps/<name>/** folder changed, OR packages/**  changed (shared code
+# affects every app that depends on it), or this workflow file itself changed.
 # A manual workflow_dispatch run always runs all wired-up jobs, since there's
 # no "changed files" diff to compare against for a manual trigger.
 #
 # On pull_request: typecheck + test only, as a CI gate — no deploy.
 # On push to main: typecheck + test, then deploy — only for apps whose files
-# were touched by that push.
+# (or a shared package they depend on) were touched by that push.
 
 name: Deploy
 
@@ -56,6 +64,8 @@ jobs:
           filters: |
             business_owner:
               - 'apps/business-owner/**'
+              - 'packages/**'
+              - 'package.json'
               - '.github/workflows/deploy.yml'
 
   business-owner:
@@ -65,21 +75,18 @@ jobs:
     concurrency:
       group: deploy-business-owner-${{ github.ref }}
       cancel-in-progress: true
-    defaults:
-      run:
-        working-directory: apps/business-owner
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+      - run: npm run typecheck --workspace=apps/business-owner
+      - run: npm test --workspace=apps/business-owner
+      - run: npm run build --workspace=apps/business-owner
       - name: Deploy
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npm run deploy
+        run: npm run deploy --workspace=apps/business-owner
