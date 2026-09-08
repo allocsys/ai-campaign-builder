@@ -26,12 +26,9 @@ window.App = (function () {
     const fCount = Number(followerCount) || 0;
     const bToman = Number(offerBudgetToman) || 0;
 
-    // Boundary rule (fixed 2026-09-08 — see plan.md tier table wording): only the SECOND-TO-LAST tier's
-    // own boundary is inclusive (matches "Large is strictly greater than X"); earlier tier boundaries are
-    // exclusive-upper, since plan.md's ranges mean e.g. exactly 500 followers belongs to Small, not Micro.
     function findTierIndex(value, key) {
       for (let i = 0; i < tiers.length; i++) {
-        if (i === tiers.length - 1) break; // last tier is the catch-all fallback below
+        if (i === tiers.length - 1) break;
         const bound = tiers[i][key];
         const isSecondToLast = i === tiers.length - 2;
         if (isSecondToLast ? value <= bound : value < bound) {
@@ -44,14 +41,10 @@ window.App = (function () {
     const followerTierIndex = findTierIndex(fCount, 'maxFollowers');
     const budgetTierIndex = findTierIndex(bToman, 'maxBudgetToman');
 
-    // Signal conflict rule: use the HIGHER tier index
     const resolvedIndex = Math.max(followerTierIndex, budgetTierIndex);
     return tiers[resolvedIndex];
   }
 
-  /**
-   * Scale base points for a given tier.
-   */
   function scalePointsForTier(basePoints, tierKeyOrObj) {
     let multiplier = 1.0;
     if (typeof tierKeyOrObj === 'object' && tierKeyOrObj !== null) {
@@ -63,9 +56,6 @@ window.App = (function () {
     return Math.round((Number(basePoints) || 0) * multiplier);
   }
 
-  /**
-   * Get suggested duration in days for a tier.
-   */
   function getSuggestedDuration(tierKeyOrObj) {
     let days = 14;
     if (typeof tierKeyOrObj === 'object' && tierKeyOrObj !== null) {
@@ -77,11 +67,6 @@ window.App = (function () {
     return days;
   }
 
-  /**
-   * Goal-driven First Action/Conversion weighting override:
-   * When generating a campaign's task list, if campaign.goal === 'acquisition', boost the First Action/Conversion task pattern's weight toward 3;
-   * if goal === 'retention', drop its weight toward 0-1.
-   */
   function generateCampaignTasksForCategory(categorySlug, goal, tier) {
     const taskPatterns = window.MOCK ? window.MOCK.taskPatterns : [];
     const weightsConfig = window.MOCK && window.MOCK.sizeTierConfig ? window.MOCK.sizeTierConfig.patternWeights : {};
@@ -89,15 +74,13 @@ window.App = (function () {
       social_proof: 2, referral: 2, repeat_purchase: 2, milestone_streak: 1, specific_product_push: 2, review_ugc: 2, first_action: 2, off_peak: 1, anniversary_birthday: 1
     };
 
-    // Apply Goal-driven First Action override
     let resolvedWeights = { ...catWeights };
     if (goal === 'acquisition') {
-      resolvedWeights.first_action = 3; // boost toward 3
+      resolvedWeights.first_action = 3;
     } else if (goal === 'retention') {
-      resolvedWeights.first_action = 1; // drop toward 0-1
+      resolvedWeights.first_action = 1;
     }
 
-    // Select top task patterns with weight >= 2 (or top 4)
     const sortedPatterns = [...taskPatterns].sort((a, b) => {
       const wA = resolvedWeights[a.name] ?? 1;
       const wB = resolvedWeights[b.name] ?? 1;
@@ -121,15 +104,11 @@ window.App = (function () {
     });
   }
 
-  /**
-   * SMS wallet: real per-send deduction + optional monthly cap enforcement (Phase 0.9 "SMS cost control").
-   */
   function getSmsPricePerSms() {
     return (window.MOCK && window.MOCK.smsPricing) ? window.MOCK.smsPricing.price_per_sms_toman : 350;
   }
 
   function getMonthlySmsSpend(businessId) {
-    // Mock simplification: sums all deduction transactions logged this session (no real calendar-month tracking in the mock).
     if (!window.MOCK || !window.MOCK.smsWalletTransactions) return 0;
     return window.MOCK.smsWalletTransactions
       .filter(t => t.business_id === businessId && t.type === 'deduction')
@@ -154,12 +133,6 @@ window.App = (function () {
     return txn;
   }
 
-  /**
-   * Attempt to deduct the cost of one SMS send from a business's prepaid wallet.
-   * Checks (in order): wallet balance sufficiency, then optional monthly spending cap.
-   * Returns { allowed, reason, costToman } — reason is 'insufficient_balance' | 'monthly_cap_reached' | null.
-   * Does NOT deduct or record a transaction unless allowed === true.
-   */
   function deductForSmsSend(businessId) {
     const business = window.MOCK.businesses.find(b => b.id === businessId);
     const price = getSmsPricePerSms();
@@ -180,11 +153,6 @@ window.App = (function () {
     return { allowed: true, reason: null, costToman: price };
   }
 
-  /**
-   * Point expiry & carryover (plan.md Phase 0.5): after a campaign's grace period ends,
-   * carryover_percentage of a customer's remaining balance is preserved as a carryover credit
-   * (tied to customer+business, not a specific future campaign); the rest is forfeited.
-   */
   function computeCarryoverSplit(pointsBalance, carryoverPercentage) {
     const balance = Number(pointsBalance) || 0;
     const pct = Number(carryoverPercentage) != null ? Number(carryoverPercentage) : 30;
@@ -193,12 +161,6 @@ window.App = (function () {
     return { forfeited, carried };
   }
 
-  /**
-   * Simulates a campaign's grace period ending: for every customer_campaign_code in the campaign
-   * with a remaining balance, splits it per computeCarryoverSplit, zeroes the in-campaign balance
-   * (forfeited + carried both leave the ended campaign), and creates a pending point_carryovers row
-   * for the carried portion. Returns a per-customer breakdown for display.
-   */
   function simulateCampaignEndCarryover(campaign) {
     if (!window.MOCK || !campaign) return [];
     const codes = window.MOCK.customerCampaignCodes.filter(c => c.campaign_id === campaign.id && c.points_balance > 0);
@@ -221,7 +183,7 @@ window.App = (function () {
         if (window.MOCK.pointCarryovers) window.MOCK.pointCarryovers.unshift(row);
       }
 
-      code.points_balance = 0; // grace period closed — balance leaves the ended campaign either way
+      code.points_balance = 0;
 
       results.push({
         customerId: code.customer_id,
@@ -240,11 +202,6 @@ window.App = (function () {
     return window.MOCK.pointCarryovers.filter(p => p.business_id === businessId && p.consumed_in_campaign_id == null);
   }
 
-  /**
-   * Applies a pending carryover row (by id) as a starting-bonus credit into the given target campaign's
-   * customer_campaign_code for that same customer — simulating "customer joins the business's next campaign".
-   * Marks the row consumed. Returns the applied row, or null if not found/already consumed/no matching code.
-   */
   function applyCarryoverById(carryoverId, targetCampaignId) {
     if (!window.MOCK || !window.MOCK.pointCarryovers) return null;
     const row = window.MOCK.pointCarryovers.find(p => p.id === carryoverId && p.consumed_in_campaign_id == null);
@@ -259,13 +216,6 @@ window.App = (function () {
     return row;
   }
 
-  /**
-   * SUB-GAP A: Referral Anomaly Detection rule engine (plan.md "Referral abuse prevention" & architecture.md referral_flags).
-   * Runs as a simulated batch job:
-   * 1. Velocity rule: a referrer with more than 5 new referred signups within a rolling 24-hour window (or total > 5 in mock) -> flag.
-   * 2. Dead-referral ratio rule: a referrer with >= 5 referred customers who are > 7 days old with zero purchases -> flag.
-   * Generates referral_flags rows on demand into window.MOCK.referralFlags (advisory only, no auto-block).
-   */
   function runReferralAnomalyDetection() {
     if (!window.MOCK || !window.MOCK.customerCampaignCodes) return 0;
     const codes = window.MOCK.customerCampaignCodes;
@@ -273,7 +223,6 @@ window.App = (function () {
     const flags = window.MOCK.referralFlags || [];
     let newFlagsCount = 0;
 
-    // Group referred codes by referrer code id
     const referralsByReferrer = {};
     codes.forEach(c => {
       if (c.referred_by_code_id) {
@@ -291,7 +240,6 @@ window.App = (function () {
       const referrerCust = customers.find(cu => cu.id === referrerCode.customer_id);
       const referrerName = referrerCust ? `${referrerCust.name} (${referrerCust.phone_number})` : `کد معرف ${referrerCode.personal_code}`;
 
-      // Rule 1: Velocity rule (> 5 referred signups)
       if (referredList.length > 5) {
         const existing = flags.find(f => f.referrer_name.includes(referrerCode.personal_code) && f.rule_triggered === 'velocity' && f.status === 'open');
         if (!existing) {
@@ -309,10 +257,8 @@ window.App = (function () {
         }
       }
 
-      // Rule 2: Dead-referral ratio rule (>= 5 referred customers > 7 days old with zero purchases)
       const deadReferrals = referredList.filter(rc => {
         const isOld = (rc.created_at_days_ago || 0) > 7;
-        // Check if zero purchases / zero approved submissions
         const hasPurchases = (window.MOCK.taskSubmissions || []).some(s => s.customer_campaign_code_id === rc.id && s.status === 'approved');
         return isOld && !hasPurchases;
       });
@@ -339,12 +285,6 @@ window.App = (function () {
     return newFlagsCount;
   }
 
-  /**
-   * SUB-GAP B: Process customer signup with referral code (gating + cap enforcement).
-   * - Per-campaign cap (default 10): if referrer has reached 10 referrals in this campaign,
-   *   referred person joins normally (no blocking), but referrer earns no additional points.
-   * - First-purchase gating: referral points stay in Pending state until referred customer's first purchase clears.
-   */
   function processCustomerSignupWithReferral(newCustomerCodeId, referralCodeInput, campaignId) {
     if (!referralCodeInput || !window.MOCK) return { success: false, reason: 'no_code' };
     const cleanInput = String(referralCodeInput).trim();
@@ -361,7 +301,6 @@ window.App = (function () {
     const campaign = window.MOCK.campaigns.find(cp => cp.id === campaignId) || window.MOCK.campaigns[0];
     const maxCap = campaign && campaign.max_referrals_per_customer != null ? campaign.max_referrals_per_customer : 10;
 
-    // Count existing referrals for this referrer in this campaign
     const existingReferralsCount = window.MOCK.customerCampaignCodes.filter(c => c.referred_by_code_id === referrerCode.id && c.campaign_id === campaignId).length;
 
     newCode.referred_by_code_id = referrerCode.id;
@@ -370,8 +309,7 @@ window.App = (function () {
     const referrerName = referrerCust ? referrerCust.name : 'معرف';
 
     if (existingReferralsCount < maxCap) {
-      // Create pending referral task submission (gated on first purchase!)
-      const referralTask = window.MOCK.campaignTasks.find(t => t.task_pattern_id === 'tp_referral') || window.MOCK.campaignTasks[1];
+      const referralTask = window.MOCK.campaignTasks.find(t => t.task_pattern_id === 'referral') || window.MOCK.campaignTasks[1];
       const pts = referralTask ? referralTask.points_value : 80;
 
       window.MOCK.taskSubmissions.unshift({
@@ -383,7 +321,7 @@ window.App = (function () {
         submission_type: 'referral_auto',
         evidence_url: 'system_auto_link',
         ai_confidence_score: null,
-        status: 'pending', // Gated on first purchase!
+        status: 'pending',
         reviewed_by: null,
         notes: `امتیاز معرفی در انتظار اولین خرید مشتری جدید (${newCode.personal_code}) است.`,
         points_awarded: null,
@@ -392,16 +330,10 @@ window.App = (function () {
 
       return { success: true, capped: false, referrerName, currentCount: existingReferralsCount + 1, maxCap };
     } else {
-      // Reached cap: joined normally, but no additional points earned for referrer
       return { success: true, capped: true, referrerName, currentCount: existingReferralsCount, maxCap };
     }
   }
 
-  /**
-   * SUB-GAP B: Process first-purchase completion for a customer code (clears referral gating).
-   * When a customer with a pending referral completes their first purchase, their referrer's pending
-   * referral submission is approved, points are credited, and notification is sent.
-   */
   function processFirstPurchaseForCustomer(customerCodeId) {
     if (!window.MOCK) return null;
     const customerCode = window.MOCK.customerCampaignCodes.find(c => c.id === customerCodeId);
@@ -410,7 +342,6 @@ window.App = (function () {
     const referrerCode = window.MOCK.customerCampaignCodes.find(c => c.id === customerCode.referred_by_code_id);
     if (!referrerCode) return null;
 
-    // Find pending referral submission for this referrer related to this signup
     const pendingSub = window.MOCK.taskSubmissions.find(s =>
       s.customer_campaign_code_id === referrerCode.id &&
       s.status === 'pending' &&
@@ -443,23 +374,14 @@ window.App = (function () {
     return null;
   }
 
-  /**
-   * GAP #8: Retroactive purchase claim flow (plan.md Phase 0.5 & Gap #8).
-   * - Enforces 48-72 hour time window (mocked via hoursAgo parameter, max 72).
-   * - Enforces duplicate detection via receipt_hash.
-   * - Enforces rate limiting (max 3 retroactive claims per customer per campaign).
-   * - Sets submission_type: 'retroactive_purchase_claim', status: 'pending', low/cautious ai_confidence_score (42).
-   */
   function submitRetroactivePurchaseClaim(customerCampaignCodeId, campaignId, receiptImageHash, receiptNumber, hoursAgo = 12) {
     if (!window.MOCK) return { success: false, reason: 'system_error' };
 
-    // 1. Time limit enforcement (48-72 hours max)
     const hours = Number(hoursAgo) || 12;
     if (hours > 72) {
       return { success: false, reason: 'outside_time_window' };
     }
 
-    // 2. Duplicate detection via receipt hash
     const hash = receiptImageHash ? String(receiptImageHash).trim() : ('hash_' + Date.now());
     const existingByHash = (window.MOCK.taskSubmissions || []).find(s => 
       s.submission_type === 'retroactive_purchase_claim' && 
@@ -469,7 +391,6 @@ window.App = (function () {
       return { success: false, reason: 'duplicate_receipt' };
     }
 
-    // 3. Rate limiting (max 3 retroactive claims per customer per campaign)
     const existingForCustomer = (window.MOCK.taskSubmissions || []).filter(s =>
       s.customer_campaign_code_id === customerCampaignCodeId &&
       s.submission_type === 'retroactive_purchase_claim'
@@ -494,7 +415,7 @@ window.App = (function () {
       evidence_url: 'receipt_' + (receiptNumber || 'scan') + '.jpg',
       receipt_number: receiptNumber ? String(receiptNumber).trim() : ('RCP-' + Math.floor(1000 + Math.random() * 9000)),
       receipt_hash: hash,
-      ai_confidence_score: 42, // Cautious score, routes to manual review
+      ai_confidence_score: 42,
       status: 'pending',
       reviewed_by: null,
       notes: `ادعای خرید بازگشتی با شماره رسید ${receiptNumber || 'نامشخص'}. ثبت‌شده خارج از صندوق — نیازمند بررسی دقیق دستی (حسابرسی احتیاطی).`,
@@ -507,10 +428,97 @@ window.App = (function () {
   }
 
   /**
-   * Phase 3/4 change-type scope classification (plan.md "What the AI can suggest" / Phase 4 "Scope").
-   * Structural change types always require a manual Apply, even with autopilot on.
-   * Autopilot-eligible types are the numeric/parameter-only subset autopilot may auto-apply.
+   * GAP #9 Implementation: Staff POS Offline Queue Real Server-Side Verification on Sync
+   * Processes each queued item in window.MOCK.offlineQueue:
+   * 1. Duplicate detection: checks if idempotency_key already exists in syncedServerRecords store.
+   *    If duplicate -> result: 'duplicate_skipped'.
+   * 2. Validity check: checks if customer_campaign_code_id exists in customerCampaignCodes and campaign is active/valid.
+   *    If invalid/not found -> result: 'invalid_skipped'.
+   * 3. Valid items -> commits into syncedServerRecords, awards points/triggers referral clearance, result: 'synced'.
+   * Returns per-item results array for UI display.
    */
+  function syncStaffOfflineQueue() {
+    if (!window.MOCK || !window.MOCK.offlineQueue) return [];
+    const queue = window.MOCK.offlineQueue;
+    const syncedStore = window.MOCK.syncedServerRecords || [];
+    const codes = window.MOCK.customerCampaignCodes || [];
+    const campaigns = window.MOCK.campaigns || [];
+
+    const results = [];
+
+    // Process each queued item
+    queue.forEach(item => {
+      // 1. Duplicate detection via idempotency_key
+      const isDuplicate = syncedStore.some(r => r.idempotency_key === item.idempotency_key);
+      if (isDuplicate) {
+        results.push({
+          itemId: item.id,
+          idempotencyKey: item.idempotency_key,
+          actionType: item.action_type,
+          status: 'duplicate_skipped',
+          reason: 'سرور مرکزی قبلاً این تراکنش را ثبت کرده است (شناسه تکراری / Duplicate Idempotency Key).'
+        });
+        item.sync_result = 'duplicate_skipped';
+        item.status = 'synced_failed_duplicate';
+        return;
+      }
+
+      // 2. Validity check: verify customer campaign code exists and campaign is active/valid
+      const custCode = codes.find(c => c.id === item.customer_campaign_code_id);
+      const campaign = campaigns.find(cp => cp.id === item.campaign_id);
+
+      if (!custCode || !campaign || campaign.status !== 'active') {
+        results.push({
+          itemId: item.id,
+          idempotencyKey: item.idempotency_key,
+          actionType: item.action_type,
+          status: 'invalid_skipped',
+          reason: 'کد کاربری نامعتبر است یا کمپین مربوطه دیگر فعال/معتبر نمی‌باشد (Invalid Code or Inactive Campaign).'
+        });
+        item.sync_result = 'invalid_skipped';
+        item.status = 'synced_failed_invalid';
+        return;
+      }
+
+      // 3. Valid, non-duplicate item -> commit into normal flow as if scanned live
+      const pts = item.points_awarded || 60;
+      custCode.points_balance += pts;
+
+      // Check first purchase clearance for referral if applicable
+      const refRelease = processFirstPurchaseForCustomer(custCode.id);
+
+      const committedRecord = {
+        id: 'sync_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        idempotency_key: item.idempotency_key,
+        customer_campaign_code_id: custCode.id,
+        campaign_id: campaign.id,
+        action_type: item.action_type,
+        amount_toman: item.amount_toman,
+        points_awarded: pts,
+        synced_at: 'همین الان'
+      };
+      syncedStore.unshift(committedRecord);
+      window.MOCK.syncedServerRecords = syncedStore;
+
+      item.sync_result = 'synced';
+      item.status = 'synced';
+
+      results.push({
+        itemId: item.id,
+        idempotencyKey: item.idempotency_key,
+        actionType: item.action_type,
+        status: 'synced',
+        pointsAwarded: pts,
+        refRelease: refRelease,
+        reason: 'با موفقیت راستی‌آزمایی و در سرور مرکزی ثبت شد.'
+      });
+    });
+
+    // Clear queue after processing
+    window.MOCK.offlineQueue = [];
+    return results;
+  }
+
   const STRUCTURAL_CHANGE_TYPES = ['add_task', 'remove_task'];
   const AUTOPILOT_ELIGIBLE_CHANGE_TYPES = ['task_points', 'reward_threshold', 'campaign_duration'];
 
@@ -522,13 +530,6 @@ window.App = (function () {
     return AUTOPILOT_ELIGIBLE_CHANGE_TYPES.includes(changeType);
   }
 
-  /**
-   * Phase 3 constraint enforcement (plan.md "What the business owner tells the AI" / business_ai_constraints):
-   * checks a high-risk (reward_depth) suggestion's suggested discount against the business's configured
-   * max_discount_percent before it's shown as actionable. Low-risk suggestions are never blocked by this check
-   * (constraints mainly matter for the high-risk tier per plan.md Phase 4 note).
-   * Returns { blocked, reason } — reason is a human-readable Persian explanation, or null if not blocked.
-   */
   function checkSuggestionAgainstConstraints(suggestion, businessId) {
     const constraints = window.MOCK && window.MOCK.businessAiConstraints ? window.MOCK.businessAiConstraints[businessId] : null;
     if (!constraints) return { blocked: false, reason: null };
@@ -615,7 +616,10 @@ window.App = (function () {
       dismissed: { text: 'رد شده', cls: 'badge-secondary' },
       sent: { text: 'ارسال شده', cls: 'badge-success' },
       skipped: { text: 'چشم‌پوشی / Dedup', cls: 'badge-warning' },
-      failed: { text: 'ناموفق', cls: 'badge-danger' }
+      failed: { text: 'ناموفق', cls: 'badge-danger' },
+      synced: { text: 'همگام و تایید شده', cls: 'badge-success' },
+      duplicate_skipped: { text: 'رد شده (تکراری / Duplicate)', cls: 'badge-danger' },
+      invalid_skipped: { text: 'رد شده (نامعتبر / Invalid)', cls: 'badge-danger' }
     };
     const item = map[status] || { text: status, cls: 'badge-secondary' };
     return `<span class="badge ${item.cls}">${item.text}</span>`;
@@ -720,10 +724,9 @@ window.App = (function () {
         campaign_id: campaignId,
         skip_reason: 'dedup'
       });
-      return false; // skipped: dedup
+      return false;
     }
 
-    // Not a duplicate — attempt to deduct the SMS cost from the business's prepaid wallet before sending.
     const walletResult = deductForSmsSend(businessId);
 
     if (!walletResult.allowed) {
@@ -742,7 +745,7 @@ window.App = (function () {
         skip_reason: walletResult.reason,
         cost_toman: walletResult.costToman
       });
-      return false; // skipped: wallet/cap
+      return false;
     }
 
     logNotification({
@@ -756,13 +759,9 @@ window.App = (function () {
       campaign_id: campaignId,
       cost_toman: walletResult.costToman
     });
-    return true; // sent
+    return true;
   }
 
-  /**
-   * Microsite module toggles (Gap #6 fix, 2026-09-08): persists per business in the shared
-   * in-memory MOCK data object (`window.MOCK.businessMicrositeModules`), without using browser storage (localStorage).
-   */
   function getMicrositeModules(businessId) {
     if (window.MOCK && window.MOCK.businessMicrositeModules) {
       const stored = window.MOCK.businessMicrositeModules[businessId];
@@ -846,6 +845,7 @@ window.App = (function () {
     processCustomerSignupWithReferral,
     processFirstPurchaseForCustomer,
     submitRetroactivePurchaseClaim,
+    syncStaffOfflineQueue,
     isStructuralChangeType,
     isAutopilotEligibleChangeType,
     checkSuggestionAgainstConstraints,
