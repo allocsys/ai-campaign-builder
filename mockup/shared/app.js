@@ -260,6 +260,190 @@ window.App = (function () {
   }
 
   /**
+   * SUB-GAP A: Referral Anomaly Detection rule engine (plan.md "Referral abuse prevention" & architecture.md referral_flags).
+   * Runs as a simulated batch job:
+   * 1. Velocity rule: a referrer with more than 5 new referred signups within a rolling 24-hour window (or total > 5 in mock) -> flag.
+   * 2. Dead-referral ratio rule: a referrer with >= 5 referred customers who are > 7 days old with zero purchases -> flag.
+   * Generates referral_flags rows on demand into window.MOCK.referralFlags (advisory only, no auto-block).
+   */
+  function runReferralAnomalyDetection() {
+    if (!window.MOCK || !window.MOCK.customerCampaignCodes) return 0;
+    const codes = window.MOCK.customerCampaignCodes;
+    const customers = window.MOCK.customers || [];
+    const flags = window.MOCK.referralFlags || [];
+    let newFlagsCount = 0;
+
+    // Group referred codes by referrer code id
+    const referralsByReferrer = {};
+    codes.forEach(c => {
+      if (c.referred_by_code_id) {
+        if (!referralsByReferrer[c.referred_by_code_id]) {
+          referralsByReferrer[c.referred_by_code_id] = [];
+        }
+        referralsByReferrer[c.referred_by_code_id].push(c);
+      }
+    });
+
+    Object.keys(referralsByReferrer).forEach(referrerCodeId => {
+      const referredList = referralsByReferrer[referrerCodeId];
+      const referrerCode = codes.find(c => c.id === referrerCodeId);
+      if (!referrerCode) return;
+      const referrerCust = customers.find(cu => cu.id === referrerCode.customer_id);
+      const referrerName = referrerCust ? `${referrerCust.name} (${referrerCust.phone_number})` : `کد معرف ${referrerCode.personal_code}`;
+
+      // Rule 1: Velocity rule (> 5 referred signups)
+      if (referredList.length > 5) {
+        const existing = flags.find(f => f.referrer_name.includes(referrerCode.personal_code) && f.rule_triggered === 'velocity' && f.status === 'open');
+        if (!existing) {
+          flags.unshift({
+            id: 'rf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            referrer_name: referrerName,
+            rule_triggered: 'velocity',
+            rule_name_fa: 'تعداد دعوت نامتعارف در بازه کوتاه (Velocity)',
+            description: `تعداد ${referredList.length} ثبت‌نام موفق با این کد معرف ثبت شده است (سقف سیستم ۵ است).`,
+            triggered_at: 'همین الان',
+            status: 'open',
+            notes: ''
+          });
+          newFlagsCount++;
+        }
+      }
+
+      // Rule 2: Dead-referral ratio rule (>= 5 referred customers > 7 days old with zero purchases)
+      const deadReferrals = referredList.filter(rc => {
+        const isOld = (rc.created_at_days_ago || 0) > 7;
+        // Check if zero purchases / zero approved submissions
+        const hasPurchases = (window.MOCK.taskSubmissions || []).some(s => s.customer_campaign_code_id === rc.id && s.status === 'approved');
+        return isOld && !hasPurchases;
+      });
+
+      if (deadReferrals.length >= 5) {
+        const existing = flags.find(f => f.referrer_name.includes(referrerCode.personal_code) && f.rule_triggered === 'dead_referral_ratio' && f.status === 'open');
+        if (!existing) {
+          flags.unshift({
+            id: 'rf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            referrer_name: referrerName,
+            rule_triggered: 'dead_referral_ratio',
+            rule_name_fa: 'دعوت‌های غیرفعال بدون خرید (Dead Referral Ratio)',
+            description: `تعداد ${deadReferrals.length} کاربر دعوت‌شده بیش از ۷ روز است ثبت‌نام کرده‌اند اما هیچ خرید یا فعالیتی ثبت نکرده‌اند.`,
+            triggered_at: 'همین الان',
+            status: 'open',
+            notes: ''
+          });
+          newFlagsCount++;
+        }
+      }
+    });
+
+    window.MOCK.referralFlags = flags;
+    return newFlagsCount;
+  }
+
+  /**
+   * SUB-GAP B: Process customer signup with referral code (gating + cap enforcement).
+   * - Per-campaign cap (default 10): if referrer has reached 10 referrals in this campaign,
+   *   referred person joins normally (no blocking), but referrer earns no additional points.
+   * - First-purchase gating: referral points stay in Pending state until referred customer's first purchase clears.
+   */
+  function processCustomerSignupWithReferral(newCustomerCodeId, referralCodeInput, campaignId) {
+    if (!referralCodeInput || !window.MOCK) return { success: false, reason: 'no_code' };
+    const cleanInput = String(referralCodeInput).trim();
+    if (!cleanInput) return { success: false, reason: 'empty_code' };
+
+    const referrerCode = window.MOCK.customerCampaignCodes.find(c => c.personal_code === cleanInput && c.campaign_id === campaignId);
+    if (!referrerCode) {
+      return { success: false, reason: 'invalid_code' };
+    }
+
+    const newCode = window.MOCK.customerCampaignCodes.find(c => c.id === newCustomerCodeId);
+    if (!newCode) return { success: false, reason: 'new_code_not_found' };
+
+    const campaign = window.MOCK.campaigns.find(cp => cp.id === campaignId) || window.MOCK.campaigns[0];
+    const maxCap = campaign && campaign.max_referrals_per_customer != null ? campaign.max_referrals_per_customer : 10;
+
+    // Count existing referrals for this referrer in this campaign
+    const existingReferralsCount = window.MOCK.customerCampaignCodes.filter(c => c.referred_by_code_id === referrerCode.id && c.campaign_id === campaignId).length;
+
+    newCode.referred_by_code_id = referrerCode.id;
+
+    const referrerCust = window.MOCK.customers.find(cu => cu.id === referrerCode.customer_id);
+    const referrerName = referrerCust ? referrerCust.name : 'معرف';
+
+    if (existingReferralsCount < maxCap) {
+      // Create pending referral task submission (gated on first purchase!)
+      const referralTask = window.MOCK.campaignTasks.find(t => t.task_pattern_id === 'tp_referral') || window.MOCK.campaignTasks[1];
+      const pts = referralTask ? referralTask.points_value : 80;
+
+      window.MOCK.taskSubmissions.unshift({
+        id: 'sub_ref_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        customer_campaign_code_id: referrerCode.id,
+        campaign_task_id: referralTask ? referralTask.id : 'ct_2',
+        customer_name: referrerName,
+        task_title: `معرفی دوست (ثبت‌نام جدید با کد ${newCode.personal_code})`,
+        submission_type: 'referral_auto',
+        evidence_url: 'system_auto_link',
+        ai_confidence_score: null,
+        status: 'pending', // Gated on first purchase!
+        reviewed_by: null,
+        notes: `امتیاز معرفی در انتظار اولین خرید مشتری جدید (${newCode.personal_code}) است.`,
+        points_awarded: null,
+        submitted_at: 'همین الان'
+      });
+
+      return { success: true, capped: false, referrerName, currentCount: existingReferralsCount + 1, maxCap };
+    } else {
+      // Reached cap: joined normally, but no additional points earned for referrer
+      return { success: true, capped: true, referrerName, currentCount: existingReferralsCount, maxCap };
+    }
+  }
+
+  /**
+   * SUB-GAP B: Process first-purchase completion for a customer code (clears referral gating).
+   * When a customer with a pending referral completes their first purchase, their referrer's pending
+   * referral submission is approved, points are credited, and notification is sent.
+   */
+  function processFirstPurchaseForCustomer(customerCodeId) {
+    if (!window.MOCK) return null;
+    const customerCode = window.MOCK.customerCampaignCodes.find(c => c.id === customerCodeId);
+    if (!customerCode || !customerCode.referred_by_code_id) return null;
+
+    const referrerCode = window.MOCK.customerCampaignCodes.find(c => c.id === customerCode.referred_by_code_id);
+    if (!referrerCode) return null;
+
+    // Find pending referral submission for this referrer related to this signup
+    const pendingSub = window.MOCK.taskSubmissions.find(s =>
+      s.customer_campaign_code_id === referrerCode.id &&
+      s.status === 'pending' &&
+      s.submission_type === 'referral_auto'
+    );
+
+    if (pendingSub) {
+      pendingSub.status = 'approved';
+      pendingSub.reviewed_by = 'system_pos';
+      const referralTask = window.MOCK.campaignTasks.find(t => t.id === pendingSub.campaign_task_id) || window.MOCK.campaignTasks[1];
+      const pts = referralTask ? referralTask.points_value : 80;
+      pendingSub.points_awarded = pts;
+      pendingSub.notes = 'تایید شد: مشتری معرفی‌شده اولین خرید خود را در صندوق ثبت کرد.';
+
+      referrerCode.points_balance += pts;
+      referrerCode.referral_count = (referrerCode.referral_count || 0) + 1;
+
+      const referrerCust = window.MOCK.customers.find(cu => cu.id === referrerCode.customer_id);
+      const referrerName = referrerCust ? referrerCust.name : 'معرف';
+
+      logNotification(
+        referrerName + (referrerCust ? ` (${referrerCust.phone_number})` : ''),
+        'sms',
+        'submission_reviewed',
+        `مشتری دعوت‌شده شما اولین خرید خود را ثبت کرد! ${pts} امتیاز معرفی به حساب شما واریز شد.`
+      );
+
+      return { referrerName, pts };
+    }
+    return null;
+  }
+
+  /**
    * Phase 3/4 change-type scope classification (plan.md "What the AI can suggest" / Phase 4 "Scope").
    * Structural change types always require a manual Apply, even with autopilot on.
    * Autopilot-eligible types are the numeric/parameter-only subset autopilot may auto-apply.
@@ -595,6 +779,9 @@ window.App = (function () {
     simulateCampaignEndCarryover,
     getPendingCarryovers,
     applyCarryoverById,
+    runReferralAnomalyDetection,
+    processCustomerSignupWithReferral,
+    processFirstPurchaseForCustomer,
     isStructuralChangeType,
     isAutopilotEligibleChangeType,
     checkSuggestionAgainstConstraints,
