@@ -61,7 +61,10 @@ window.App = (function () {
       ended: { text: 'پایان‌یافته', cls: 'badge-secondary' },
       open: { text: 'در انتظار بررسی', cls: 'badge-warning' },
       reviewed: { text: 'بررسی شد', cls: 'badge-info' },
-      dismissed: { text: 'رد شده', cls: 'badge-secondary' }
+      dismissed: { text: 'رد شده', cls: 'badge-secondary' },
+      sent: { text: 'ارسال شده', cls: 'badge-success' },
+      skipped: { text: 'چشم‌پوشی / Dedup', cls: 'badge-warning' },
+      failed: { text: 'ناموفق', cls: 'badge-danger' }
     };
     const item = map[status] || { text: status, cls: 'badge-secondary' };
     return `<span class="badge ${item.cls}">${item.text}</span>`;
@@ -95,17 +98,85 @@ window.App = (function () {
     return timer;
   }
 
-  function logNotification(customer, channel, trigger, text) {
-    if (window.MOCK && window.MOCK.notificationsLog) {
-      window.MOCK.notificationsLog.unshift({
-        id: 'notif_' + Date.now(),
-        customer: customer || 'کاربر نمونه',
+  function logNotification(arg1, channel, trigger, text, extra = {}) {
+    let entry = {};
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      entry = {
+        id: 'notif_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        business_id: arg1.business_id || 'b_narvan',
+        customer: arg1.customer || 'کاربر نمونه',
+        channel: arg1.channel || 'sms',
+        trigger: arg1.trigger || 'custom',
+        text: arg1.text || '',
+        time: 'همین الان',
+        status: arg1.status || 'sent',
+        customer_campaign_code_id: arg1.customer_campaign_code_id || null,
+        business_contact_id: arg1.business_contact_id || null,
+        campaign_id: arg1.campaign_id || null
+      };
+    } else {
+      entry = {
+        id: 'notif_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        business_id: extra.business_id || 'b_narvan',
+        customer: arg1 || 'کاربر نمونه',
         channel: channel || 'sms',
         trigger: trigger || 'custom',
-        text: text,
+        text: text || '',
         time: 'همین الان',
-        status: 'sent'
+        status: extra.status || 'sent',
+        customer_campaign_code_id: extra.customer_campaign_code_id || null,
+        business_contact_id: extra.business_contact_id || null,
+        campaign_id: extra.campaign_id || null
+      };
+    }
+    if (window.MOCK && window.MOCK.notificationsLog) {
+      window.MOCK.notificationsLog.unshift(entry);
+    }
+    return entry;
+  }
+
+  function hasCampaignInviteSent(businessContactId, campaignId) {
+    if (!window.MOCK || !window.MOCK.notificationsLog) return false;
+    return window.MOCK.notificationsLog.some(log =>
+      log.trigger === 'campaign_invite' &&
+      log.business_contact_id === businessContactId &&
+      log.campaign_id === campaignId &&
+      log.status === 'sent'
+    );
+  }
+
+  function sendCampaignInvite(contact, campaign) {
+    const contactId = contact.id;
+    const campaignId = campaign.id;
+    const businessId = campaign.business_id || contact.business_id || 'b_narvan';
+    const customerName = contact.name || contact.phone_number || 'مشتری';
+
+    const alreadySent = hasCampaignInviteSent(contactId, campaignId);
+
+    if (alreadySent) {
+      logNotification({
+        business_id: businessId,
+        customer: `${customerName} (${contact.phone_number})`,
+        channel: 'sms',
+        trigger: 'campaign_invite',
+        text: `دعوت‌نامه کمپین «${campaign.name}» برای ${contact.phone_number} (تکراری - چشم‌پوشی توسط Dedup)`,
+        status: 'skipped',
+        business_contact_id: contactId,
+        campaign_id: campaignId
       });
+      return false; // skipped
+    } else {
+      logNotification({
+        business_id: businessId,
+        customer: `${customerName} (${contact.phone_number})`,
+        channel: 'sms',
+        trigger: 'campaign_invite',
+        text: `دعوت‌نامه کمپین «${campaign.name}» برای ${contact.phone_number} ارسال شد. لینک عضویت: narvan.com/join`,
+        status: 'sent',
+        business_contact_id: contactId,
+        campaign_id: campaignId
+      });
+      return true; // sent
     }
   }
 
@@ -151,6 +222,8 @@ window.App = (function () {
     renderRiskBadge,
     startCountdown,
     logNotification,
+    hasCampaignInviteSent,
+    sendCampaignInvite,
     renderHeader
   };
 })();
