@@ -533,15 +533,19 @@
                       <span style="font-size: 1.35rem; font-weight: 700; color: #0f172a;" id="sms-balance-display">۴۲۰,۰۰۰ تومان</span>
                       <button class="btn btn-outline-primary btn-sm" onclick="topupWallet()">+ شارژ ۲۰۰,۰۰۰</button>
                     </div>
+                    <div style="margin-top: 0.6rem; font-size: 0.78rem; color: var(--text-muted);">
+                      هزینه هر پیامک: <strong id="sms-price-display">۳۵۰ تومان</strong> &nbsp;•&nbsp;
+                      مصرف این دوره: <strong id="sms-monthly-spend-display">۰ تومان</strong> از سقف <strong id="sms-cap-display">نامحدود</strong>
+                    </div>
                   </div>
 
                   <div class="form-group">
                     <label class="form-label">سقف ماهانه هزینه پیامک (Monthly Spending Cap):</label>
                     <div style="display: flex; gap: 0.5rem;">
                       <input type="text" id="sms-cap-input" class="form-control" value="۶۰۰,۰۰۰ تومان">
-                      <button class="btn btn-outline" onclick="App.showToast('سقف ماهانه ذخیره شد.', 'success')">ذخیره سقف</button>
+                      <button class="btn btn-outline" onclick="saveSmsCap()">ذخیره سقف</button>
                     </div>
-                    <small style="color: var(--text-muted); font-size: 0.78rem;">جهت محافظت در برابر ارسال‌های غیرمنتظره ترافیک بالا (اختیاری).</small>
+                    <small style="color: var(--text-muted); font-size: 0.78rem;">جهت محافظت در برابر ارسال‌های غیرمنتظره ترافیک بالا (اختیاری). رسیدن به سقف، ارسال پیامک را متوقف می‌کند تا ماه بعد (تلگرام همچنان ارسال می‌شود).</small>
                   </div>
 
                   <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.25rem 0;">
