@@ -622,6 +622,8 @@ window.MOCK = (function () {
   return {
     businessCategories,
     sizeTierConfig,
+    smsPricing,
+    smsWalletTransactions,
     businesses,
     businessAiConstraints,
     checklistItems,
