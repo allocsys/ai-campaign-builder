@@ -508,6 +508,10 @@ window.App = (function () {
     getMonthlySmsSpend,
     recordSmsWalletTransaction,
     deductForSmsSend,
+    computeCarryoverSplit,
+    simulateCampaignEndCarryover,
+    getPendingCarryovers,
+    applyCarryoverById,
     renderHeader
   };
 })();
