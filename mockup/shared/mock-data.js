@@ -178,6 +178,10 @@ window.MOCK = (function () {
     }
   };
 
+  // Point expiry & carryover (plan.md Phase 0.5 "Point expiry & carryover", architecture.md point_carryovers)
+  // Empty at seed — populated at runtime when the business owner simulates a campaign's grace-period end.
+  const pointCarryovers = [];
+
   const businessContacts = [
     {
       id: "contact_1",
