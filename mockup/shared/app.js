@@ -291,11 +291,28 @@ window.App = (function () {
       if (suggestedDiscount != null && constraints.max_discount_percent != null && suggestedDiscount > constraints.max_discount_percent) {
         return {
           blocked: true,
-          reason: `این پیشنهاد (${suggestedDiscount}٪ تخفیف) از سقف تخفیف مجاز شما (${constraints.max_discount_percent}٪ — تنظیم‌شده در تب «تنظیمات») فراتر می‌رود، بنابراین قابل اعمال نیست مگر ابتدا سقف را افزایش دهید.`
+          reason: `این پیشنهاد (${suggestedDiscount}٪ تخفیف) از سقف تخفیف مجاز شما (${constraints.max_discount_percent}٪ — تنظیم‌شده در تب «تنظیمات») فراتر می‌رود، بنابراین طبق قوانین فاز ۳ نباید نمایش داده شود.`
+        };
+      }
+      const suggestedCost = suggestion.suggested_value && (suggestion.suggested_value.cost_toman || suggestion.suggested_value.budget_toman);
+      if (suggestedCost != null && constraints.budget_ceiling_toman != null && suggestedCost > constraints.budget_ceiling_toman) {
+        return {
+          blocked: true,
+          reason: `هزینه این پیشنهاد (${formatToman(suggestedCost)}) از سقف بودجه پاداش شما (${formatToman(constraints.budget_ceiling_toman)} — تنظیم‌شده در تب «تنظیمات») فراتر می‌رود، بنابراین طبق قوانین فاز ۳ نباید نمایش داده شود.`
         };
       }
     }
     return { blocked: false, reason: null };
+  }
+
+  function renderScopeBadge(changeType, riskTier) {
+    if (riskTier === 'high') {
+      return `<span class="badge badge-scope badge-scope-manual"><span class="badge-dot"></span> ریسک بالا (اثر مالی — نیازمند تایید دستی)</span>`;
+    }
+    if (isStructuralChangeType(changeType)) {
+      return `<span class="badge badge-scope badge-scope-manual"><span class="badge-dot"></span> همیشه دستی (ساختاری — نیازمند تایید دستی)</span>`;
+    }
+    return `<span class="badge badge-scope badge-scope-autopilot"><span class="badge-dot"></span> قابل اتوپایلوت (عددی — خودکار در صورت روشن بودن)</span>`;
   }
 
   function showToast(message, type = 'info') {
@@ -586,6 +603,7 @@ window.App = (function () {
     isStructuralChangeType,
     isAutopilotEligibleChangeType,
     checkSuggestionAgainstConstraints,
+    renderScopeBadge,
     getMicrositeModules,
     saveMicrositeModules,
     renderHeader
