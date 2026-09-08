@@ -221,6 +221,36 @@ All 9 are live in `mockup/` on `main`. See git history for implementation detail
 
 Each step ships against the real backend once its endpoints exist; until then, stub with the same shape as `mock-data.js` so the frontend isn't blocked on backend sequencing.
 
+### Deployment architecture (decided 2026-09-08)
+
+**5 separate deployments, one per persona** — not one combined SPA:
+1. **Business Owner** app (authenticated dashboard)
+2. **Customer** app (public, high-traffic, mobile — kept as lean/fast as possible, Iranian mobile data costs matter)
+3. **Staff POS** app (installable PWA — needs its own manifest + service worker scope, awkward to share an origin with a non-PWA app)
+4. **Review Console** (internal team only — isolated for security/smaller attack surface, can sit behind extra auth later)
+5. **Microsite renderer** (public, per-business subdomain via `business_microsites.subdomain_slug` → `{slug}.ourdomain.com` — structurally different from the other four: multi-tenant, SEO-facing, likely wants SSR/static generation rather than an SPA)
+
+**Repo structure — monorepo, modeled directly on `allocsys/raffle-app`** (verified 2026-09-08, reuse this pattern rather than inventing a new one):
+```
+apps/
+  business-owner/   — own package.json, wrangler.toml, tsconfig.json, vite.config.ts
+  customer/          — same
+  staff-pos/          — same (+ PWA manifest/service worker)
+  review-console/    — same
+  microsite/          — same (subdomain-aware routing)
+  backend/            — API (once built), own migrations/ folder
+```
+Each app is a fully self-contained Vite project, deployed as its own Cloudflare Worker.
+
+**CI/CD — one `deploy.yml`, path-filtered per app** (same shape as raffle-app's, adapted to 5 frontend apps + 1 backend instead of 2+1):
+- `dorny/paths-filter` computes which `apps/<name>/**` folders changed in a push/PR.
+- One job per app; each only runs (typecheck + test + deploy) if its own folder (or the workflow file itself) changed.
+- Each job has its own `concurrency` group (`deploy-<app>-${{ github.ref }}`) so one app's in-flight deploy can't get cancelled by an unrelated push to a different app.
+- `pull_request` events: typecheck/test only, no deploy (CI gate). `push` to main and manual `workflow_dispatch`: full deploy. `workflow_dispatch` force-runs all apps regardless of changed paths.
+- Backend app (once it exists): migrations run gated on its own migrations/ folder changing, backend deploy waits on migrations succeeding-or-skipped, plus pre-deploy checks that required secrets (JWT secret, any bot/API tokens) actually exist before deploying — fails fast instead of shipping a broken deploy.
+
+**NEXT STEP when resuming:** restructure the existing `frontend/` scaffold (branch `frontend-scaffold`, commit `18dba46`) into this `apps/business-owner/` layout (or decide which persona to scaffold first into the new structure), then add the path-filtered `deploy.yml`. Business domain/subdomain names and Cloudflare account/project details are not yet decided — confirm before wiring actual `wrangler.toml` routes.
+
 ---
 
 ## Status Log
