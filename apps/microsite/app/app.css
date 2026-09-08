@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* This app's visual identity is intentionally independent from the internal
+   dashboard apps' dark/glass theme (packages/ui-kit) — it's a public-facing
+   business microsite, not an authenticated persona app. Kept minimal here;
+   per-template visual variation (theme_identifier) is future work. */
+@layer base {
+  html {
+    direction: rtl;
+  }
+  body {
+    @apply bg-white font-sans text-stone-900 antialiased;
+  }
+}

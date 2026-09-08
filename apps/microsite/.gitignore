@@ -1,0 +1,7 @@
+node_modules
+build
+.wrangler
+*.local
+.env
+.env.local
+.DS_Store
