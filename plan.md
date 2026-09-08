@@ -376,7 +376,7 @@ Of the 5 low-risk `change_type`s from Phase 3, autopilot may auto-apply: **`task
 A full comparison of plan.md/architecture.md against the actual mockup files (`mockup/*.html`, `mockup/shared/*`) surfaced 9 documented decisions with no corresponding implementation (functional/data gaps only, not visual/cosmetic ones). Prioritized below for the next round of mockup work — highest priority first.
 
 ### P0 — In progress / do next
-1. **Campaign invite Sends Log** (Phase 0.75 "Campaign invite sending & confirmation") — business owner needs a دedicated "لاگ ارسال‌ها" view; sending logic (fire at launch + on new contact add, with dedup) also still needs wiring. Already scoped as the current open thread before this analysis — stays #1 since it's furthest along and the docs are already fully committed.
+1. **Campaign invite Sends Log** (Phase 0.75 "Campaign invite sending & confirmation") — business owner needs a dedicated "لاگ ارسال‌ها" view; sending logic (fire at launch + on new contact add, with dedup) also still needs wiring. Already scoped as the current open thread before this analysis — stays #1 since it's furthest along and the docs are already fully committed.
 
 ### P1 — High-value, demonstrates core differentiators
 2. **Business size-tier scaling** (Phase 0 / size-tier mapping) — dynamic tier resolution (Micro/Small/Medium/Large) from onboarding inputs, with automatic point multiplier and duration scaling, plus Goal-driven First Action/Conversion weighting. This is one of the product's core "AI does the work" selling points and is currently just a hardcoded static value in mock data — a high-visibility gap in any demo of the onboarding flow.
