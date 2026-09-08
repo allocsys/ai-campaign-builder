@@ -736,6 +736,31 @@
 
     let currentDismissingId = null;
 
+    // --- Owner auth gate: phone + OTP only (plan.md "Business owner authentication") ---
+    function sendOwnerOtp() {
+      const phone = document.getElementById('owner-phone-input').value.trim();
+      if (!/^09\d{9}$/.test(phone)) {
+        App.showToast('لطفاً یک شماره موبایل معتبر وارد کنید (مانند ٠٩١٢١١١١١١١).', 'warning');
+        return;
+      }
+      document.getElementById('owner-auth-phone-step').style.display = 'none';
+      document.getElementById('owner-auth-otp-step').style.display = 'block';
+      App.showToast(`کد تایید به شماره ${phone} پیامک شد (شبیه‌سازی).`, 'info');
+    }
+
+    function verifyOwnerOtp() {
+      const code = document.getElementById('owner-otp-input').value.trim();
+      if (code !== '7712') {
+        App.showToast('کد تایید واردشده اشتباه است.', 'error');
+        return;
+      }
+      const biz = window.MOCK.businesses[0];
+      biz.phone_verified = true;
+      document.getElementById('owner-auth-section').style.display = 'none';
+      document.getElementById('owner-main-section').style.display = 'block';
+      App.showToast('ورود با موفقیت انجام شد. خوش آمدید!', 'success');
+    }
+
     // --- Accordion navigation (replaces the old horizontal switchTab, decided 2026-09-08) ---
     function toggleAccordionItem(tabId) {
       const item = document.querySelector(`.acc-item[data-tab="${tabId}"]`);
