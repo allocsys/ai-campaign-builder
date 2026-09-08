@@ -4,21 +4,19 @@
 > Tell us your goal. AI builds the campaign.
 > (فارسی: هدفت رو بگو؛ کمپینت رو بساز.)
 
-Core principle: don't ask "what features do we add?" — ask "how do we turn campaign design into a 30-second task?"
+No separate MVP — going straight to the full/main version.
 
 ---
 
 ## Phase 0 — Onboarding & Campaign Generation
 
-### Core questions (universal, always asked)
-1. کسب‌وکارت چیه؟ (Business type)
-2. هدفت چیه؟ (Goal — e.g. new customer acquisition)
-3. مخاطبت کیه؟ (Audience)
-4. چه چیزی می‌تونی به مشتری بدی؟ (What can you offer — discount, gift, VIP)
+### Core questions (universal)
+1. کسب‌وکارت چیه؟
+2. هدفت چیه؟ (acquisition / retention)
+3. مخاطبت کیه؟
+4. چه چیزی می‌تونی به مشتری بدی؟
 
-### Conditional question (based on business type)
-One extra question per business category, shown after Q1:
-
+### Conditional question (per business category, deterministic — not AI-generated)
 | Business type | Conditional question |
 |---|---|
 | Coffee shop / cafe | مشتری بیشتر حضوریه یا آنلاین/دلیوری؟ |
@@ -28,208 +26,105 @@ One extra question per business category, shown after Q1:
 | Gym / fitness | هدف نگه‌داشتن مشتری قدیمیه یا جذب جدید؟ |
 | Beauty clinic | خدمات یک‌باره یا پکیج/دوره‌ای؟ |
 
-Implementation note: use a small fixed set of business categories with a pre-written conditional question each. Do NOT dynamically generate the conditional question — keep it deterministic for reliability and speed.
-
-**✅ DECIDED (2026-09-07): v1 business categories = 6**
-1. کافی‌شاپ / کافه (Coffee shop)
-2. فروشگاه لباس / پوشاک (Clothing store)
-3. رستوران / فست‌فود (Restaurant)
-4. فروشگاه آنلاین — غیر پوشاک (Online store)
-5. باشگاه / سالن ورزشی (Gym / fitness)
-6. کلینیک زیبایی (Beauty clinic)
+**v1 business categories (6):** کافی‌شاپ/کافه، فروشگاه لباس/پوشاک، رستوران/فست‌فود، فروشگاه آنلاین (غیر پوشاک)، باشگاه/سالن ورزشی، کلینیک زیبایی.
 
 ### Output: AI Campaign proposal
-- Goal, duration, target audience (auto-filled from answers)
-- Tasks (weighted/selected from the abstraction layer, see below)
-- Rewards (selected from the abstraction layer)
-- One Challenge (e.g. "do 3 activities in 7 days for a special reward")
-- Two actions only: **Launch Campaign** / **Edit Campaign**
+Goal/duration/audience (auto-filled) + weighted tasks + weighted rewards + one Challenge. Two actions: **Launch** / **Edit**.
 
-### Post-launch guidance for the business owner (decided 2026-09-08)
-Problem raised: once a campaign launches, the business owner lands on the Dashboard with no guidance across the other tabs (Insights, Suggestions, Autopilot, Microsite, Settings) — easy to feel lost among several tabs/settings with no clear next step.
-
-**Solution: a "Next Steps" checklist card + explanatory empty-states in data-dependent tabs — not a full guided tour** (a step-by-step tooltip walkthrough was considered but rejected as heavier to build and easy for users to dismiss/never see again).
-- **"Next Steps" checklist** — a persistent card on the Dashboard listing outstanding setup actions, auto-hiding once complete.
-  - v1 items (2, both **auto-detected** from real actions — no manual "mark as done" checkbox, consistent with the product's broader philosophy of trusting real signals over self-report):
-    1. **Review/set AI constraints** — auto-completes the moment the business owner saves the AI Constraints form (Settings tab) for the first time.
-    2. **Import contacts** — auto-completes the moment the business has at least one `business_contacts` row, whether from a CSV upload or the first customer self-joining via the public campaign link.
-  - Checklist is **per-business, not per-campaign** — doesn't reset when a new campaign launches, since both items are one-time business-level setup, not campaign-level.
-- **Empty-state guidance in data-dependent tabs** — Insights and Suggestions tabs show explanatory copy (not a blank/empty grid) when there's nothing to show yet, explaining that content appears once enough campaign data accumulates — mirrors the existing Autopilot tab's locked-state banner, which already does this well. No new data model needed here, just UI copy, since these tabs are already naturally empty until real insight/suggestion rows exist.
-
-See architecture.md `onboarding_checklist_items` / `business_checklist_progress`.
+### Post-launch guidance (decided 2026-09-08)
+"Next Steps" checklist card on Dashboard (auto-hides once complete; per-business, not per-campaign), 2 auto-detected items: AI constraints saved (Settings), ≥1 contact imported. Empty-state copy (not blank grids) in Insights/Suggestions tabs until real data exists. No guided tour. See architecture.md `onboarding_checklist_items` / `business_checklist_progress`.
 
 ---
 
-## Phase 0.5 — Attribution & Tracking Mechanism (CRITICAL, decided 2026-09-07)
+## Phase 0.5 — Attribution & Tracking Mechanism
 
-Core question raised: how do we actually know a campaign worked — how do we know a customer was acquired, a task was completed, a purchase happened? Without this, all the weighting/benchmark/insight work in Phase 1–2 has nothing real to measure.
+### Personal customer code
+Every joined customer gets a unique personal code/QR, reused across all tracking below.
 
-### Core concept: personal customer code
-Every customer who joins a campaign (signs up, typically via phone number) gets a **unique personal code/QR**. This single identifier is reused across every tracking mechanism below — one identity, multiple uses — rather than separate tracking schemes per task type.
-
-### Tracking method per task type
-
+### Verification per task type
 | Task type | Verification method |
 |---|---|
-| **Follow** | Customer submits a screenshot of their own profile showing they follow the business account → reviewed by AI (vision model checks the screenshot shows a genuine follow). |
-| **Share / Story / Social Proof** | Customer embeds their **personal code/link** in the story or post caption, then submits a screenshot → AI verifies both (a) the personal code is visible/correct and (b) the content genuinely matches the campaign (not an unrelated post). Combines identity proof (the code) with content proof (the screenshot + AI review). |
-| **Referral** | Customer shares their personal code/link with a friend → the friend enters it at signup → system automatically links the new customer to the referrer. No manual verification needed — the code itself is the proof. |
-| **Purchase / Repeat Purchase / Off-Peak Visit** | At checkout (point of sale), staff scans or manually enters the customer's personal code/QR → purchase and points are logged at that moment. This is the mechanism that answers "did we actually get a paying customer" — requires a simple POS-side interface (app or web page) for staff to use. **Fallback: retroactive claim** (see below) if the code wasn't scanned at checkout time. |
+| Follow | Screenshot → AI vision review |
+| Share/Story | Personal code embedded in post + screenshot → AI checks both |
+| Referral | Personal code/link at signup → auto-linked, no manual check |
+| Purchase | Staff scans/enters code at POS |
 
-### Retroactive purchase claim (decided 2026-09-07)
-Covers the common real-world case: staff or customer forgets to scan/enter the code at checkout.
-- Customer opens the app afterward, selects something like "I forgot to scan my code," and uploads proof of purchase — either a **photo of the physical receipt** or a **screenshot of an online order confirmation**.
-- AI reviews the submission: business name/logo matches, purchase date falls within the campaign window, amount looks plausible.
-- **Higher-risk path than direct POS scan** since there's no staff witness at the moment of purchase, so extra safeguards apply:
-  - **Time limit:** claim must be submitted within a short window after purchase (e.g. 48–72 hours), not indefinitely.
-  - **Duplicate detection:** store a hash/fingerprint of the receipt image (and receipt number if visible) so the same receipt can't be claimed twice.
-  - **Rate limiting:** cap how many retroactive claims one customer can submit in a given period, to blunt repeated abuse attempts.
-  - **Default to more cautious review** than the direct-scan path — since there's no staff witness, retroactive claims should lean toward manual review (or a stricter AI confidence threshold) rather than being auto-approved as easily as a live POS scan.
+### Retroactive purchase claim (fallback for missed POS scan)
+Customer uploads receipt photo/screenshot afterward. Rules: 48–72hr submission window, receipt-hash duplicate detection, rate-limited per customer, stricter/more cautious AI confidence threshold than a live POS scan.
 
-### Point expiry & carryover (decided 2026-09-07)
-Hybrid approach — not a clean pick of "expire" vs "carry over", but both combined:
-1. **2-day grace period after campaign end.** Once a campaign's end_date passes, customers keep full access to their remaining point balance for 2 more days — they can still redeem any reward they've already earned enough for. An "ending soon" style notification (reusing the Phase 0.75 notification infrastructure) should also fire once the grace period itself is about to close, so customers don't lose track of the deadline.
-2. **After the grace period, 30% of the remaining balance carries over; 70% is forfeited.** Whatever points a customer hasn't redeemed by the end of the grace window: 70% expires outright, and 30% is preserved as a **carryover credit** tied to that customer + business (not a specific future campaign, since the next campaign doesn't exist yet).
-3. **Carryover is applied automatically when the same customer joins that business's next campaign** — the moment they get a new personal code for the new campaign, any pending carryover credit from a prior campaign of the same business is added to their new campaign's point balance as a starting bonus. Carryover credit has no separate expiry of its own once granted — it just becomes normal points in whatever campaign consumes it, subject to that campaign's own expiry rules.
-4. If the business never runs another campaign, the carryover credit simply sits unconsumed — no separate cleanup logic needed for v1.
+### Point expiry & carryover
+2-day grace period after campaign end (full balance access). After grace: 70% forfeited, 30% carried over as a credit tied to customer+business, auto-applied as a starting bonus when they join that business's next campaign. Carryover itself has no separate expiry once granted.
 
-### Referral abuse prevention (decided 2026-09-07)
-Three layers, all active in v1:
-1. **OTP phone verification at signup** — applies to every customer joining any campaign (not referral-specific), not just referrals. A phone number must be confirmed via SMS OTP before the signup counts as real. This is the baseline identity check the other two layers build on — without it, self-referral via a second unverified number would be nearly free.
-2. **Referral reward gated on a real qualifying action, not just signup** — the referrer's referral points stay in the same **Pending** state as any other task (plan.md AI review system) until the referred customer completes a real action, specifically their **first purchase**. A referred signup with no purchase never pays out. This makes self-referral farming cost real money (an actual purchase), not just a spare SIM.
-3. **Cap on referrals counted per customer per campaign** — a per-campaign maximum (default suggestion: 10) on how many referrals earn points for one referrer, to blunt large-scale abuse even if layers 1–2 are partially defeated. Referrals beyond the cap can still happen (the referred person still joins normally) but simply stop earning the referrer additional points.
-Pattern-matching/anomaly detection on suspicious referral clusters (e.g. many referred numbers with zero activity) is a good Phase 2+ addition but not built for v1 — the three layers above are the actual defense for launch.
+### Referral abuse prevention
+1. OTP phone verification at signup (all customers, not referral-specific).
+2. Referral points stay Pending until the referred customer's first purchase (not just signup).
+3. Cap: max 10 referrals counted per referrer per campaign.
+4. Anomaly detection (rule-based, advisory-only, daily batch job → `referral_flags`): velocity rule (>5 new referred signups/24h) and dead-referral-ratio rule (≥5 referred customers, >7 days old, 0 purchases). Flags never auto-block — human review only.
 
-### Reward redemption fulfillment (decided 2026-09-07)
-How in-store staff verify a reward redemption is legitimate at the moment of fulfillment (e.g. handing over a free item or applying a discount).
-- **Not** the customer's ongoing personal campaign code/QR — that code gets shown often (every purchase scan), so it's a weaker point to gate a reward on.
-- Instead: when the customer taps **Redeem** in-app for a specific reward, the system generates a **separate, one-time redemption code/QR**, short-lived (e.g. 5–10 minute expiry). The customer shows *this* code to staff, who scan it via the same POS PWA — a dedicated "Fulfill Reward" action, distinct from the purchase-scan action.
-- Once scanned (or once it expires unused), the code is invalidated — can't be reused or shown to a different staff member later.
-- Chosen over reusing the standing personal code because a fresh, short-lived, single-use code closes the reuse/screenshot-sharing risk that a long-lived code carries, at the cost of one extra tap for the customer (Redeem → show code), which is an acceptable trade-off for something as valuable as a reward payout.
+### Reward redemption fulfillment
+Separate one-time, short-lived (5–10 min) redemption code/QR generated on Redeem tap — distinct from the standing personal code, scanned via a dedicated "Fulfill Reward" POS action.
 
-### Why AI-reviewed screenshots (not pure self-report, not manual-only review)
-- Pure self-report ("I did it, trust me") has no fraud resistance — rejected.
-- Manual-only admin review doesn't scale once there are many businesses/customers — AI review as the primary check, with the option to spot-check manually later if fraud patterns emerge.
-- The personal code embedded in shared content solves what a screenshot alone can't: proving *which* customer posted it, not just that *a* post exists.
+### POS-side UX
+Staff device: web app (PWA), the only client for v1 (no native app) — backend built API-first so a native client can be added later without backend rework. Code entry: QR primary, short numeric backup code always shown as fallback.
 
-### POS-side UX (decided 2026-09-07)
-- **Staff device:** primary is a **web app (PWA)** on the staff's own phone/tablet — no install, no app-store friction, works on whatever device the business already has. A dedicated installable app is offered as a secondary option later (from app stores), but web-first is the priority since it removes onboarding friction for small businesses.
-- **Code entry:** **hybrid** — QR is the primary method (staff scans with phone camera via the PWA, fastest path), with a **short numeric backup code** always available on the customer's screen in case the QR scan fails (bad lighting, camera issue, no data connection to load the QR image, etc.). Staff can type the short code manually as a fallback without breaking the checkout flow.
-
-### AI review decision system (decided 2026-09-07)
-- **Three-tier outcome, not binary:** every AI-reviewed submission (Follow screenshot, Share/Story screenshot, retroactive receipt claim) gets one of three outcomes based on the AI's confidence score:
-  - **High confidence → Auto-approve.** Points awarded immediately.
-  - **Low confidence → Auto-reject.** Customer is notified and can resubmit with clearer evidence rather than losing the task permanently on one bad photo.
-  - **Middle/uncertain confidence → Held for manual review.** Not auto-approved or auto-rejected — goes into a review queue.
-- **Who reviews "uncertain" cases:** starts with our **central team** (single consistent review console across all businesses/campaigns) since early-stage business owners are non-technical and reviewing takes judgment calibration. **Transition later** to letting each business owner review their own campaign's uncertain cases from their dashboard, once the review workflow and criteria are proven out — they know their own store/customers/receipts best, but shouldn't be the default from day one.
-- **Points while pending:** a task/purchase under review sits in a **Pending** state and does **not** award points yet. Points are only credited once a submission is finally approved — whether that's an immediate AI auto-approve or a later manual approval. This avoids double-counting or gaming the pending window.
-- Exact numeric confidence thresholds (e.g. what % counts as "high" vs "uncertain" vs "low") to be tuned empirically once real AI review data exists — not fixed in this plan.
-- [x] **Offline handling — decided:** if the staff device has no internet at checkout, the scan/entry is **stored locally on the device** (not blocked) and queued. Once connectivity returns, queued entries sync to the server, where **final verification happens against the central database** (checking the code is valid, not already redeemed/duplicated, etc.). Doing final verification server-side rather than trusting the offline device lowers fraud risk — a customer or staff member can't exploit the offline gap to redeem the same code twice, since the source of truth (and duplicate check) only lives on the server.
+### AI review decision system
+Three-tier outcome per AI-reviewed submission: auto-approve (high confidence) / auto-reject (low confidence, resubmit allowed) / manual hold (uncertain). Central team reviews uncertain cases initially (move to per-business review later). Points stay **Pending** until final approval. Offline: staff-side queue stores locally, final verification/dedup happens server-side once synced.
 
 ---
 
-## Phase 0.75 — Notifications (SMS + Telegram) — decided 2026-09-07
+## Phase 0.75 — Notifications (SMS + Telegram)
 
-Core question raised: campaigns are worthless if customers never hear about them or forget to come back. Need an outbound channel.
+### Channels
+SMS: always on, no opt-in. Telegram: opt-in via bot Start (additive only, never a replacement). Both fire independently per event.
 
-### Channels: both from the start (not staged)
-- **SMS** — always available, no opt-in needed (phone number is already the primary customer identity).
-- **Telegram** — Iran-relevant, but has a platform constraint: a business/bot **cannot** message a phone number directly. The customer must first **start a conversation with our Telegram bot** (opt-in). UX: when a customer joins a campaign, show a "open in Telegram for updates" link/button; if they tap it and hit Start, they're opted in from then on. If they never opt in, they still get SMS — Telegram is additive, never a replacement for SMS.
-- **Send logic:** SMS is sent unconditionally for every triggered event; Telegram is sent additionally if-and-only-if the customer has opted in for that campaign. Redundancy over exclusivity — no picking "one channel per customer."
+### Architecture
+Config-driven `notification_templates` (trigger × channel → template) — no per-event hardcoded logic.
 
-### Architecture approach: config-driven, like task/reward patterns
-Rather than hardcoding channel-specific logic per event, follow the same abstraction-layer principle from Phase 1: a `notification_templates` config (trigger type × channel → message template), so adding a new trigger or a new channel later doesn't require new code paths, just new config rows. See architecture.md for the schema.
+### Triggers (6, v1)
+1. **Campaign invite** — at launch + on every new contact added while campaign is active (see dedup below).
+2. **Ending soon** — ~2 days before campaign end, for unfinished customers.
+3. **Reward threshold reached**.
+4. **Submission reviewed** — task/purchase moves out of pending.
+5. **Mid-campaign reminder** — 50% duration elapsed, customer has completed 0 tasks.
+6. **Referral joined** — immediate ping to referrer when someone signs up on their code.
 
-### Trigger events for v1 (decided — 6 events, expanded 2026-09-08)
-1. **Campaign invite** — sent (a) at the moment the business launches a campaign, to every existing `business_contacts` row, and (b) again to just the newly-added contact(s) any time a new contact is added to `business_contacts` while a campaign is already active (CSV re-upload, or a new self-join) — not a one-time launch snapshot. See "Campaign invite sending & confirmation" below for dedup and confirmation details.
-2. **Ending soon** — sent to enrolled customers who haven't finished when a campaign is approaching its end date (e.g. ~2 days left).
-3. **Reward threshold reached** — sent the moment a customer's point balance crosses a `campaign_rewards.threshold_points` value, telling them they can redeem.
-4. **Submission reviewed** — sent when a `task_submissions` row moves out of `pending` (AI or central-team review resolves to approved or rejected), so the customer isn't left wondering.
-5. **Mid-campaign reminder** (added 2026-09-08) — sent once per customer per campaign at the halfway point of the campaign's duration, only if that customer hasn't completed any task yet.
-6. **Referral joined** (added 2026-09-08) — sent immediately to the referrer when someone signs up using their referral code (before any purchase/points are involved) — an early encouragement ping, separate from the later payout notice already covered by trigger #4.
+### Campaign invite dedup & confirmation (decided 2026-09-08)
+Dedup key: one invite per `business_contact` per active campaign (applies equally to manual_upload and self_joined sources). Confirmation: dedicated **"لاگ ارسال‌ها" (Sends Log)** view for the business owner (contact, channel, trigger, status, timestamp) — not just a launch toast. See architecture.md `notifications_log` (nullable `business_contact_id`/`campaign_id` for pre-join sends).
 
-### Campaign invite sending & confirmation (decided 2026-09-08)
-Two follow-up questions on trigger #1 above:
-- **When it fires:** at launch, **and** on every subsequent contact addition while the campaign is active (see trigger #1) — so a business that keeps growing its contact list via CSV re-upload or the public join link doesn't have to relaunch to reach new people.
-- **Dedup rule:** a given `business_contacts` row is only sent `campaign_invite` once per active campaign — re-running the launch trigger logic (e.g. if triggered again by mistake) must not resend to contacts already invited for that campaign. Applies uniformly to all contacts regardless of `source` (manual_upload or self_joined) — a self-joined contact still gets a campaign_invite for a *different*, newer campaign they haven't joined yet; they're only skipped for the campaign they already joined through.
-- **Confirmation UX:** the business owner sees a dedicated **"لاگ ارسال‌ها" (Sends Log)** view — not just a launch-time toast — listing every send attempt (contact/customer, channel, trigger, status, timestamp), so "did it actually go out" has a real answer rather than trusting a one-time success toast. Reuses the same underlying `notifications_log` data already collected for customer-side notifications, filtered to the business.
+### Initial audience acquisition
+Hybrid: (1) manual CSV/Excel upload of existing contacts, (2) public join link/QR for self-join (keeps growing the list post-launch too). Instagram follower-list import ruled out (no API access to phone numbers/DMs) — only the follower *count* is usable as a size signal.
 
-See architecture.md `notifications_log` for the schema change needed to support pre-join contacts (who don't yet have a `customer_campaign_codes` row).
-
-### Initial audience acquisition (decided 2026-09-07) — hybrid
-The campaign_invite trigger needs a list of phone numbers to send to. Two complementary sources, both v1:
-1. **Manual list upload** — business uploads a CSV/Excel of existing customer phone numbers during onboarding or before launch. Covers businesses that already keep a contact list (POS exports, WhatsApp groups, etc.).
-2. **Public join link / QR** — every campaign gets a shareable public link + QR code (for Instagram bio, a printed poster in-store, etc.) that lets a new customer self-join directly — enters their phone number, gets their personal code, no pre-existing contact record needed. This is the primary path for businesses with no list at all, and it also keeps growing the contact base after initial launch, not just at launch time.
-Instagram-follower-list import was explicitly ruled out — Instagram's API doesn't expose follower phone numbers/DMs for this kind of use, so it only works for the existing size-tier follower *count* signal (plan.md decision #3), not for actually reaching people.
-
-### Business microsite / landing page templates (decided 2026-09-07, v1 add-on)
-For businesses that don't already have a website: an **optional** extra beyond the campaign itself.
-- A small curated set of **pre-built, minimal/elegant website templates** (not a page builder/CMS) that a business can pick from and deploy as their own real site — not just a bare join-link page.
-- Business customizes only basic content within the chosen template: logo, name, tagline/description, a few images, contact info. No layout editing — keeps it fast and prevents businesses from producing a messy, unprofessional result.
-- The campaign's public join link/QR (see above) gets embedded prominently on the deployed site, so the microsite doubles as both a real web presence and an on-ramp into the current campaign.
-- **Role split (clarified 2026-09-08):** the **business owner** picks which template to use (from a gallery, as above); the **AI** decides which content modules are active by default within that template based on the business's category (see "Business microsite scope" reclassified decision below). These are two separate choices.
-- **Template gallery filtering (decided 2026-09-08):** the gallery is **filtered by business category** — a business only sees templates tagged as relevant to their category, not the full unfiltered set. See architecture.md `website_template_categories`.
-- Deployed to a hosted subdomain (e.g. `{business-slug}.ourdomain.com`) — no separate hosting/domain setup needed by the business.
-- Explicitly **optional and additive** — a business with no interest in a website just uses the plain join link; this doesn't block or complicate that path.
-- Scope guardrail: this is a small template gallery, not a general website builder — multi-page custom sites, editable layouts, or a full CMS are out of scope for v1 and would pull focus away from the core campaign-builder product.
+### Business microsite (optional add-on)
+Curated template gallery, filtered by business category. Owner picks template + toggles content modules on/off (hero/about/gallery/testimonials/booking CTA/contact/active-campaign, etc. — AI picks sensible per-category defaults); no reordering, no free-form HTML, no multi-page CMS. Deployed to a hosted subdomain, embeds the campaign join link/QR. Fully optional/additive.
 
 ---
 
-## Phase 0.9 — Pricing & Revenue Model — decided 2026-09-07
+## Phase 0.9 — Pricing & Revenue Model
 
-Three components, combined:
+- Monthly subscription, priced by size tier.
+- SMS billed separately by volume (Telegram stays bundled/free).
+- Business microsite = separate optional add-on fee.
+- Exact price points/rates: left for a later business decision — shape is fixed, not the numbers.
 
-1. **Monthly subscription, priced by size tier.** Reuses the existing Micro/Small/Medium/Large size-tier system (plan.md decision #3) — each tier has its own monthly subscription price. This covers ongoing access to the core campaign builder (onboarding flow, task/reward generation, dashboard, insights).
-2. **SMS billed separately, by volume.** SMS has a real per-message cost to us, so it's **not** bundled into the flat subscription — businesses are billed based on actual SMS notification volume sent (plan.md Phase 0.75 notification triggers). Telegram sends stay free/bundled since they don't carry a comparable per-message cost.
-3. **Business microsite is a separate optional add-on fee.** The template-based landing page/website (plan.md Phase 0.75 "Business microsite") is not included in the base subscription — a business that wants one pays an additional add-on charge on top of their tier subscription.
+### SMS prepaid wallet
+Business tops up in advance; each SMS deducts its cost at send time; insufficient balance → that SMS is skipped (not sent/charged), rest of the platform unaffected; low-balance alert to owner. Optional hard monthly spending cap on top of the wallet (Telegram unaffected either way).
 
-Not decided yet / left for implementation: exact price points per tier, exact SMS per-message rate, and exact microsite add-on price — these are business/finance decisions to set closer to launch, not architecture. What's fixed here is the **shape** of the pricing model (tier subscription + metered SMS + optional paid add-on), so the schema can be built now.
-
-### SMS cost control: prepaid wallet (decided 2026-09-07)
-Since SMS is billed by volume (not flat-rate), a business needs a way to control spend so a high-traffic campaign can't produce a surprise bill. Chosen: **prepaid credit wallet**, familiar territory for this market (similar to how existing Iranian SMS gateway panels work).
-- Business tops up their SMS wallet in advance (amount TBD/flexible).
-- Every SMS notification (campaign_invite, ending_soon, reward_unlocked, submission_reviewed — plan.md Phase 0.75) deducts its cost (from `sms_pricing`) from the wallet balance at send time.
-- If the wallet balance is insufficient to cover a send, that specific SMS is **skipped** (not sent, not charged) — it does **not** block the rest of the platform (campaign still runs, Telegram sends for opted-in customers still go out since Telegram is free/bundled).
-- The business should be alerted when their wallet runs low/out (via Telegram to the owner or the dashboard, since SMS itself may be unavailable at zero balance) so they can top up.
-- **Optional monthly spending cap, decided 2026-09-07:** in addition to the wallet, a business can optionally set a monthly SMS spending cap (hard block). Even if the wallet has enough balance, once that month's SMS spend hits the cap, further SMS sends stop until the next calendar month (Telegram sends are unaffected, since they're free/bundled). This protects against a runaway/high-traffic month draining a large prepaid balance faster than the business expected. The cap is optional — a business that doesn't set one is governed purely by wallet balance, as originally decided.
-
----
-
-### Business owner authentication (decided 2026-09-07)
-Business owners sign up / log in with **phone number + SMS OTP only** — no email/password option in v1. Chosen for consistency with the customer-facing flow (same OTP mechanism already decided for referral abuse prevention, plan.md Phase 0.5) and because it's lower-friction for this segment (small business owners, not necessarily tech-savvy, for whom a phone number is the natural identity anyway — same reasoning as customers). No password to forget, no reset-password flow needed. This is scoped to the **business owner's own account**; it's separate from the in-store staff POS interface, which doesn't need its own login concept yet (see architecture.md `businesses` table).
+### Business owner authentication
+Phone number + SMS OTP only — no email/password, matches the customer-facing flow.
 
 ---
 
 ## Phase 1 — Abstraction Layer (Task & Reward Patterns)
 
-Instead of hardcoding tasks/rewards per business type, define reusable behavioral patterns and weight them per category. This keeps the system scalable — adding a new business type later means adjusting weights, not building a new task/reward set.
+Reusable behavioral patterns weighted per business category, not hardcoded per business type.
 
-### Base Task Patterns
-- **Social Proof** — post, story, tag a friend (high weight: cafe, restaurant, beauty)
-- **Referral** — invite a friend (all categories, variable weight)
-- **Repeat Purchase / Order Again** — return within X days (retail, restaurant, online)
-- **Milestone / Streak** — consecutive visits/activities (gym, subscription-based)
-- **Specific Product Push** — order/try a specific item (cafe, retail)
-- **Review / UGC** — leave a review, share a result photo (beauty, online store)
-- **First Action / Conversion** — first purchase, first order, first booking. Weight depends on **campaign Goal**, not just business type: high weight when Goal = "acquisition", low/zero when Goal = "retention" of existing customers.
-- **Off-Peak / Time-based Visit** — bonus for activity during slow hours (e.g. 3–5pm order). High value for cafe, restaurant, gym to spread out traffic.
-- **Anniversary / Birthday** — trigger tied to customer signup date or birthday. Useful re-engagement hook, esp. gym, beauty, clothing.
+### Task patterns
+Social Proof, Referral, Repeat Purchase/Order Again, Milestone/Streak, Specific Product Push, Review/UGC, First Action/Conversion (Goal-driven — weight boosts toward 3 for acquisition, drops toward 0–1 for retention), Off-Peak/Time-based Visit, Anniversary/Birthday. (Rejected for v1: Bundle/Cross-sell, Geolocation Check-in.)
 
-**Decided against for v1 (over-engineering risk):**
-- Bundle/Cross-sell — more of a merchandising concern than gamification; revisit later.
-- Geolocation Check-in — needs GPS/permission handling, too much technical overhead for v1.
+### Reward patterns
+Percentage Discount, Free Item/Upgrade, Free Shipping, VIP/Membership Tier, Promotional Item, Early Access.
 
-### Base Reward Patterns
-- **Percentage Discount**
-- **Free Item / Upgrade** (free drink, free dessert, size upgrade)
-- **Free Shipping**
-- **VIP / Membership Tier**
-- **Promotional Item** (physical gift, merch)
-- **Early Access** (new product/collection)
-
-### Weighting table (v1 draft — intuition-based, to refine with real data later)
-Scale: 0 (not relevant) to 3 (core pattern for this business type).
-
+### Weighting table (v1 draft, 0–3 scale)
 | Pattern | کافی‌شاپ | لباس | رستوران | آنلاین | باشگاه | زیبایی |
 |---|---|---|---|---|---|---|
 | Social Proof | 3 | 2 | 2 | 1 | 1 | 3 |
@@ -238,186 +133,80 @@ Scale: 0 (not relevant) to 3 (core pattern for this business type).
 | Milestone/Streak | 1 | 0 | 0 | 0 | 3 | 1 |
 | Specific Product Push | 3 | 1 | 2 | 1 | 0 | 0 |
 | Review/UGC | 1 | 1 | 2 | 3 | 1 | 2 |
-| First Action/Conversion | 2* | 2* | 2* | 3* | 2* | 2* |
+| First Action/Conversion* | 2 | 2 | 2 | 3 | 2 | 2 |
 | Off-Peak/Time-based | 2 | 0 | 2 | 0 | 2 | 1 |
 | Anniversary/Birthday | 1 | 2 | 1 | 1 | 2 | 2 |
 
-*First Action/Conversion weight shown assumes Goal = acquisition. This row should be dynamically overridden by the Goal answer (Q2 in onboarding): boost toward 3 when Goal = acquisition, drop toward 0–1 when Goal = retention/loyalty of existing customers. This is the one pattern that's Goal-driven rather than purely business-type-driven — keep that logic explicit in implementation, not baked into the static table.
+*Assumes Goal = acquisition; dynamically overridden per campaign's actual Goal at implementation time, not hardcoded.
 
-Implementation: build as a config (JSON/table), not hardcoded logic, so weights can be tuned without code changes.
+Config-driven (JSON/table), not hardcoded logic.
 
----
+### Business size-tier scaling
+No dedicated onboarding question. Hybrid signal: (1) follower/existing-customer count if a connector is linked, else (2) inferred from the Q4 offer/budget answer. If the two signals disagree, use the higher tier.
 
-## Phase 2 — Post-Launch Insights (NOT autopilot yet)
+| Tier | Followers/customers | Offer budget (تومان) | Point multiplier | Suggested duration |
+|---|---|---|---|---|
+| Micro | < 500 | < 30,000 | 0.7x | 10 days |
+| Small | 500–2,000 | 30,000–100,000 | 1x | 14 days |
+| Medium | 2,000–20,000 | 100,000–500,000 | 1.5x | 21 days |
+| Large | > 20,000 | > 500,000 | 2x | 30 days |
 
-Dashboard evolves from static stats to AI-generated insights, but **read-only** at first:
-- "Share نرخ تکمیل پایینی دارد."
-- "کاربرانی که Invite Friend انجام داده‌اند، ۲.۴ برابر بیشتر خرید کرده‌اند."
-- "پیشنهاد می‌کنم امتیاز Referral افزایش پیدا کند."
-
-No auto-apply in this phase. Just surfaced insights.
-
-## Phase 3 — Suggested Changes (Human-in-the-loop) — designed 2026-09-08
-
-### What the AI reviews (inputs)
-- Phase 2 insights already generated (daily/weekly/anomaly, completion-rate deviations, correlations)
-- Current live state of `campaign_tasks` / `campaign_rewards` for the campaign
-- `benchmark_stats` (industry + early-adopter data)
-- The campaign's Goal (acquisition/retention) and size tier
-- **History of past suggestions for this business** — what was applied vs. dismissed (and why, see below) — so the AI doesn't re-suggest something the owner already rejected
-- The business owner's **constraints** (new, see below)
-
-### What the business owner tells the AI
-- Nothing ongoing/conversational — the main signal is implicit: **Apply** or **Dismiss** on each suggestion (dismissing captures a reason: too_aggressive / not_relevant / other).
-- **New: one-time constraints, decided 2026-09-08.** A business owner can optionally set guardrails once (editable later) — e.g. a max discount percentage, a budget ceiling — that the AI must respect when generating suggestions. See architecture.md `business_ai_constraints`.
-
-### What the AI can suggest/change — two risk tiers, decided 2026-09-08
-Both tiers are shown to the business owner in Phase 3 (manual Apply required for either) — the tier distinction exists for two reasons: (a) a clear warning label in the UI for high-risk suggestions, and (b) it's the same tier boundary Phase 4 autopilot will later use to limit itself to low-risk only.
-- **Low-risk (parameter-only):**
-  - `campaign_tasks.points_value` adjustments
-  - `campaign_rewards.threshold_points` adjustments
-  - Add a new task pattern to the campaign (from the category's weighted patterns, not yet included)
-  - Remove/pause an underperforming task from the campaign
-  - Extend or shorten campaign duration (`campaigns.end_date`)
-- **High-risk (direct financial impact) — shown with a warning label:**
-  - Change reward depth (e.g. discount % change) or reward type/pattern swap
-  Any high-risk suggestion is checked against the owner's constraints (e.g. never suggest a discount above their configured max) before being shown at all.
-
-### Suggested-change record & Apply mechanism
-A structured `suggested_changes` row per suggestion (see architecture.md) — not just free text — captures: risk tier, change type, current value, suggested value, AI's rationale, and status (pending/applied/dismissed). Clicking **Apply** writes the suggested_value into the live campaign_tasks/campaign_rewards/campaigns row and marks the suggestion `applied` with a timestamp — the row itself (old value + new value) is the audit log, satisfying "every change is logged/reversible" (revert = apply the inverse of a previous suggested_changes row).
-
-## Phase 4 — Opt-in Autopilot (long-term, NOT default) — designed 2026-09-08
-
-### Eligibility trigger
-The autopilot toggle is only **offered** (never shown upfront) after a business owner has manually clicked **Apply** on **3** Phase 3 suggestions. Before that, no toggle exists in the UI at all — trust has to be built through real manual Applies first.
-
-### Scope — which change types autopilot may auto-apply
-Of the 5 low-risk `change_type`s from Phase 3, autopilot may auto-apply: **`task_points`, `reward_threshold`, `campaign_duration`**. **`add_task` and `remove_task` stay manual-only even with autopilot on** — changing the actual set of tasks in a live campaign is more structurally disruptive than tuning a number, so it always needs a human's explicit Apply regardless of autopilot state. High-risk (`reward_depth`) was already excluded by definition (Phase 3) and remains so here. Autopilot also still respects `business_ai_constraints` (max discount, budget ceiling) exactly like manual suggestions do, though those constraints mostly matter for the high-risk tier it never touches.
-
-### Mechanism
-- `businesses.autopilot_enabled` (boolean, default false) — explicit opt-in toggle, off by default, can be switched off anytime.
-- When enabled, an eligible-scope `suggested_changes` row is applied **immediately by the system** instead of waiting for a manual Apply click — `applied_by = autopilot`, `status = applied`, same `current_value`/`suggested_value` audit fields as a manual Apply, so it's indistinguishable in the log except for who applied it.
-- **Notify + Undo (decided 2026-09-08):** every autopilot auto-apply fires a new notification trigger, **`autopilot_change_applied`** (added to `notification_templates`), telling the business owner what changed and why (reusing the suggestion's `rationale`), with an **Undo** action. Undo creates and immediately applies the inverse `suggested_changes` row (old value ↔ new value swapped) — same revert mechanism already defined for manual changes in Phase 3, just triggered instantly instead of needing a fresh AI suggestion cycle.
+Multiplier scales each task pattern's base points; duration is an editable AI default.
 
 ---
 
-## Open Questions / To Decide
+## Phase 2 — Post-Launch Insights (read-only, no autopilot)
 
-**Reclassified from "later/v2" to "main version, under review" (2026-09-07)** — project has no separate MVP stage, going straight to the full build, so these previously-deferred items are being brought forward for the same one-at-a-time review process:
-- [x] Installable staff app (beyond the PWA) — **decided: PWA-only for main version, no native app built now.** Instead, the backend is designed API-first (see architecture.md "Stack") so a native app can be added later as just another client consuming the same documented endpoints, without backend rework.
-- [x] Referral anomaly detection (suspicious referral-cluster pattern matching) — **decided: simple rule-based system for main version**, two fixed v1 rules (tunable later once real data exists):
-  1. **Velocity rule:** a referrer with more than 5 new referred signups within a rolling 24-hour window → flagged.
-  2. **Dead-referral ratio rule:** a referrer with ≥5 referred customers who are more than 7 days old with zero purchases → flagged.
-  Both rules run as a **periodic batch job** (e.g. daily), not real-time blocking. Flags are **advisory only** — they land in the central team's review queue (see architecture.md `referral_flags`), they do **not** auto-block or auto-reject anything; the existing three defense layers (OTP, purchase-gated payout, per-campaign cap) remain the actual payout gate. This keeps the heuristic from causing false-positive harm while still surfacing suspicious clusters for a human to look at.
-- [x] Monthly SMS spending cap on top of the prepaid wallet — **decided: optional hard-block monthly cap**, business can set a per-month SMS spend ceiling in addition to the wallet (see Phase 0.9 "SMS cost control" above; `businesses.sms_monthly_cap_toman`).
-- [x] Business microsite scope — **decided: modular content sections, not a full CMS.** Rather than a single fixed one-page template OR a full page-builder/CMS, each per-category template is composed of reusable **content modules** (hero, about, gallery, product/menu list, testimonials, booking CTA, contact, active-campaign highlight, etc.) — same config-driven philosophy as the task/reward abstraction layer (plan.md Phase 1). The AI auto-selects which modules are relevant for a given business's category as sensible defaults (e.g. a gym gets a booking CTA + testimonials, a clothing store gets a product gallery instead); the business owner can toggle modules on/off, but still **cannot** reorder modules into a custom layout, add free-form HTML, or create additional pages — that guardrail from the original decision stays. This raises the content granularity/relevance of the microsite without turning it into a general website builder. See architecture.md `website_modules`, `category_module_defaults`, `business_microsite_modules`.
-- [x] Additional notification triggers — **decided: add both for main version, 6 triggers total.**
-  5. **`mid_campaign_reminder`** — fires once per customer per campaign, at the campaign's halfway point (50% of `campaigns` duration elapsed), only if that customer hasn't completed any task yet. Nudges inactive joiners rather than spamming already-engaged ones.
-  6. **`referral_joined`** — fires immediately to the referrer when a new customer signs up using their referral code (i.e. `customer_campaign_codes.referred_by_code_id` gets set) — a quick "your friend joined!" ping. Distinct from the eventual points-awarded moment (once the referred customer's first purchase clears), which is already covered by the existing `submission_reviewed` trigger — so this is purely an early encouragement message, not a payout notice.
-  Both follow the same config-driven `notification_templates` (trigger_type × channel → template) pattern as the original 4 — no new architecture needed beyond adding two enum values and template rows.
-- [x] Phase 3 (AI-suggested changes with an Apply button) — **designed 2026-09-08**, see the Phase 3 section above for full detail (inputs the AI reviews, owner-set constraints, two risk tiers, `suggested_changes` Apply mechanism).
-- [x] Phase 4 (opt-in autopilot) — **designed 2026-09-08**, see the Phase 4 section above (3-manual-Apply eligibility trigger, scope excludes add_task/remove_task, Notify+Undo mechanism).
+Dashboard surfaces AI-generated insight cards (completion-rate flags, correlation callouts, suggested actions) — nothing auto-applies yet.
 
-**Newly surfaced (2026-09-07), not yet resolved:**
-- [x] How does a business import its initial customer contacts? — **decided: hybrid, manual CSV/Excel upload + public join link/QR** (see Phase 0.75 "Initial audience acquisition" above; new `business_contacts` table in architecture.md).
-- [x] Physical reward fulfillment — **decided: one-time, short-lived redemption code/QR generated on Redeem tap**, separate from the standing personal campaign code (see Phase 0.5 "Reward redemption fulfillment" above).
-- [x] Referral abuse prevention — **decided: three layers, all v1 — OTP phone verification at signup, referral reward gated on referred customer's first purchase (not just signup), and a per-campaign cap on referrals counted per referrer** (see Phase 0.5 "Referral abuse prevention" above).
-- [x] Point expiry — **decided: hybrid — 2-day grace period after campaign end, then 70% of remaining points forfeited and 30% preserved as a carryover credit automatically applied when the customer joins the same business's next campaign** (see Phase 0.5 "Point expiry & carryover" above).
-- [x] Revenue/pricing model — **decided: monthly subscription priced by size tier + SMS billed separately by volume + business microsite as a separate optional paid add-on** (see new Phase 0.9 "Pricing & Revenue Model" above). Exact price points left for a later business/finance decision.
-- [x] Business owner authentication — **decided: phone number + SMS OTP only**, no email/password (see new "Business owner authentication" section above).
-- [x] SMS budget/cost control — **decided: prepaid SMS wallet** — business tops up credit in advance, each SMS deducts its cost, sends are skipped (not blocked/charged) if balance is insufficient (see Phase 0.9 "SMS cost control" above).
+**"Low completion" scoring:** average of two deviation checks — vs. cross-campaign benchmark for that task pattern+category, and vs. the campaign's own other tasks — combined into one low/normal/high flag.
+
+**Cadence (3 tiers):** daily one-line digest, weekly fuller report (comparisons + correlations), anomaly-triggered immediate alert.
+
+### Benchmark data strategy
+Phase A (launch): generic industry/marketing data as placeholder defaults. Phase B (parallel, post-MVP): onboard ~6–12 free early-adopter businesses (1–2 per category), with hands-on campaign-design help in exchange for real usage data; progressively replaces Phase A benchmarks per category as real data accumulates. No pre-product manual-tracking phase.
 
 ---
 
-- [x] Final list of business categories for v1 — **decided: 6 categories (see Phase 0 above)**
-- [x] Exact weighting values per pattern per category — **decided: v1 draft table set (9 patterns, see Phase 1 above), intuition-based, to refine once real campaign data exists**
-- [x] How campaign duration/points scale with business size — **decided: hybrid proxy, no extra onboarding question:**
-  1. **Primary signal (if a connector is linked):** follower count / existing customer count from Instagram or the business's app. Higher count → scale up points/budget/duration.
-  2. **Fallback signal (always available):** infer from the offer/budget the owner types in Q4 ("چه چیزی می‌تونی بدی؟") — e.g. a flat discount amount or free-item cost implies a rough per-customer cost ceiling, which caps how many points/tasks make sense before the reward becomes unprofitable.
-  3. No dedicated "business size" question is added to onboarding — keeps the 30-second flow intact.
+## Phase 3 — Suggested Changes (Human-in-the-Loop)
 
-  **Size-tier mapping (v1 draft, 4 tiers):**
+**Inputs:** Phase 2 insights, live campaign_tasks/rewards state, benchmark_stats, campaign Goal/tier, this business's suggestion history (applied/dismissed+reason), owner's `business_ai_constraints` (max discount %, budget ceiling).
 
-  | Tier | Followers/existing customers | Offer budget (Toman) | Point multiplier | Suggested duration |
-  |---|---|---|---|---|
-  | Micro | < 500 | < 30,000 | 0.7x | 10 days |
-  | Small | 500–2,000 | 30,000–100,000 | 1x (base) | 14 days |
-  | Medium | 2,000–20,000 | 100,000–500,000 | 1.5x | 21 days |
-  | Large | > 20,000 | > 500,000 | 2x | 30 days |
+**Owner signal:** implicit only — Apply or Dismiss (dismiss captures a reason).
 
-  Point multiplier scales the base point values of each task pattern (e.g. base Follow = 10 points → 15 points at Medium tier). Duration is the AI's suggested default, editable by the business owner.
+**Two risk tiers** (both shown to owner, manual Apply required for either):
+- Low-risk: `points_value`, `threshold_points`, add/remove a task, extend/shorten duration.
+- High-risk (warning label): reward depth/type change — checked against constraints before being shown at all.
 
-  **Signal conflict rule:** if the follower/customer signal and the offer-budget signal point to different tiers, use the **higher** tier (assume more available resources rather than being conservative).
-- [x] Data source for "benchmark" credibility — **decided: hybrid, run in parallel:**
-  1. **Phase A (launch placeholder):** pull general industry/marketing data (loyalty program reports, retail & F&B marketing studies) to set reasonable initial defaults (e.g. typical acquisition discount %, typical referral task completion rates). Available immediately, but generic/not Iran-market-specific.
-  2. **Phase B (parallel, ongoing):** once the MVP product is built, onboard a small batch of real early-adopter businesses (~5–10, free) to run real campaigns **inside the actual product**, and collect real completion/conversion data from there. **Revised (2026-09-07):** product comes first, then users — no manual/pre-product spreadsheet-and-WhatsApp tracking phase. Real usage data is only trustworthy once collected in the real product environment; manual tracking risks producing noisy data that doesn't reflect how the actual app will behave.
+**Apply mechanism:** `suggested_changes` row (risk tier, change type, current/suggested value, rationale, status) — Apply writes the value live and marks `applied`; the row itself is the audit log (revert = apply the inverse row).
 
-     **Early-adopter acquisition plan (v1, to run once MVP is ready):**
-     - **Scope:** 1–2 businesses from each of the 6 v1 categories (roughly 6–12 total) rather than concentrating in just one or two categories — gives at least a thin data point per category instead of leaving some categories with zero real signal.
-     - **Incentive (combined):** (a) fully free access/participation as a beta partner, framed as early access — no cost to them; PLUS (b) hands-on help actually designing and running their campaign inside the product (walking them through it, not just handing over a login). This matters because a small business owner often lacks the time/expertise to run a good campaign alone — without hands-on help the campaign risks being poorly run, producing low-quality/noisy data. The hands-on involvement also gives direct qualitative signal for tuning weights and benchmarks, beyond just the raw numbers.
-     - **Mechanism:** onboarding happens through the real MVP product once it exists. No manual spreadsheet/WhatsApp tracking phase before that.
-  3. As Phase B data accumulates, progressively replace Phase A generic defaults with real early-adopter benchmarks, category by category (e.g. once enough coffee shop campaigns have run, swap in real numbers for that category specifically rather than waiting for all categories at once).
-- [x] Metric definitions for Phase 2 insights — **decided:**
+## Phase 4 — Opt-in Autopilot (not default)
 
-  **"Low completion rate" scoring (hybrid, not single-source):**
-  1. Compare a task's completion rate against the **cross-campaign benchmark** for that same task pattern + business category (from the Phase A/B benchmark data above).
-  2. Compare it against the **within-campaign baseline** — average completion rate of the other tasks in the same campaign.
-  3. Average the two deviation scores into one combined signal to decide the final "low / normal / high" flag. This avoids false positives from relying on just one comparison (e.g. a task might look low vs. benchmark but be normal for that specific campaign's context, or vice versa).
+**Eligibility:** toggle only appears after 3 manual Applies in Phase 3.
 
-  **Insight cadence (three tiers, running together):**
-  1. **Daily** — lightweight one-line digest per key metric (e.g. "Share: 12% — below average").
-  2. **Weekly** (once ~7 days of data has accumulated) — fuller report: task/reward comparisons, correlations (e.g. the "Referral users buy 2.4x more" type insight), and concrete suggestions.
-  3. **Anomaly-based** (event-triggered, independent of the daily/weekly clock) — immediate detailed alert whenever a metric deviates sharply/suddenly, so the business isn't stuck waiting for the next scheduled digest.
+**Scope:** auto-applies only `task_points`, `reward_threshold`, `campaign_duration`. `add_task`/`remove_task` and high-risk changes always stay manual. Still respects `business_ai_constraints`.
+
+**Mechanism:** `businesses.autopilot_enabled` toggle (default off). Eligible-scope suggestions auto-apply with `applied_by=autopilot`. Every auto-apply fires an `autopilot_change_applied` notification with an **Undo** action (creates+applies the inverse row).
 
 ---
 
-## Mockup Gap Analysis & Prioritization (2026-09-08)
+## Mockup Build (2026-09-08) — status: complete
 
-A full comparison of plan.md/architecture.md against the actual mockup files (`mockup/*.html`, `mockup/shared/*`) surfaced 9 documented decisions with no corresponding implementation (functional/data gaps only, not visual/cosmetic ones). Prioritized below for the next round of mockup work — highest priority first.
+9 functional gaps found via a plan.md/architecture.md-vs-mockup comparison, prioritized and closed out on branch `mockup-gap-fixes`, merged to main via PR #2 (commit `f9d6308`):
+- P0: Campaign invite Sends Log
+- P1: business size-tier dynamic scaling, SMS wallet real deduction + monthly cap, point expiry/grace/carryover math
+- P2: Phase 3 constraint enforcement + Phase 4 scope badges, microsite live module sync, referral anomaly detection + cap enforcement
+- P3: retroactive purchase claim flow, staff POS offline queue server-side validation
 
-### P0 — In progress / do next
-1. **Campaign invite Sends Log** (Phase 0.75 "Campaign invite sending & confirmation") — business owner needs a dedicated "لاگ ارسال‌ها" view; sending logic (fire at launch + on new contact add, with dedup) also still needs wiring. Already scoped as the current open thread before this analysis — stays #1 since it's furthest along and the docs are already fully committed.
-
-### P1 — High-value, demonstrates core differentiators
-2. **Business size-tier scaling** (Phase 0 / size-tier mapping) — dynamic tier resolution (Micro/Small/Medium/Large) from onboarding inputs, with automatic point multiplier and duration scaling, plus Goal-driven First Action/Conversion weighting. This is one of the product's core "AI does the work" selling points and is currently just a hardcoded static value in mock data — a high-visibility gap in any demo of the onboarding flow.
-3. **SMS wallet real deduction + monthly cap enforcement** (Phase 0.9) — wallet balance and monthly cap are currently static text fields with no actual deduction-per-send or cap-block simulation. Directly demonstrates the prepaid-wallet architecture that's already fully designed; natural companion to the Sends Log work in P0 since both touch the same notification-sending code path.
-4. **Point expiry, grace period & carryover** (Phase 0.5) — grace-period countdown, 70/30 forfeit/carryover math, and automatic credit into the next campaign are undemonstrated; currently only a static carryover number on one customer. Core to the product's retention story.
-
-### P2 — Meaningful gaps, lower demo visibility
-5. **Phase 3 constraint enforcement + Phase 4 scope distinction** — AI suggestions aren't checked against `business_ai_constraints` before display, and the autopilot mockup doesn't visibly distinguish structural (add/remove_task, always manual) from numeric (autopilot-eligible) change types. Matters for correctness of the human-in-the-loop/autopilot story but is a refinement of an already-working flow, not a missing flow.
-6. **Microsite module toggles → live preview sync** — `microsite-preview.html` is hardcoded and doesn't reflect the module on/off toggles saved in the business-owner builder. Cosmetic-adjacent but does affect the credibility of a click-through demo that shows both screens back to back.
-7. **Referral anomaly detection & per-campaign cap enforcement** — anomaly flags are static-seeded rather than rule-generated, and the per-campaign referral cap (10) plus first-purchase payout gating aren't enforced in the customer/review-console interactions. Backend-rule-driven and less visually demonstrable than other gaps.
-
-### P3 — Edge-case flows, lowest priority for a click-through mockup
-8. **Retroactive purchase claims** (Phase 0.5) — no UI/simulation for uploading a receipt after a missed POS scan (duplicate-hash detection, time limit, rate limiting). Real for production but a secondary/fallback path, not the primary flow a demo walks through.
-9. **Staff POS offline queue server-side verification** — offline toggle currently just simulates a delay via toast; no real duplicate/validity check on sync. Same reasoning as #8 — an edge-case resilience feature, least likely to be exercised in a demo.
+All 9 are live in `mockup/` on `main`. See git history for implementation detail.
 
 ---
 
 ## Status Log
-- **2026-09-07** — Repo created, initial plan drafted. Core onboarding flow + abstraction layer concept agreed on.
-- **2026-09-07** — All 5 initial open questions resolved:
-  1. v1 business categories → 6 categories (incl. beauty clinic)
-  2. Task/reward pattern weighting → v1 draft table with 9 patterns (added First Action, Off-Peak, Anniversary/Birthday to original 6)
-  3. Business-size scaling → hybrid proxy (connected app data + offer budget inference), no extra onboarding question
-  4. Benchmark data source → hybrid: industry data as launch placeholder + parallel early-adopter data collection, category-by-category replacement over time
-  5. Phase 2 insight metrics → hybrid completion-rate scoring (cross-campaign + within-campaign) + 3-tier cadence (daily/weekly/anomaly)
-
-  **Next up:** no more open questions logged. Candidates for next planning session: (a) define the size-tier point/budget multiplier table referenced in decision #3, (b) sketch the onboarding UI/screen flow, (c) start scoping the early-adopter outreach (who, how many, what incentive) for benchmark Phase B.
-- **2026-09-07** — Follow-up decisions:
-  - Size-tier point/budget multiplier table defined (4 tiers: Micro/Small/Medium/Large — see decision #3 above).
-  - Early-adopter plan defined, then **revised**: product-first approach — build the MVP, then onboard early-adopter businesses through the real product. Dropped the earlier idea of a manual/pre-product spreadsheet+WhatsApp tracking phase, since data collected outside the real product risks not reflecting actual app behavior.
-  - UI/onboarding screen design explicitly deferred — infrastructure gaps take priority.
-  - **New critical topic surfaced and resolved: Attribution & Tracking Mechanism (Phase 0.5).** Defined a personal-customer-code system as the backbone for verifying every task type: AI-reviewed screenshots (+ embedded personal code) for social tasks, automatic code-based linking for referrals, and staff-scanned QR/code at point-of-sale for purchases. This was a genuine gap — without it, none of the weighting/benchmark/insight work has real data to run on.
-
-  **Next up:** (a) POS-side UX design (how staff scan/enter codes at checkout), (b) AI screenshot-review logic (pass/fail/uncertain handling), (c) overall system architecture / data model (campaign, task, reward, customer-code schema) — needed before MVP build can start.
-- **2026-09-07** — Phase 0.5 (Attribution & Tracking) fully closed out:
-  - POS-side UX decided: web app (PWA) primary for staff, installable app secondary; hybrid QR + short numeric backup code for customer identification.
-  - Offline handling decided: local queue on the staff device, final verification/duplicate-check happens server-side once synced.
-  - Retroactive purchase claim mechanism added: customer can upload a receipt (photo or screenshot) afterward if the code wasn't scanned at checkout, with time limits, duplicate detection, and rate limiting to control the added fraud risk.
-  - AI review decision system decided: three-tier outcome (auto-approve / auto-reject / hold for manual review) instead of binary; central team reviews uncertain cases initially, moving to per-business-owner review later; points stay in a Pending state and are only credited on final approval.
-
-  **Next up:** overall system architecture / data model (campaign, task, reward, customer-code, submission/review schema) — the natural next step now that the attribution mechanism it needs to represent is fully specified.
-- **2026-09-07** — System architecture started: **tech stack decided — Node.js/TypeScript backend + PostgreSQL**, with the staff POS interface as a web app (PWA). Full entity/schema draft written up separately in **[architecture.md](./architecture.md)** (businesses, campaigns, task_patterns, category_pattern_weights, campaign_tasks, reward_patterns, campaign_rewards, customers, customer_campaign_codes, task_submissions, purchase_logs, points_ledger, benchmark_stats, insights) to keep plan.md from growing unmanageably long. See that file for the full schema and relationship diagram.
-
-  **Next up:** resolve the three open implementation questions logged in architecture.md, then move toward a buildable MVP scope/task breakdown.
+- **2026-09-07** — Repo created. Core onboarding + abstraction layer agreed. All 5 initial open questions resolved (categories, weighting table, size-tier scaling, benchmark strategy, Phase 2 metrics).
+- **2026-09-07** — Phase 0.5 (Attribution & Tracking) fully specified: personal code system, POS UX, offline handling, retroactive claims, 3-tier AI review.
+- **2026-09-07** — Tech stack decided: Node.js/TypeScript + PostgreSQL, PWA staff client. Full schema moved to `architecture.md`.
+- **2026-09-07/08** — Remaining "later/v2" items resolved and folded into the main build: PWA-only staff app (API-first backend), referral anomaly detection rules, monthly SMS cap, microsite modular sections, 2 new notification triggers, Phase 3 design, Phase 4 design.
+- **2026-09-08** — Post-launch guidance (Next Steps checklist) and campaign-invite Sends Log designed and committed to docs; business-owner dashboard nav reworked from horizontal tabs to accordion (mockup-only, no schema impact).
+- **2026-09-08** — Full mockup-vs-docs gap analysis (9 gaps) run, prioritized, implemented via `delegate_editor`, and merged to `main` (PR #2) — see "Mockup Build" above.
+- **2026-09-08** — Sends Log table mobile rendering bug (message column collapsing to one word/character per line) fixed via `table-layout:fixed` + explicit per-column widths on that table.
