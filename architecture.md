@@ -3,8 +3,9 @@
 Companion to `plan.md`. This translates the product decisions in plan.md into a concrete schema. See plan.md for the reasoning behind each mechanism — this file just captures the resulting structure.
 
 ## Stack
-- **Backend:** Node.js / TypeScript
-- **Database:** PostgreSQL
+- **Backend:** Node.js / TypeScript, deployed as Cloudflare Workers (one per persona app, see plan.md Phase 5 "Deployment architecture")
+- **Database:** Cloudflare D1 (changed from PostgreSQL, decided 2026-09-08) — co-located with the Workers backend, no Hyperdrive/connection-pooling layer needed. Chosen over Postgres because the whole stack is already Cloudflare-native and expected write volume (SMB loyalty campaigns: task submissions, POS scans, referral signups) is well within SQLite's single-writer model. Tradeoffs accepted: no native JSONB/array/enum types (see type-mapping note below), 10GB per-database ceiling (revisit sharding-per-business only if this becomes a real constraint), weaker concurrent-write throughput than Postgres under sustained burst load.
+  - **Type mapping (SQLite/D1 has no native uuid/jsonb/enum/boolean types):** `uuid` → `TEXT` (app-generated UUID string); `jsonb` → `TEXT` (JSON-serialized, parsed in application code — no server-side JSON querying/indexing); `enum` → `TEXT` with an app-level allowed-values check (D1 supports `CHECK` constraints if we want DB-level enforcement too); `boolean` → `INTEGER` (0/1); `numeric`/`timestamp` → `REAL`/`TEXT` (ISO 8601 string) respectively, per SQLite's type affinity rules. This is a notational mapping only — every table below still uses the Postgres-style type names from the original design for readability; apply this mapping when writing actual D1 migrations.
 - **Staff POS interface:** Web app (PWA), works on any phone/tablet, no install required. **Decided 2026-09-08:** stays PWA-only for the main version (no native app built now), but the backend is API-first — the PWA is just one client consuming documented REST endpoints (auth, code scan, offline sync, reward fulfillment), with no PWA-specific logic embedded in the business layer. This means a native app (Android/iOS) can be added later purely as an additional client, no backend rework needed.
 
 ---
