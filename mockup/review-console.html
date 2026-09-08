@@ -25,9 +25,14 @@
     </div>
 
     <!-- SECTION 2: Referral anomaly flags -->
-    <h2 style="margin-bottom: 1rem;">🚩 صف هشدارهای ناهنجاری معرفی (Referral Flags)</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+      <h2 style="margin: 0;">🚩 صف هشدارهای ناهنجاری معرفی (Referral Flags)</h2>
+      <button class="btn btn-primary btn-sm" onclick="runBatchAnomalyDetection()">
+        🔄 اجرای شبیه‌سازی دسته‌ای آنالیز تقلب (Run Batch Job)
+      </button>
+    </div>
     <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;">
-      این هشدارها صرفاً جنبه اطلاع‌رسانی دارند — پاداش معرفی همچنان بر اساس سه لایه دفاعی موجود (تایید OTP، گیت‌شدن به خرید واقعی، سقف تعداد) کنترل می‌شود؛ هیچ اکشن خودکاری از این صف اجرا نمی‌شود.
+      این هشدارها بر اساس قوانین قانون‌محور (سرعت بیش از ۵ معرفی در روز، یا نسبت بالای دعوت‌های بدون خرید) توسط باتچ شبیه‌سازی تولید می‌شوند. این هشدارها صرفاً جنبه اطلاع‌رسانی دارند — پاداش معرفی همچنان بر اساس سه لایه دفاعی موجود کنترل می‌شود؛ هیچ اکشن خودکاری از این صف اجرا نمی‌شود.
     </p>
     <div id="flags-queue"></div>
   </div>
@@ -94,9 +99,26 @@
       renderSubmissions();
     }
 
+    function runBatchAnomalyDetection() {
+      const added = App.runReferralAnomalyDetection();
+      renderFlags();
+      if (added > 0) {
+        App.showToast(`باتچ آنالیز تقلب اجرا شد: ${App.formatNumber(added)} هشدار ناهنجاری جدید شناسایی شد.`, 'success');
+      } else {
+        App.showToast('باتچ آنالیز تقلب اجرا شد: هیچ هشدار جدیدی اضافه نشد (موارد فعلی در حال بررسی هستند).', 'info');
+      }
+    }
+
     function renderFlags() {
       const wrap = document.getElementById('flags-queue');
-      wrap.innerHTML = flags.map(f => `
+      const currentFlags = window.MOCK.referralFlags || [];
+
+      if (currentFlags.length === 0) {
+        wrap.innerHTML = `<div class="card"><div class="empty-state"><div class="empty-state-icon">🛡️</div><h3>هیچ هشدار تقلب فعالی وجود ندارد</h3><p>روی دکمه «اجرای شبیه‌سازی دسته‌ای آنالیز تقلب» کلیک کنید تا قوانین Velocity و Dead Referral روی دیتای فعلی ارزیابی شوند.</p></div></div>`;
+        return;
+      }
+
+      wrap.innerHTML = currentFlags.map(f => `
         <div class="card ${f.status === 'open' ? 'card-high-risk' : ''}">
           <div class="card-header">
             <span class="card-title">👤 ${f.referrer_name}</span>
