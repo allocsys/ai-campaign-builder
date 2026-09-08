@@ -666,6 +666,7 @@ window.MOCK = (function () {
     referralFlags,
     websiteTemplates,
     websiteModules,
+    businessMicrositeModules,
     notificationsLog
   };
 })();
