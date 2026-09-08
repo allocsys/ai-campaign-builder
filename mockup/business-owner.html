@@ -1054,7 +1054,13 @@
         if (l.status === 'sent') {
           statusBadge = '<span class="badge badge-success">ارسال شده (sent)</span>';
         } else if (l.status === 'skipped') {
-          statusBadge = '<span class="badge badge-warning">چشم‌پوشی/dedup (skipped)</span>';
+          if (l.skip_reason === 'insufficient_balance') {
+            statusBadge = '<span class="badge badge-danger">موجودی کافی نیست (skipped)</span>';
+          } else if (l.skip_reason === 'monthly_cap_reached') {
+            statusBadge = '<span class="badge badge-danger">سقف ماهانه پر شد (skipped)</span>';
+          } else {
+            statusBadge = '<span class="badge badge-warning">چشم‌پوشی/dedup (skipped)</span>';
+          }
         } else if (l.status === 'failed') {
           statusBadge = '<span class="badge badge-danger">ناموفق (failed)</span>';
         } else {
