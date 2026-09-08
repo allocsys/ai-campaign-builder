@@ -513,35 +513,30 @@ window.App = (function () {
   }
 
   /**
-   * Microsite module toggles (Gap #6 fix, 2026-09-08): business-owner.html (the builder) and
-   * microsite-preview.html are two separate static page loads with no shared server, so in-memory
-   * window.MOCK state alone can't bridge them. localStorage is used as the persistence layer between
-   * the two pages (this is a real static mockup site, not a claude.ai Artifact sandbox, so localStorage
-   * is available). Falls back to the in-memory seed (businessMicrositeModules) if nothing saved yet.
+   * Microsite module toggles (Gap #6 fix, 2026-09-08): persists per business in the shared
+   * in-memory MOCK data object (`window.MOCK.businessMicrositeModules`), without using browser storage (localStorage).
    */
-  function micrositeModulesStorageKey(businessId) {
-    return `ms_modules_${businessId}`;
-  }
-
   function getMicrositeModules(businessId) {
-    try {
-      const raw = window.localStorage.getItem(micrositeModulesStorageKey(businessId));
-      if (raw) return JSON.parse(raw);
-    } catch (e) { /* fall through to seed default */ }
-    const seed = window.MOCK && window.MOCK.businessMicrositeModules ? window.MOCK.businessMicrositeModules[businessId] : null;
-    return seed ? { ...seed } : {};
+    if (window.MOCK && window.MOCK.businessMicrositeModules) {
+      const stored = window.MOCK.businessMicrositeModules[businessId];
+      if (stored) return { ...stored };
+    }
+    const defaults = {};
+    if (window.MOCK && window.MOCK.websiteModules) {
+      window.MOCK.websiteModules.forEach(m => {
+        defaults[m.key] = m.default_coffee != null ? m.default_coffee : true;
+      });
+    }
+    return defaults;
   }
 
   function saveMicrositeModules(businessId, modulesObj) {
-    if (window.MOCK && window.MOCK.businessMicrositeModules) {
-      window.MOCK.businessMicrositeModules[businessId] = { ...modulesObj };
+    if (!window.MOCK) return false;
+    if (!window.MOCK.businessMicrositeModules) {
+      window.MOCK.businessMicrositeModules = {};
     }
-    try {
-      window.localStorage.setItem(micrositeModulesStorageKey(businessId), JSON.stringify(modulesObj));
-      return true;
-    } catch (e) {
-      return false;
-    }
+    window.MOCK.businessMicrositeModules[businessId] = { ...modulesObj };
+    return true;
   }
 
   function renderHeader(currentPersona) {
