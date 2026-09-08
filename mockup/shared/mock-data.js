@@ -353,7 +353,9 @@ window.MOCK = (function () {
       qr_payload: "CAMP-NARVAN-48291",
       points_balance: 190,
       carryover_bonus: 30,
-      referral_count: 2
+      referral_count: 2,
+      referred_by_code_id: null,
+      created_at_days_ago: 15
     },
     {
       id: "code_cust_2",
@@ -363,7 +365,9 @@ window.MOCK = (function () {
       qr_payload: "CAMP-NARVAN-71934",
       points_balance: 110,
       carryover_bonus: 0,
-      referral_count: 0
+      referral_count: 0,
+      referred_by_code_id: null,
+      created_at_days_ago: 10
     },
     {
       id: "code_cust_3",
@@ -373,8 +377,24 @@ window.MOCK = (function () {
       qr_payload: "CAMP-NARVAN-33812",
       points_balance: 310,
       carryover_bonus: 0,
-      referral_count: 3
-    }
+      referral_count: 3,
+      referred_by_code_id: null,
+      created_at_days_ago: 12
+    },
+    // Seed referred customers for code_cust_1 (Velocity rule test: > 5 signups)
+    { id: "code_ref_1", customer_id: "cust_ref_1", campaign_id: "c_narvan_autumn", personal_code: "11101", qr_payload: "REF-1", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_1", created_at_days_ago: 1 },
+    { id: "code_ref_2", customer_id: "cust_ref_2", campaign_id: "c_narvan_autumn", personal_code: "11102", qr_payload: "REF-2", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_1", created_at_days_ago: 1 },
+    { id: "code_ref_3", customer_id: "cust_ref_3", campaign_id: "c_narvan_autumn", personal_code: "11103", qr_payload: "REF-3", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_1", created_at_days_ago: 1 },
+    { id: "code_ref_4", customer_id: "cust_ref_4", campaign_id: "c_narvan_autumn", personal_code: "11104", qr_payload: "REF-4", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_1", created_at_days_ago: 1 },
+    { id: "code_ref_5", customer_id: "cust_ref_5", campaign_id: "c_narvan_autumn", personal_code: "11105", qr_payload: "REF-5", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_1", created_at_days_ago: 1 },
+    { id: "code_ref_6", customer_id: "cust_ref_6", campaign_id: "c_narvan_autumn", personal_code: "11106", qr_payload: "REF-6", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_1", created_at_days_ago: 1 },
+
+    // Seed referred customers for code_cust_3 (Dead-referral rule test: >= 5 referred customers > 7 days old with zero purchases)
+    { id: "code_dead_1", customer_id: "cust_dead_1", campaign_id: "c_narvan_autumn", personal_code: "22201", qr_payload: "DEAD-1", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_3", created_at_days_ago: 10 },
+    { id: "code_dead_2", customer_id: "cust_dead_2", campaign_id: "c_narvan_autumn", personal_code: "22202", qr_payload: "DEAD-2", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_3", created_at_days_ago: 11 },
+    { id: "code_dead_3", customer_id: "cust_dead_3", campaign_id: "c_narvan_autumn", personal_code: "22203", qr_payload: "DEAD-3", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_3", created_at_days_ago: 12 },
+    { id: "code_dead_4", customer_id: "cust_dead_4", campaign_id: "c_narvan_autumn", personal_code: "22204", qr_payload: "DEAD-4", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_3", created_at_days_ago: 9 },
+    { id: "code_dead_5", customer_id: "cust_dead_5", campaign_id: "c_narvan_autumn", personal_code: "22205", qr_payload: "DEAD-5", points_balance: 0, carryover_bonus: 0, referral_count: 0, referred_by_code_id: "code_cust_3", created_at_days_ago: 14 }
   ];
 
   const taskSubmissions = [
@@ -516,9 +536,6 @@ window.MOCK = (function () {
   };
   suggestedChanges.push(suggestedChanges5);
 
-  // Suggestions demonstrating Phase 3 constraint enforcement (Gap #5, SUB-GAP A)
-  // These violate the business's business_ai_constraints (max_discount_percent: 25%, budget_ceiling_toman: 150000)
-  // and must be filtered out BEFORE display in the Suggestions tab ("before being shown at all").
   const suggestedChangesViolating1 = {
     id: "sc_violating_discount",
     campaign_id: "c_narvan_autumn",
@@ -547,7 +564,6 @@ window.MOCK = (function () {
   };
   suggestedChanges.push(suggestedChangesViolating2);
 
-  // Low-risk structural change to demonstrate remove_task ("همیشه دستی" scope)
   const suggestedChanges6 = {
     id: "sc_6",
     campaign_id: "c_narvan_autumn",
@@ -563,26 +579,6 @@ window.MOCK = (function () {
   suggestedChanges.push(suggestedChanges6);
 
   const referralFlags = [
-    {
-      id: "rf_1",
-      referrer_name: "امیرحسین کریمی (09129990008)",
-      rule_triggered: "velocity",
-      rule_name_fa: "تعداد دعوت نامتعارف در بازه کوتاه (Velocity)",
-      description: "۸ ثبت‌نام موفق با این کد معرف در کمتر از ۲۴ ساعت ثبت شده است (سقف مجاز سیستم ۵ است).",
-      triggered_at: "۱۴۰۳/۰۷/۰۸ ۱۱:۳۰",
-      status: "open",
-      notes: ""
-    },
-    {
-      id: "rf_2",
-      referrer_name: "مهدی پاکزاد (09351114444)",
-      rule_triggered: "dead_referral_ratio",
-      rule_name_fa: "دعوت‌های غیرفعال بدون خرید (Dead Referral Ratio)",
-      description: "۶ کاربر دعوت شده بیش از ۷ روز است ثبت‌نام کرده‌اند اما هیچ خرید یا فعالیتی در صندوق ثبت نکرده‌اند.",
-      triggered_at: "۱۴۰۳/۰۷/۰۷ ۱۶:۴۵",
-      status: "open",
-      notes: ""
-    },
     {
       id: "rf_3",
       referrer_name: "رویا شمس (09198882211)",
@@ -641,8 +637,6 @@ window.MOCK = (function () {
     { key: "contact", name_fa: "اطلاعات تماس، لوکیشن و ساعات کاری (Contact)", default_coffee: true }
   ];
 
-  // Per-business microsite module on/off state (Gap #6 fix, 2026-09-08). Seed mirrors websiteModules.default_coffee.
-  // Builder writes here + to localStorage on Save; microsite-preview.html reads localStorage (separate page load) to stay in sync.
   const businessMicrositeModules = {
     b_narvan: { hero: true, campaign_highlight: true, about: true, product_menu: true, gallery: true, testimonials: false, booking_cta: false, contact: true }
   };
