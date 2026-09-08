@@ -62,8 +62,8 @@ jobs:
       business_owner: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.business_owner == 'true' }}
       customer: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.customer == 'true' }}
       staff_pos: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.staff_pos == 'true' }}
-      # review_console / microsite / backend outputs go here once those apps'
-      # filters are added below.
+      # staff_pos / review_console / microsite / backend outputs go here once
+      # those apps' filters are added below.
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
