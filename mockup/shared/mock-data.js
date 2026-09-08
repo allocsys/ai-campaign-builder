@@ -152,6 +152,26 @@ window.MOCK = (function () {
     }
   };
 
+  // Subscription pricing tiers + business subscription status (architecture.md subscription_plans / business_subscriptions, plan.md Phase 0.9 "Pricing & Revenue Model")
+  const subscriptionPlans = {
+    micro: { key: "micro", name_fa: "میکرو (Micro)", monthly_price_toman: 0, note_fa: "رایگان تا سقف مشتریان میکرو" },
+    small: { key: "small", name_fa: "کوچک (Small)", monthly_price_toman: 250000, note_fa: "" },
+    medium: { key: "medium", name_fa: "متوسط (Medium)", monthly_price_toman: 590000, note_fa: "" },
+    large: { key: "large", name_fa: "بزرگ (Large)", monthly_price_toman: 1250000, note_fa: "" }
+  };
+
+  const businessSubscriptions = {
+    b_narvan: {
+      business_id: "b_narvan",
+      plan_key: "small",
+      status: "active",
+      billing_cycle_start: "1403/07/01",
+      next_billing_date: "1403/08/01",
+      microsite_addon_enabled: true,
+      microsite_addon_price_toman: 90000
+    }
+  };
+
   const checklistItems = [
     {
       item_key: "ai_constraints_saved",
