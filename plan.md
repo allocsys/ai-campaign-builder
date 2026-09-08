@@ -204,7 +204,9 @@ All 9 are live in `mockup/` on `main`. See git history for implementation detail
 
 ## Phase 5 — Production Frontend Build (decided 2026-09-08)
 
-**Stack:** React + Vite, Tailwind CSS, Framer Motion. Chosen for build speed, easy glassmorphism (Tailwind `backdrop-blur`/opacity utilities), and performant animation without hand-rolled CSS. Mockup's HTML/CSS/JS is reference-only, not upgraded in place.
+**Stack:** React + Vite, Tailwind CSS, Framer Motion. Chosen for build speed, easy glassmorphism (Tailwind `backdrop-blur`/opacity utilities), and performant animation without hand-rolled CSS.
+
+**Mockup's role (decided 2026-09-08):** `mockup/` is kept strictly as a **logic/behavior reference** — flow sequencing, edge cases, dedup rules, state transitions, what-field-goes-where — NOT a visual/design reference. Its plain HTML/CSS look is explicitly not to be carried forward; production UI (glassmorphism, animation, layout, typography) is designed fresh in the new stack with no visual inheritance from the mockup.
 
 **Steps:**
 1. Scaffold: Vite + React + TypeScript project, Tailwind config (RTL + Persian font), base design tokens (glass surface, color palette, spacing) as a small shared UI kit.
