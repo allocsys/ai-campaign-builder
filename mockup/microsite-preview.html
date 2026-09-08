@@ -48,14 +48,14 @@
   </div>
 
   <!-- HERO MODULE -->
-  <section class="ms-hero">
+  <section class="ms-hero" id="module-hero">
     <span class="ms-badge-label">☕ کافه نارون</span>
     <h1>طعم اصیل، فضای دنج، هر روز کنار شما</h1>
     <p>از سال ۱۳۹۸ میزبان لحظات آرام شما در قلب ولیعصر — قهوه‌ی تخصصی، دسرهای خانگی و فضایی برای گفتگو.</p>
   </section>
 
   <!-- CAMPAIGN HIGHLIGHT MODULE -->
-  <div class="ms-campaign-cta">
+  <div class="ms-campaign-cta" id="module-campaign_highlight">
     <h3 style="color:#fff;">🎉 کمپین وفاداری پاییزه فعال است!</h3>
     <p style="color:#fff7ed; margin: 0.5rem 0 1.25rem;">با عضویت رایگان، اولین نوشیدنی گرم شما مهمان ماست — به‌علاوه امکان دریافت جوایز بیشتر با دعوت از دوستان.</p>
     <button class="btn btn-lg" style="background:#fff; color:#b45309;" onclick="App.showToast('در نسخه واقعی، این دکمه به فرم عضویت در کمپین با شماره موبایل می‌رود (customer.html).', 'info')">
@@ -65,13 +65,13 @@
   </div>
 
   <!-- ABOUT MODULE -->
-  <section class="ms-section">
+  <section class="ms-section" id="module-about">
     <h2>درباره کافه نارون</h2>
     <p style="margin-top: 0.5rem;">کافه نارون با هدف ساختن یک فضای گرم و صمیمی برای علاقه‌مندان به قهوه‌ی تخصصی راه‌اندازی شد. دانه‌های ما به‌صورت تازه بو داده می‌شوند و هر فنجان با دقت و عشق تهیه می‌شود.</p>
   </section>
 
   <!-- PRODUCT MENU MODULE -->
-  <section class="ms-section ms-section-alt">
+  <section class="ms-section ms-section-alt" id="module-product_menu">
     <h2 style="margin-bottom: 1rem;">منوی محبوب‌ترین اقلام</h2>
     <div class="ms-menu-item"><span>☕ آمریکانو</span><strong>۸۵,۰۰۰ تومان</strong></div>
     <div class="ms-menu-item"><span>🥛 کاپوچینو</span><strong>۹۵,۰۰۰ تومان</strong></div>
@@ -80,7 +80,7 @@
   </section>
 
   <!-- GALLERY MODULE -->
-  <section class="ms-section">
+  <section class="ms-section" id="module-gallery">
     <h2 style="margin-bottom: 1rem;">فضای کافه</h2>
     <div class="ms-gallery-grid">
       <div class="ms-gallery-item">🖼️ عکس فضای داخلی</div>
@@ -91,7 +91,7 @@
   </section>
 
   <!-- CONTACT MODULE -->
-  <section class="ms-section ms-section-alt">
+  <section class="ms-section ms-section-alt" id="module-contact">
     <h2 style="margin-bottom: 1rem;">تماس با ما</h2>
     <div class="grid grid-3">
       <div class="stat-card"><div class="stat-icon" style="background:var(--primary-light);">📍</div><div><div class="stat-value" style="font-size:0.95rem;">تهران، ولیعصر</div><div class="stat-label">خیابان توانیر، پلاک ۱۲</div></div></div>
@@ -100,12 +100,16 @@
     </div>
   </section>
 
-  <!-- (testimonials & booking_cta modules exist but are OFF by default for this category — shown here disabled for reference -->
-  <section class="ms-section" style="opacity: 0.5;">
-    <div class="alert alert-info" style="margin-bottom: 1rem;">
-      ماژول‌های «نظرات مشتریان» و «رزرو میز» برای دسته کافی‌شاپ به‌صورت پیش‌فرض غیرفعال هستند (قابل فعال‌سازی توسط صاحب کسب‌وکار از پنل business-owner.html).
-    </div>
-    <div class="ms-testimonial">"بهترین قهوه محله‌مون! فضاش خیلی آرومه." — یکی از مشتریان (نمونه غیرفعال)</div>
+  <!-- TESTIMONIALS MODULE (off by default for this category, but toggle-able from the builder) -->
+  <section class="ms-section" id="module-testimonials">
+    <h2 style="margin-bottom: 1rem;">نظرات مشتریان وفادار</h2>
+    <div class="ms-testimonial">"بهترین قهوه محله‌مون! فضاش خیلی آرومه." — سارا ا.</div>
+  </section>
+
+  <!-- BOOKING CTA MODULE (off by default for this category, but toggle-able from the builder) -->
+  <section class="ms-section ms-section-alt" id="module-booking_cta" style="text-align: center;">
+    <h2 style="margin-bottom: 0.75rem;">رزرو میز یا وقت قبلی</h2>
+    <button class="btn btn-primary" onclick="App.showToast('در نسخه واقعی این دکمه فرم رزرو را باز می‌کند.', 'info')">📅 رزرو میز</button>
   </section>
 
   <footer class="ms-footer">
