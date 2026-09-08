@@ -12,14 +12,20 @@
 # the app folder, as raffle-app does) so npm can resolve and symlink
 # workspace packages — scripts target a specific app via `--workspace=`.
 #
-# STATUS (2026-09-09): `business-owner`, `customer`, and `staff-pos` are
-# scaffolded, so all three jobs are wired up below. Add a job block for each
-# of review-console, microsite, and backend as those apps get scaffolded —
-# copy an existing job as the template (backend's job additionally needs the
-# migration-gating + secret-presence checks; see raffle-app's
-# `backend`/`migrate` jobs for that shape, adapted for `wrangler d1
-# migrations apply` instead of a direct Postgres/Hyperdrive connection,
+# STATUS (2026-09-09): `business-owner` and `customer` are scaffolded, so both
+# jobs are wired up below. Add a job block for each of staff-pos,
+# review-console, microsite, and backend as those apps get scaffolded —
+# copy the `business-owner`/`customer` job as the template (backend's job
+# additionally needs the migration-gating + secret-presence checks; see
+# raffle-app's `backend`/`migrate` jobs for that shape, adapted for `wrangler
+# d1 migrations apply` instead of a direct Postgres/Hyperdrive connection,
 # per plan.md's D1 decision).
+#
+# NOTE (staff-pos-scaffold branch): `staff-pos` is ALSO wired up below even
+# though the STATUS comment above (kept byte-identical to main's for a
+# conflict-free merge) doesn't mention it yet — see plan.md Phase 5 status
+# for the current accurate picture; this comment gets a proper reword in a
+# follow-up commit once this branch is merged.
 #
 # Per-app path filtering: each job only runs (typecheck + test + deploy) if
 # its own apps/<name>/** folder changed, OR packages/**  changed (shared code
@@ -56,8 +62,8 @@ jobs:
       business_owner: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.business_owner == 'true' }}
       customer: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.customer == 'true' }}
       staff_pos: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.staff_pos == 'true' }}
-      # review_console / microsite / backend outputs go here once those
-      # apps' filters are added.
+      # review_console / microsite / backend outputs go here once those apps'
+      # filters are added below.
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
