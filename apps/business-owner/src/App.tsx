@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthScreen } from './routes/AuthScreen'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { AppShell } from './routes/AppShell'
-import { Dashboard } from './routes/Dashboard'
+import { BusinessOwnerHome } from './routes/BusinessOwnerHome'
 
 function App() {
   return (
@@ -13,7 +13,7 @@ function App() {
         element={
           <ProtectedRoute>
             <AppShell>
-              <Dashboard />
+              <BusinessOwnerHome />
             </AppShell>
           </ProtectedRoute>
         }
