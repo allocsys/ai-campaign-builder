@@ -299,6 +299,13 @@ p {
 }
 .badge-high-risk .badge-dot { background: #dc2626; }
 
+.badge-tier {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+  font-weight: 700;
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;
