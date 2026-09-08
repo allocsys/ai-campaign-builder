@@ -423,6 +423,10 @@ window.App = (function () {
     logNotification,
     hasCampaignInviteSent,
     sendCampaignInvite,
+    getSmsPricePerSms,
+    getMonthlySmsSpend,
+    recordSmsWalletTransaction,
+    deductForSmsSend,
     renderHeader
   };
 })();
