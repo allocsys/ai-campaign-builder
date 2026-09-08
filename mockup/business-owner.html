@@ -320,6 +320,31 @@
               </div>
             </div>
 
+            <!-- SECTION: Point expiry, grace period & carryover (Phase 0.5, demoed 2026-09-08) -->
+            <div class="section-heading">
+              <h2>⏳ مهلت بازخرید و Carryover امتیاز <span class="section-subtitle">شبیه‌سازی پایان دوره مهلت و محاسبه مصادره/انتقال</span></h2>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">قانون فعلی</span>
+                <span class="badge badge-secondary" id="carryover-rule-badge">۲ روز مهلت • حفظ ۳۰٪</span>
+              </div>
+              <div class="card-body">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                  پس از پایان کمپین، مشتریان به مدت مهلت بازخرید کاملاً به موجودی باقیمانده خود دسترسی دارند. پس از پایان مهلت، بخشی مصادره و بخشی به عنوان اعتبار انتقالی (Carryover) برای کمپین بعدی همین کسبوکار حفظ می‌شود:
+                </p>
+                <button class="btn btn-outline-primary btn-sm" onclick="simulateCarryoverDemo()" style="margin-bottom: 1rem;">▶️ شبیه‌سازی پایان مهلت + محاسبه Carryover</button>
+                <div id="carryover-results-container" style="margin-bottom: 1.25rem; overflow-x: auto;"></div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1rem 0;">
+
+                <h4 style="font-size: 0.92rem; margin-bottom: 0.6rem;">🎁 اعتبارات در انتظار مصرف (برای کمپین بعدی همین کسبوکار)</h4>
+                <div id="pending-carryovers-list">
+                  <p style="color: var(--text-muted); font-size: 0.85rem;">اعتبار انتقالی در انتظار مصرفی وجود ندارد.</p>
+                </div>
+              </div>
+            </div>
+
             <!-- SECTION: Rewards -->
             <div class="section-heading">
               <h2>🎁 پاداش‌ها</h2>
