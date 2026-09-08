@@ -807,14 +807,23 @@
         return;
       }
 
+      const bizId = window.MOCK.businesses[0].id;
       container.innerHTML = pending.map(s => {
         const isHighRisk = s.risk_tier === 'high';
+        const isStructural = App.isStructuralChangeType(s.change_type);
+        const scopeBadge = !isHighRisk
+          ? (isStructural
+              ? '<span class="badge badge-secondary">🔧 تغییر ساختاری — همیشه دستی (Autopilot اجرا نمی‌کند)</span>'
+              : '<span class="badge badge-info">🤖 قابل اجرای خودکار توسط Autopilot (در صورت فعال بودن)</span>')
+          : '';
+        const constraintCheck = App.checkSuggestionAgainstConstraints(s, bizId);
         return `
           <div class="card ${isHighRisk ? 'card-high-risk' : 'card-low-risk'}">
             <div class="card-header">
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                 <span class="card-title" style="margin: 0;">${s.title}</span>
                 ${App.renderRiskBadge(s.risk_tier)}
+                ${scopeBadge}
               </div>
               <span class="badge badge-secondary">کد: ${s.change_type}</span>
             </div>
@@ -824,6 +833,11 @@
                   <span>⚠️ <strong>هشدار اثر مالی:</strong> این پیشنهاد بر میزان تخفیف‌ها یا بودجه تاثیر مستقیم دارد و فراتر از اختیارات خودکار سیستم است.</span>
                 </div>
               ` : ''}
+              ${constraintCheck.blocked ? `
+                <div class="alert alert-danger" style="margin-bottom: 0.75rem; font-size: 0.82rem;">
+                  <span>🛡️ <strong>مسدود شده توسط خطوط قرمز هوش مصنوعی:</strong> ${constraintCheck.reason}</span>
+                </div>
+              ` : ''}
               <p style="font-size: 0.92rem; margin-bottom: 0.5rem;"><strong>دلیل هوش مصنوعی:</strong> ${s.rationale}</p>
               <div style="font-size: 0.85rem; color: var(--text-muted);">
                 مقدار پیشنهادی جدید: <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${JSON.stringify(s.suggested_value)}</code>
@@ -831,7 +845,7 @@
             </div>
             <div class="card-footer">
               <button class="btn btn-outline-danger btn-sm" onclick="promptDismiss('${s.id}')">رد پیشنهاد (Dismiss)</button>
-              <button class="btn btn-success btn-sm" onclick="applySuggestion('${s.id}')">✓ تایید و اعمال پیشنهاد (Apply)</button>
+              <button class="btn btn-success btn-sm" ${constraintCheck.blocked ? 'disabled title="مسدود توسط قیود هوش مصنوعی"' : ''} onclick="applySuggestion('${s.id}')">✓ تایید و اعمال پیشنهاد (Apply)</button>
             </div>
           </div>
         `;
