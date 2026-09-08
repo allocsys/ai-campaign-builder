@@ -141,12 +141,20 @@ Core question raised: campaigns are worthless if customers never hear about them
 Rather than hardcoding channel-specific logic per event, follow the same abstraction-layer principle from Phase 1: a `notification_templates` config (trigger type × channel → message template), so adding a new trigger or a new channel later doesn't require new code paths, just new config rows. See architecture.md for the schema.
 
 ### Trigger events for v1 (decided — 6 events, expanded 2026-09-08)
-1. **Campaign invite** — sent when the business launches a campaign, to the business's existing customer contacts.
+1. **Campaign invite** — sent (a) at the moment the business launches a campaign, to every existing `business_contacts` row, and (b) again to just the newly-added contact(s) any time a new contact is added to `business_contacts` while a campaign is already active (CSV re-upload, or a new self-join) — not a one-time launch snapshot. See "Campaign invite sending & confirmation" below for dedup and confirmation details.
 2. **Ending soon** — sent to enrolled customers who haven't finished when a campaign is approaching its end date (e.g. ~2 days left).
 3. **Reward threshold reached** — sent the moment a customer's point balance crosses a `campaign_rewards.threshold_points` value, telling them they can redeem.
 4. **Submission reviewed** — sent when a `task_submissions` row moves out of `pending` (AI or central-team review resolves to approved or rejected), so the customer isn't left wondering.
 5. **Mid-campaign reminder** (added 2026-09-08) — sent once per customer per campaign at the halfway point of the campaign's duration, only if that customer hasn't completed any task yet.
 6. **Referral joined** (added 2026-09-08) — sent immediately to the referrer when someone signs up using their referral code (before any purchase/points are involved) — an early encouragement ping, separate from the later payout notice already covered by trigger #4.
+
+### Campaign invite sending & confirmation (decided 2026-09-08)
+Two follow-up questions on trigger #1 above:
+- **When it fires:** at launch, **and** on every subsequent contact addition while the campaign is active (see trigger #1) — so a business that keeps growing its contact list via CSV re-upload or the public join link doesn't have to relaunch to reach new people.
+- **Dedup rule:** a given `business_contacts` row is only sent `campaign_invite` once per active campaign — re-running the launch trigger logic (e.g. if triggered again by mistake) must not resend to contacts already invited for that campaign. Applies uniformly to all contacts regardless of `source` (manual_upload or self_joined) — a self-joined contact still gets a campaign_invite for a *different*, newer campaign they haven't joined yet; they're only skipped for the campaign they already joined through.
+- **Confirmation UX:** the business owner sees a dedicated **"لاگ ارسال‌ها" (Sends Log)** view — not just a launch-time toast — listing every send attempt (contact/customer, channel, trigger, status, timestamp), so "did it actually go out" has a real answer rather than trusting a one-time success toast. Reuses the same underlying `notifications_log` data already collected for customer-side notifications, filtered to the business.
+
+See architecture.md `notifications_log` for the schema change needed to support pre-join contacts (who don't yet have a `customer_campaign_codes` row).
 
 ### Initial audience acquisition (decided 2026-09-07) — hybrid
 The campaign_invite trigger needs a list of phone numbers to send to. Two complementary sources, both v1:
