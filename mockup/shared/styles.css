@@ -970,6 +970,15 @@ p {
     font-size: 0.8rem;
   }
 
+  .acc-header {
+    padding: 0.85rem 1rem;
+    font-size: 0.88rem;
+  }
+
+  .acc-panel .tab-content {
+    padding: 1rem;
+  }
+
   .section-heading {
     flex-direction: column;
     align-items: flex-start;
