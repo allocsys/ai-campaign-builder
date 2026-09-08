@@ -37,7 +37,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">کد معرف (اختیاری):</label>
-                <input type="text" id="cust-referral-input" class="form-control" placeholder="مثال: 71934">
+                <input type="text" id="cust-referral-input" class="form-control" placeholder="مثال: 48291 (کد معرف سارا)">
               </div>
               <button class="btn btn-primary btn-block" onclick="sendOtp()">دریافت کد تایید پیامکی (OTP)</button>
             </div>
@@ -78,14 +78,18 @@
                 <span style="font-size: 0.7rem; font-weight: 600;">اسکن در صندوق کافه</span>
               </div>
 
-              <div style="margin-top: 0.75rem; border-top: 1px solid #334155; padding-top: 0.75rem; display: flex; justify-content: space-around;">
+              <div style="margin-top: 0.75rem; border-top: 1px solid #334155; padding-top: 0.75rem; display: flex; justify-content: space-around; flex-wrap: gap; gap: 0.5rem;">
                 <div>
                   <div style="font-size: 0.75rem; color: #94a3b8;">موجودی امتیاز:</div>
-                  <div style="font-size: 1.4rem; font-weight: 700; color: #34d399;" id="cust-points-balance">۱۹۰ امتیاز</div>
+                  <div style="font-size: 1.3rem; font-weight: 700; color: #34d399;" id="cust-points-balance">۱۹۰ امتیاز</div>
                 </div>
                 <div>
-                  <div style="font-size: 0.75rem; color: #94a3b8;">اعتبار انتقالی (Carryover):</div>
-                  <div style="font-size: 1rem; font-weight: 600; color: #fbbf24;">+۳۰ امتیاز</div>
+                  <div style="font-size: 0.75rem; color: #94a3b8;">معرفی (تعداد vs سقف ۱۰):</div>
+                  <div style="font-size: 1rem; font-weight: 600; color: #38bdf8;" id="cust-referral-stat">۲ از ۱۰</div>
+                </div>
+                <div>
+                  <div style="font-size: 0.75rem; color: #94a3b8;">انتقالی (Carryover):</div>
+                  <div style="font-size: 1rem; font-weight: 600; color: #fbbf24;" id="cust-carryover-stat">+۳۰</div>
                 </div>
               </div>
             </div>
@@ -95,6 +99,19 @@
           <div class="alert alert-info" id="telegram-optin-banner" style="font-size: 0.8rem; justify-content: space-between; align-items: center;">
             <span>✈️ دریافت نوتیفیکیشن‌ها در تلگرام</span>
             <button class="btn btn-outline-primary btn-sm" onclick="optinTelegram()">فعال‌سازی در بات</button>
+          </div>
+
+          <!-- Retroactive Purchase Claim Entry (Gap #8) -->
+          <div class="card" style="border: 2px dashed var(--primary-border); background: #f8fafc;">
+            <div class="card-body" style="text-align: center;">
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.35rem;">❓ فراموش کردید کد خود را در صندوق اسکن کنید؟</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                می‌توانید رسید خرید یا سفارش خود را تا ۷۲ ساعت بعد آپلود کنید تا پس از بررسی تیم مرکزی امتیاز شما ثبت شود.
+              </p>
+              <button class="btn btn-outline-primary btn-sm" onclick="openRetroModal()">
+                🧾 ثبت ادعای خرید بازگشتی (فراموشی اسکن)
+              </button>
+            </div>
           </div>
 
           <!-- Rewards Progress Section -->
@@ -169,6 +186,49 @@
     </div>
   </div>
 
+  <!-- Retroactive Purchase Claim Modal (Gap #8) -->
+  <div id="retro-claim-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">ثبت ادعای خرید بازگشتی (فراموشی اسکن)</div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+          رسید فیزیکی یا اسکرین‌شات سفارش آنلاین خود را بارگذاری کرده و در صورت نیاز شماره رسید را وارد کنید.
+        </p>
+        <div class="form-group">
+          <label class="form-label">شماره رسید / فاکتور (اختیاری):</label>
+          <input type="text" id="retro-receipt-num" class="form-control" placeholder="مثال: RCP-8492">
+        </div>
+        <div class="form-group">
+          <label class="form-label">تصویر رسید خرید:</label>
+          <div style="border: 2px dashed var(--border-color); padding: 1.25rem; text-align: center; border-radius: var(--radius-sm); background: #fafbfc; cursor: pointer;" onclick="document.getElementById('retro-file-input').click()">
+            <span style="font-size: 1.5rem; display: block; margin-bottom: 0.2rem;">📷</span>
+            <span style="font-size: 0.82rem; color: var(--text-muted);" id="retro-file-name">انتخاب فایل رسید (یا استفاده از پیش‌فرض)</span>
+            <input type="file" id="retro-file-input" style="display: none;" onchange="handleRetroFile(this)">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">زمان خرید (مهلت قانونی: ۴۸ تا ۷۲ ساعت):</label>
+          <select id="retro-hours-ago" class="form-control">
+            <option value="12">امروز (۱۲ ساعت پیش)</option>
+            <option value="24">دیروز (۲۴ ساعت پیش)</option>
+            <option value="48">دو روز پیش (۴۸ ساعت پیش)</option>
+            <option value="72">سه روز پیش (۷۲ ساعت پیش)</option>
+            <option value="90">بیش از ۷۲ ساعت پیش (خارج از مهلت)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">شبیه‌سازی رسید تکراری (Duplicate Hash):</label>
+          <input type="text" id="retro-hash-input" class="form-control" placeholder="خالی بگذارید یا هش تکراری برای تست وارد کنید">
+        </div>
+        <small style="color: var(--text-muted); font-size: 0.78rem;">ادعاهای خرید بازگشتی به دلیل عدم حضور صندوق‌دار با ضریب اطمینان احتیاطی (بررسی دستی) ثبت می‌شوند.</small>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeRetroModal()">انصراف</button>
+        <button class="btn btn-primary" onclick="submitRetroClaim()">ارسال ادعا به صف بررسی</button>
+      </div>
+    </div>
+  </div>
+
   <script src="shared/mock-data.js"></script>
   <script src="shared/app.js"></script>
   <script>
@@ -178,6 +238,7 @@
     let currentCode = window.MOCK.customerCampaignCodes[0];
     let selectedTaskId = null;
     let activeTimer = null;
+    let selectedRetroFileName = 'receipt_scan_default.jpg';
 
     function sendOtp() {
       document.getElementById('auth-phone-step').style.display = 'none';
@@ -186,14 +247,70 @@
     }
 
     function verifyOtp() {
+      const phoneInput = document.getElementById('cust-phone-input').value.trim() || '09129990001';
+      const referralInput = document.getElementById('cust-referral-input').value.trim();
+      const activeCampaign = window.MOCK.campaigns[0];
+
+      // Check if customer exists or create new
+      let cust = window.MOCK.customers.find(c => c.phone_number === phoneInput);
+      if (!cust) {
+        cust = {
+          id: 'cust_' + Date.now(),
+          phone_number: phoneInput,
+          name: 'مشتری جدید (' + phoneInput.slice(-4) + ')',
+          phone_verified: true,
+          telegram_opted_in: false,
+          telegram_chat_id: null
+        };
+        window.MOCK.customers.push(cust);
+      }
+
+      // Check if code exists for active campaign
+      let code = window.MOCK.customerCampaignCodes.find(c => c.customer_id === cust.id && c.campaign_id === activeCampaign.id);
+      if (!code) {
+        const randomCode = Math.floor(10000 + Math.random() * 90000).toString();
+        code = {
+          id: 'code_' + Date.now(),
+          customer_id: cust.id,
+          campaign_id: activeCampaign.id,
+          personal_code: randomCode,
+          qr_payload: 'CAMP-NARVAN-' + randomCode,
+          points_balance: 0,
+          carryover_bonus: 0,
+          referral_count: 0,
+          referred_by_code_id: null,
+          created_at_days_ago: 0
+        };
+        window.MOCK.customerCampaignCodes.push(code);
+      }
+
+      currentCustomer = cust;
+      currentCode = code;
+
+      // Process referral code if provided (Sub-Gap B: cap enforcement & first-purchase payout gating)
+      if (referralInput) {
+        const res = App.processCustomerSignupWithReferral(code.id, referralInput, activeCampaign.id);
+        if (res.success) {
+          if (res.capped) {
+            App.showToast(`عضویت با موفقیت انجام شد! (نکته: معرف شما «${res.referrerName}» به سقف ${res.maxCap} معرفی این کمپین رسیده است؛ شما به طور عادی عضو شدید اما امتیاز معرفی اضافی تعلق نمی‌گیرد).`, 'warning');
+          } else {
+            App.showToast(`عضویت با موفقیت انجام شد! کد معرف «${res.referrerName}» ثبت شد (امتیاز معرف پس از اولین خرید شما واریز خواهد شد).`, 'success');
+          }
+        } else {
+          App.showToast('کد معرف نامعتبر است یا در این کمپین یافت نشد؛ ثبت‌نام بدون معرف انجام شد.', 'warning');
+        }
+      } else {
+        App.showToast('ورود با موفقیت انجام شد. خوش آمدید!', 'success');
+      }
+
       document.getElementById('customer-auth-section').style.display = 'none';
       document.getElementById('customer-main-section').style.display = 'block';
-      App.showToast('ورود با موفقیت انجام شد. خوش آمدید!', 'success');
+
       App.logNotification(
         currentCustomer.name + ' (' + currentCustomer.phone_number + ')',
         'sms',
         'campaign_invite',
-        'به کمپین پاییزه کافه نارون خوش آمدید! کد شخصی شما: 48291'
+        `به کمپین پاییزه کافه نارون خوش آمدید! کد شخصی شما: ${currentCode.personal_code}`
       );
       renderCustomerData();
     }
@@ -201,6 +318,11 @@
     function renderCustomerData() {
       document.getElementById('cust-personal-code').textContent = currentCode.personal_code;
       document.getElementById('cust-points-balance').textContent = `${App.formatNumber(currentCode.points_balance)} امتیاز`;
+      const activeCampaign = window.MOCK.campaigns[0];
+      const maxCap = activeCampaign.max_referrals_per_customer || 10;
+      const refCount = currentCode.referral_count || 0;
+      document.getElementById('cust-referral-stat').textContent = `${App.formatNumber(refCount)} از ${App.formatNumber(maxCap)}`;
+      document.getElementById('cust-carryover-stat').textContent = `+${App.formatNumber(currentCode.carryover_bonus || 0)}`;
 
       // Render rewards progress
       const rewardsContainer = document.getElementById('customer-rewards-progress');
@@ -235,7 +357,6 @@
       // Render tasks
       const tasksContainer = document.getElementById('customer-tasks-container');
       tasksContainer.innerHTML = window.MOCK.campaignTasks.map(t => {
-        // Find if customer already has a submission
         const sub = window.MOCK.taskSubmissions.find(s => s.customer_campaign_code_id === currentCode.id && s.campaign_task_id === t.id);
         const status = sub ? sub.status : null;
 
@@ -264,7 +385,7 @@
                     <button class="btn btn-primary btn-sm" onclick="openSubmitModal('${t.id}', '${t.title}')">📷 ارسال مدرک</button>
                   `}
                 ` : t.verification_method === 'code_link_auto' ? `
-                  <button class="btn btn-outline btn-sm" onclick="copyReferralLink()">🔗 کپی لینک دعوت</button>
+                  <button class="btn btn-outline btn-sm" onclick="copyReferralLink()">🔗 کپی لینک دعوت (سقف ${maxCap})</button>
                 ` : `
                   <span style="font-size: 0.75rem; color: var(--text-muted);">اسکن خودکار در صندوق کافه</span>
                 `}
@@ -309,7 +430,6 @@
 
     function confirmTaskSubmit() {
       const task = window.MOCK.campaignTasks.find(t => t.id === selectedTaskId);
-      // Add or update submission to pending
       window.MOCK.taskSubmissions.unshift({
         id: 'sub_' + Date.now(),
         customer_campaign_code_id: currentCode.id,
@@ -318,7 +438,7 @@
         task_title: task ? task.title : 'ارسال مدرک',
         submission_type: 'screenshot',
         evidence_url: 'uploaded_story_proof.jpg',
-        ai_confidence_score: 55, // middle confidence
+        ai_confidence_score: 55,
         status: 'pending',
         reviewed_by: null,
         submitted_at: 'همین الان'
@@ -376,13 +496,56 @@
     }
 
     function copyReferralLink() {
-      App.showToast('لینک دعوت اختصاصی شما کپی شد: narvan.com/join?ref=' + currentCode.personal_code, 'success');
+      const activeCampaign = window.MOCK.campaigns[0];
+      const maxCap = activeCampaign.max_referrals_per_customer || 10;
+      App.showToast(`لینک دعوت (سقف پاداش ${maxCap} معرفی) کپی شد: narvan.com/join?ref=` + currentCode.personal_code, 'success');
     }
 
     function optinTelegram() {
       currentCustomer.telegram_opted_in = true;
       document.getElementById('telegram-optin-banner').innerHTML = '<span>✅ اتصال به تلگرام فعال شد</span>';
       App.showToast('اتصال به تلگرام تایید شد. از این پس پیام‌ها در تلگرام نیز ارسال می‌شوند.', 'success');
+    }
+
+    function openRetroModal() {
+      document.getElementById('retro-claim-modal').style.display = 'flex';
+    }
+
+    function closeRetroModal() {
+      document.getElementById('retro-claim-modal').style.display = 'none';
+    }
+
+    function handleRetroFile(input) {
+      if (input.files && input.files[0]) {
+        selectedRetroFileName = input.files[0].name;
+        document.getElementById('retro-file-name').textContent = 'فایل انتخاب شد: ' + selectedRetroFileName;
+      }
+    }
+
+    function submitRetroClaim() {
+      const receiptNum = document.getElementById('retro-receipt-num').value.trim();
+      const hoursAgo = Number(document.getElementById('retro-hours-ago').value) || 12;
+      const customHash = document.getElementById('retro-hash-input').value.trim();
+      const receiptHash = customHash || (selectedRetroFileName + '_' + (receiptNum || 'default'));
+
+      const activeCampaign = window.MOCK.campaigns[0];
+      const res = App.submitRetroactivePurchaseClaim(currentCode.id, activeCampaign.id, receiptHash, receiptNum, hoursAgo);
+
+      if (res.success) {
+        App.showToast('ادعای خرید بازگشتی با موفقیت ثبت شد و به صف بررسی دستی منتقل گردید.', 'success');
+        closeRetroModal();
+        renderCustomerData();
+      } else {
+        if (res.reason === 'outside_time_window') {
+          App.showToast('خطا: مهلت ارسال ادعای خرید بازگشتی (حداکثر ۷۲ ساعت) به پایان رسیده است.', 'error');
+        } else if (res.reason === 'duplicate_receipt') {
+          App.showToast('خطا: این رسید قبلاً ثبت شده است (تشخیص رسید تکراری / Duplicate Receipt).', 'error');
+        } else if (res.reason === 'rate_limited') {
+          App.showToast('خطا: شما به سقف مجاز ادعای خرید بازگشتی در این کمپین (۳ بار) رسیده‌اید.', 'error');
+        } else {
+          App.showToast('خطا در ثبت ادعای خرید بازگشتی.', 'error');
+        }
+      }
     }
   </script>
 </body>

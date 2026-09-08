@@ -25,7 +25,7 @@
           </div>
           <div class="meta-chip">
             <span class="meta-chip-label">رده کسب‌وکار</span>
-            <span class="meta-chip-value">کوچک (Small — تا ۲۰۰۰ مشتری)</span>
+            <span class="meta-chip-value" id="biz-tier-display">کوچک (Small — تا ۲۰۰۰ مشتری)</span>
           </div>
         </div>
       </div>
@@ -98,17 +98,34 @@
                     <div class="form-group">
                       <label class="form-label">۲. هدف اصلی این کمپین چیه؟</label>
                       <select id="campaign-goal-select" class="form-select">
-                        <option value="acquisition">جذب مشتری جدید (Acquisition)</option>
-                        <option value="retention">نگه‌داشتن و سفارش مجدد مشتریان قبلی (Retention)</option>
+                        <option value="acquisition">جذب مشتری جدید (Acquisition — با وزن‌دهی بالا به اولین خرید)</option>
+                        <option value="retention">نگه‌داشتن و سفارش مجدد مشتریان قبلی (Retention — تمرکز بر خرید مجدد و کاهش وزن اولین خرید)</option>
                       </select>
                     </div>
                   </div>
 
-                  <!-- Step 3: Audience -->
+                  <!-- Step 3: Audience & Size-Tier Signals -->
                   <div class="onboarding-step" data-step="3" style="display: none;">
                     <div class="form-group">
                       <label class="form-label">۳. مخاطب هدفت کیه؟</label>
                       <input type="text" id="campaign-audience-input" class="form-control" value="دانشجویان و جوانان محدوده مرکز شهر، علاقه‌مند به کار یا دورهمی در کافه">
+                    </div>
+
+                    <div style="background: #f8fafc; border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-sm); margin-top: 1rem;">
+                      <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--primary);">📊 سیگنال‌های محاسبه اندازه کسب‌وکار (Size-Tier Dynamic Scaling)</h4>
+                      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.85rem;">
+                        سیستم به صورت هوشمند رده کسب‌وکار شما (میکرو، کوچک، متوسط، بزرگ) را بر اساس دو سیگنال زیر محاسبه می‌کند و ضریب امتیازات و مدت زمان کمپین را تنظیم می‌نماید:
+                      </p>
+                      
+                      <div class="form-group">
+                        <label class="form-label">تعداد فالوورها یا مشتریان موجود:</label>
+                        <input type="number" id="biz-follower-input" class="form-control" value="1450" step="100">
+                      </div>
+
+                      <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">بودجه آفر تخفیف یا پاداش (تومان):</label>
+                        <input type="number" id="biz-budget-input" class="form-control" value="85000" step="10000">
+                      </div>
                     </div>
                   </div>
 
@@ -144,28 +161,29 @@
                     <h2>✨ پیشنهاد کمپین آماده شد <span class="section-subtitle">قابل ویرایش قبل از راه‌اندازی</span></h2>
                   </div>
                   <div class="alert alert-success">
-                    <span>🎉 <strong>پیشنهاد اولیه کمپین توسط هوش مصنوعی آماده شد!</strong> وزن‌دهی تسک‌ها بر اساس الگوهای انتزاعی فاز ۱ انجام گرفت.</span>
+                    <span>🎉 <strong>پیشنهاد اولیه کمپین توسط هوش مصنوعی آماده شد!</strong> اندازه کسب‌وکار، ضریب امتیاز و وزن‌دهی تسک‌ها (با اعمال قانون هدایت هدف کمپین) با موفقیت محاسبه گردید.</span>
                   </div>
 
                   <div class="card" style="border: 2px solid var(--primary);">
                     <div class="card-header" style="background: var(--primary-light);">
-                      <strong id="proposal-title">کمپین پیشنهادی: رشد و جذب اعضای جدید</strong>
-                      <span class="badge badge-primary">مدت پیشنهادی: ۱۴ روز</span>
+                      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <strong id="proposal-title">کمپین پیشنهادی: رشد و جذب اعضای جدید</strong>
+                        <span class="badge badge-info" id="proposal-tier-badge">اندازه کسب‌وکار: متوسط (×1.5 امتیاز)</span>
+                      </div>
+                      <span class="badge badge-primary" id="proposal-duration-badge">مدت پیشنهادی: ۲۱ روز</span>
                     </div>
                     <div class="card-body">
                       <div style="margin-bottom: 1rem;">
-                        <strong>تسک‌های وزن‌دهی شده:</strong>
+                        <strong>تسک‌های وزن‌دهی شده (با اعمال مقیاس رده و وزن هدف):</strong>
                         <ul id="proposal-tasks" style="padding-right: 1.5rem; margin-top: 0.5rem; font-size: 0.88rem;">
-                          <li>استوری اینستاگرام از کافه با درج کد اختصاصی (۵۰ امتیاز)</li>
-                          <li>دعوت دوست با لینک و اولین خرید او (۸۰ امتیاز)</li>
-                          <li>سفارش در ساعات خلوت روز (۴۵ امتیاز)</li>
+                          <!-- Rendered via JS -->
                         </ul>
                       </div>
                       <div style="margin-bottom: 1rem;">
                         <strong>پاداش‌های چندسطحی:</strong>
                         <ul id="proposal-rewards" style="padding-right: 1.5rem; margin-top: 0.5rem; font-size: 0.88rem;">
-                          <li>سطح ۱ (۱۲۰ امتیاز): قهوه دمی رایگان</li>
-                          <li>سطح ۲ (۲۲۰ امتیاز): ۲۰٪ تخفیف کل فاکتور</li>
+                          <li>سطح ۱ (۱۲۷ امتیاز): قهوه دمی رایگان</li>
+                          <li>سطح ۲ (۲۳۲ امتیاز): ۲۰٪ تخفیف کل فاکتور</li>
                         </ul>
                       </div>
                       <div class="alert alert-warning" style="margin-bottom: 0;">
@@ -257,7 +275,7 @@
                     </div>
                     <div class="meta-chip">
                       <span class="meta-chip-label">ضریب امتیازات</span>
-                      <span class="meta-chip-value">۱.۰ برابر پایه</span>
+                      <span class="meta-chip-value" id="dashboard-multiplier-chip">۱.۰ برابر پایه (کوچک)</span>
                     </div>
                     <div class="meta-chip">
                       <span class="meta-chip-label">مهلت بازخرید (Grace Period)</span>
@@ -298,6 +316,31 @@
                   <div id="active-tasks-list">
                     <!-- Rendered via JS -->
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION: Point expiry, grace period & carryover (Phase 0.5, demoed 2026-09-08) -->
+            <div class="section-heading">
+              <h2>⏳ مهلت بازخرید و Carryover امتیاز <span class="section-subtitle">شبیه‌سازی پایان دوره مهلت و محاسبه مصادره/انتقال</span></h2>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">قانون فعلی</span>
+                <span class="badge badge-secondary" id="carryover-rule-badge">۲ روز مهلت • حفظ ۳۰٪</span>
+              </div>
+              <div class="card-body">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                  پس از پایان کمپین، مشتریان به مدت مهلت بازخرید کاملاً به موجودی باقیمانده خود دسترسی دارند. پس از پایان مهلت، بخشی مصادره و بخشی به عنوان اعتبار انتقالی (Carryover) برای کمپین بعدی همین کسبوکار حفظ می‌شود:
+                </p>
+                <button class="btn btn-outline-primary btn-sm" onclick="simulateCarryoverDemo()" style="margin-bottom: 1rem;">▶️ شبیه‌سازی پایان مهلت + محاسبه Carryover</button>
+                <div id="carryover-results-container" style="margin-bottom: 1.25rem; overflow-x: auto;"></div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1rem 0;">
+
+                <h4 style="font-size: 0.92rem; margin-bottom: 0.6rem;">🎁 اعتبارات در انتظار مصرف (برای کمپین بعدی همین کسبوکار)</h4>
+                <div id="pending-carryovers-list">
+                  <p style="color: var(--text-muted); font-size: 0.85rem;">اعتبار انتقالی در انتظار مصرفی وجود ندارد.</p>
                 </div>
               </div>
             </div>
@@ -400,6 +443,9 @@
                     <span>🎉 <strong>شما واجد شرایط استفاده از حالت خودکار هستید!</strong> (حداقل ۳ پیشنهاد با موفقیت تایید دستی شد).</span>
                   </div>
 
+                  <div class="alert alert-info" style="font-size: 0.82rem; margin-bottom: 1rem;">
+                    <span>محدوده Autopilot: فقط پیشنهادات کم‌ریسک با برچسب 🤖 (امتیاز تسک، آستانه پاداش، تمدید مدت) به‌صورت خودکار اعمال می‌شوند. پیشنهادات با برچسب 🔧 (افزودن/حذف تسک) و ریسک بالا (تغییر عمق پاداش) همیشه نیازمند تایید دستی شما در تب تغییرات پیشنهادی هستند — حتی اگر Autopilot روشن باشد.</span>
+                  </div>
                   <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1.25rem; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
                     <div style="min-width: 220px; flex: 1;">
                       <h3 style="margin-bottom: 0.25rem;">فعال‌سازی حالت خودکار (Autopilot)</h3>
@@ -515,15 +561,19 @@
                       <span style="font-size: 1.35rem; font-weight: 700; color: #0f172a;" id="sms-balance-display">۴۲۰,۰۰۰ تومان</span>
                       <button class="btn btn-outline-primary btn-sm" onclick="topupWallet()">+ شارژ ۲۰۰,۰۰۰</button>
                     </div>
+                    <div style="margin-top: 0.6rem; font-size: 0.78rem; color: var(--text-muted);">
+                      هزینه هر پیامک: <strong id="sms-price-display">۳۵۰ تومان</strong> &nbsp;•&nbsp;
+                      مصرف این دوره: <strong id="sms-monthly-spend-display">۰ تومان</strong> از سقف <strong id="sms-cap-display">نامحدود</strong>
+                    </div>
                   </div>
 
                   <div class="form-group">
                     <label class="form-label">سقف ماهانه هزینه پیامک (Monthly Spending Cap):</label>
                     <div style="display: flex; gap: 0.5rem;">
                       <input type="text" id="sms-cap-input" class="form-control" value="۶۰۰,۰۰۰ تومان">
-                      <button class="btn btn-outline" onclick="App.showToast('سقف ماهانه ذخیره شد.', 'success')">ذخیره سقف</button>
+                      <button class="btn btn-outline" onclick="saveSmsCap()">ذخیره سقف</button>
                     </div>
-                    <small style="color: var(--text-muted); font-size: 0.78rem;">جهت محافظت در برابر ارسال‌های غیرمنتظره ترافیک بالا (اختیاری).</small>
+                    <small style="color: var(--text-muted); font-size: 0.78rem;">جهت محافظت در برابر ارسال‌های غیرمنتظره ترافیک بالا (اختیاری). رسیدن به سقف، ارسال پیامک را متوقف می‌کند تا ماه بعد (تلگرام همچنان ارسال می‌شود).</small>
                   </div>
 
                   <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.25rem 0;">
@@ -574,6 +624,46 @@
         </div>
       </div>
 
+      <!-- 8. SENDS LOG (لاگ ارسال‌ها) -->
+      <div class="acc-item" data-tab="sends-log-view">
+        <button class="acc-header" onclick="toggleAccordionItem('sends-log-view')" id="tab-sends-log-btn">
+          <span class="acc-header-title">📨 لاگ ارسال‌ها (Sends Log)</span>
+          <span class="badge badge-secondary" id="sends-log-count-badge">۰ پیام</span>
+        </button>
+        <div class="acc-panel">
+          <div id="sends-log-view" class="tab-content">
+            <div class="section-heading">
+              <h2>📨 لاگ ارسال پیامک و تلگرام <span class="section-subtitle">تاریخچه کامل ارسال‌ها، وضعیت تحویل و مکانیزم Dedup کمپین</span></h2>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">تاریخچه ارسال‌های کسب‌وکار</span>
+                <button class="btn btn-outline btn-sm" onclick="renderSendsLog()">🔄 به‌روزرسانی لاگ</button>
+              </div>
+              <div class="card-body" style="padding: 0;">
+                <div style="overflow-x: auto;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>مخاطب / مشتری</th>
+                        <th>کانال</th>
+                        <th>نوع تریگر</th>
+                        <th>وضعیت</th>
+                        <th>متن پیام</th>
+                        <th>زمان</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sends-log-tbody">
+                      <!-- Rendered via JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
     <!-- /accordion -->
   </div>
@@ -607,8 +697,6 @@
     let currentDismissingId = null;
 
     // --- Accordion navigation (replaces the old horizontal switchTab, decided 2026-09-08) ---
-    // toggleAccordionItem: used by clicking a header directly. Opens it (closing all others),
-    // or closes it if it was already the open one — no need to manually close before opening the next.
     function toggleAccordionItem(tabId) {
       const item = document.querySelector(`.acc-item[data-tab="${tabId}"]`);
       if (!item) return;
@@ -620,10 +708,6 @@
       }
     }
 
-    // switchTab: used by every other button/link in the page that wants to jump to and open
-    // a specific section (e.g. "طراحی کمپین جدید", the Next Steps checklist CTAs, launchCampaign()).
-    // Kept under its original name so none of those call sites needed to change.
-    // Unlike toggleAccordionItem, this always opens the target (never toggles it closed).
     function switchTab(tabId) {
       document.querySelectorAll('.acc-item').forEach(el => el.classList.remove('open'));
       const item = document.querySelector(`.acc-item[data-tab="${tabId}"]`);
@@ -699,18 +783,27 @@
       const container = document.getElementById('suggestions-list-container');
       if (!container) return;
 
+      const bizId = window.MOCK.businesses[0].id;
       const allSuggestions = window.MOCK.suggestedChanges || [];
-      const pending = allSuggestions.filter(s => s.status === 'pending');
+      
+      // SUB-GAP A: Phase 3 constraint enforcement — filter out any high-risk suggestion that violates saved business constraints
+      // "before being shown at all" rule: filtered out entirely rather than shown with a warning.
+      const visibleSuggestions = allSuggestions.filter(s => {
+        const check = App.checkSuggestionAgainstConstraints(s, bizId);
+        return !check.blocked;
+      });
+
+      const pending = visibleSuggestions.filter(s => s.status === 'pending');
       document.getElementById('pending-suggestions-badge').textContent = pending.length;
       document.getElementById('applied-counter-badge').textContent = `تایید شده در این نشست: ${App.session.appliedSuggestionsCount}`;
 
-      if (allSuggestions.length === 0) {
+      if (allSuggestions.length === 0 || visibleSuggestions.length === 0) {
         container.innerHTML = `
           <div class="card">
             <div class="empty-state">
               <div class="empty-state-icon">⚡</div>
-              <h3>هنوز پیشنهادی تولید نشده</h3>
-              <p>پیشنهادهای هوشمند بر اساس بینش‌های فاز ۲ (تب قبلی) ساخته می‌شن، پس وقتی اولین بینش آماده بشه، پیشنهادها هم اینجا ظاهر می‌شن.</p>
+              <h3>هیچ پیشنهادی برای نمایش نیست</h3>
+              <p>پیشنهادهایی که قیود یا خطوط قرمز هوش مصنوعی (تنظیم‌شده در تب تنظیمات) را نقض کنند، مطابق ضوابط فاز ۳ پیش از نمایش فیلتر و حذف می‌شوند. مابقی پیشنهادات در اینجا قابل بررسی هستند.</p>
             </div>
           </div>
         `;
@@ -720,7 +813,7 @@
       if (pending.length === 0) {
         container.innerHTML = `
           <div class="card" style="text-align: center; padding: 2.5rem;">
-            <p style="color: var(--text-muted);">تمامی پیشنهادات بررسی شده‌اند و مورد جدیدی وجود ندارد.</p>
+            <p style="color: var(--text-muted);">تمامی پیشنهادات مجاز بررسی شده‌اند و مورد جدیدی وجود ندارد.</p>
           </div>
         `;
         return;
@@ -728,12 +821,15 @@
 
       container.innerHTML = pending.map(s => {
         const isHighRisk = s.risk_tier === 'high';
+        // SUB-GAP B: Phase 4 autopilot scope distinction — visual/textual distinction between autopilot-eligible vs structural (always manual)
+        const scopeBadge = App.renderScopeBadge(s.change_type, s.risk_tier);
         return `
           <div class="card ${isHighRisk ? 'card-high-risk' : 'card-low-risk'}">
             <div class="card-header">
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                 <span class="card-title" style="margin: 0;">${s.title}</span>
                 ${App.renderRiskBadge(s.risk_tier)}
+                ${scopeBadge}
               </div>
               <span class="badge badge-secondary">کد: ${s.change_type}</span>
             </div>
@@ -759,26 +855,51 @@
 
     function applySuggestion(id) {
       const item = window.MOCK.suggestedChanges.find(s => s.id === id);
-      if (item) {
-        item.status = 'applied';
-        item.applied_by = 'business_owner';
-        App.session.appliedSuggestionsCount++;
+      if (!item) return;
 
-        // If it was task_points ct_1
-        if (item.change_type === 'task_points') {
-          const task = window.MOCK.campaignTasks.find(t => t.id === 'ct_1');
-          if (task) task.points_value = item.suggested_value.points;
-        } else if (item.change_type === 'reward_threshold') {
-          const reward = window.MOCK.campaignRewards.find(r => r.id === 'cr_1');
-          if (reward) reward.threshold_points = item.suggested_value.threshold;
-        }
-
-        App.showToast(`پیشنهاد «${item.title}» با موفقیت اعمال شد.`, 'success');
-        updateAutopilotEligibility();
-        renderActiveTasks();
-        renderActiveRewards();
-        renderSuggestions();
+      const bizId = window.MOCK.businesses[0].id;
+      const constraintCheck = App.checkSuggestionAgainstConstraints(item, bizId);
+      if (constraintCheck.blocked) {
+        App.showToast(`اعمال مسدود شد: ${constraintCheck.reason}`, 'error');
+        return;
       }
+
+      item.status = 'applied';
+      item.applied_by = 'business_owner';
+      App.session.appliedSuggestionsCount++;
+
+      if (item.change_type === 'task_points') {
+        const task = window.MOCK.campaignTasks.find(t => t.id === item.target_id || t.id === (item.current_value && item.current_value.task_id) || t.id === 'ct_1');
+        if (task) task.points_value = item.suggested_value.points;
+      } else if (item.change_type === 'reward_threshold') {
+        const reward = window.MOCK.campaignRewards.find(r => r.id === item.target_id || r.id === (item.current_value && item.current_value.reward_id) || r.id === 'cr_1');
+        if (reward) reward.threshold_points = item.suggested_value.threshold;
+      } else if (item.change_type === 'campaign_duration') {
+        const campaign = window.MOCK.campaigns.find(c => c.id === item.campaign_id) || window.MOCK.campaigns[0];
+        if (campaign) campaign.duration_days = item.suggested_value.duration_days;
+      } else if (item.change_type === 'add_task') {
+        // Structural change (always manual, never autopilot) — actually append a new campaign_tasks row.
+        const pattern = window.MOCK.taskPatterns.find(p => p.id === item.suggested_value.task_pattern_id);
+        if (pattern) {
+          const campaign = window.MOCK.campaigns.find(c => c.id === item.campaign_id) || window.MOCK.campaigns[0];
+          window.MOCK.campaignTasks.push({
+            id: 'ct_added_' + Date.now(),
+            campaign_id: campaign.id,
+            task_pattern_id: pattern.id,
+            title: pattern.name_fa,
+            verification_method: pattern.verification_method,
+            points_value: item.suggested_value.points || pattern.base_points,
+            display_order: window.MOCK.campaignTasks.length + 1,
+            instruction: `تسک مرتبط با ${pattern.name_fa} همراه با درج کد اختصاصی شما.`
+          });
+        }
+      }
+
+      App.showToast(`پیشنهاد «${item.title}» با موفقیت اعمال شد.`, 'success');
+      updateAutopilotEligibility();
+      renderActiveTasks();
+      renderActiveRewards();
+      renderSuggestions();
     }
 
     function promptDismiss(id) {
@@ -852,15 +973,53 @@
     function topupWallet() {
       const biz = window.MOCK.businesses[0];
       biz.sms_wallet_balance_toman += 200000;
-      document.getElementById('sms-balance-display').textContent = App.formatToman(biz.sms_wallet_balance_toman);
+      App.recordSmsWalletTransaction(biz.id, 'topup', 200000, null);
+      updateWalletDisplay();
       App.showToast('مبلغ ۲۰۰,۰۰۰ تومان به کیف‌پول پیامک اضافه شد.', 'success');
     }
 
+    function parseTomanInput(str) {
+      const digits = String(str).replace(/[^0-9]/g, '');
+      return digits ? Number(digits) : null;
+    }
+
+    function saveSmsCap() {
+      const biz = window.MOCK.businesses[0];
+      const raw = document.getElementById('sms-cap-input').value;
+      const parsed = parseTomanInput(raw);
+      biz.sms_monthly_cap_toman = parsed; // null = no cap, governed by wallet balance alone
+      updateWalletDisplay();
+      App.showToast(parsed != null ? `سقف ماهانه روی ${App.formatToman(parsed)} تنظیم شد.` : 'سقف ماهانه حذف شد — فقط موجودی کیف‌پول کنترل می‌کند.', 'success');
+    }
+
+    function updateWalletDisplay() {
+      const biz = window.MOCK.businesses[0];
+      if (!biz) return;
+      const balanceEl = document.getElementById('sms-balance-display');
+      const priceEl = document.getElementById('sms-price-display');
+      const spendEl = document.getElementById('sms-monthly-spend-display');
+      const capEl = document.getElementById('sms-cap-display');
+      if (balanceEl) balanceEl.textContent = App.formatToman(biz.sms_wallet_balance_toman);
+      if (priceEl) priceEl.textContent = App.formatToman(App.getSmsPricePerSms());
+      if (spendEl) spendEl.textContent = App.formatToman(App.getMonthlySmsSpend(biz.id));
+      if (capEl) capEl.textContent = biz.sms_monthly_cap_toman != null ? App.formatToman(biz.sms_monthly_cap_toman) : 'نامحدود';
+    }
+
     function saveAiConstraints() {
-      const maxDisc = document.getElementById('constraint-max-discount').value;
-      const budget = document.getElementById('constraint-budget-ceiling').value;
-      App.showToast(`قیود جدید ذخیره شد: حداکثر تخفیف ${maxDisc}٪ و سقف بودجه ${App.formatToman(budget)}`, 'success');
+      const bizId = window.MOCK.businesses[0].id;
+      const maxDisc = Number(document.getElementById('constraint-max-discount').value) || null;
+      const budget = Number(document.getElementById('constraint-budget-ceiling').value) || null;
+
+      if (!window.MOCK.businessAiConstraints[bizId]) {
+        window.MOCK.businessAiConstraints[bizId] = { business_id: bizId };
+      }
+      window.MOCK.businessAiConstraints[bizId].max_discount_percent = maxDisc;
+      window.MOCK.businessAiConstraints[bizId].budget_ceiling_toman = budget;
+      window.MOCK.businessAiConstraints[bizId].updated_at = 'همین الان';
+
+      App.showToast(`قیود جدید ذخیره شد: حداکثر تخفیف ${maxDisc}٪ و سقف بودجه ${App.formatToman(budget)} — پیشنهادات فاز ۳ بازبینی شدند.`, 'success');
       completeChecklistItem('ai_constraints_saved');
+      renderSuggestions();
     }
 
     // --- Next Steps checklist (post-launch guidance, decided 2026-09-08) ---
@@ -914,18 +1073,91 @@
 
     function simulateContactImport() {
       const bizId = window.MOCK.businesses[0].id;
-      const newContacts = ['09121234567', '09359876543', '09141112233'];
-      newContacts.forEach(phone => {
-        window.MOCK.businessContacts.push({
-          id: 'contact_' + Date.now() + Math.random().toString(36).slice(2, 6),
-          business_id: bizId,
-          phone_number: phone,
-          source: 'manual_upload',
-          imported_at: new Date().toISOString()
-        });
+      const newPhones = ['09121234567', '09359876543', '09141112233'];
+      const newlyAdded = [];
+      newPhones.forEach(phone => {
+        let existing = window.MOCK.businessContacts.find(c => c.business_id === bizId && c.phone_number === phone);
+        if (!existing) {
+          const newContact = {
+            id: 'contact_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            business_id: bizId,
+            phone_number: phone,
+            source: 'manual_upload',
+            imported_at: new Date().toISOString()
+          };
+          window.MOCK.businessContacts.push(newContact);
+          newlyAdded.push(newContact);
+        }
       });
-      App.showToast(`${App.formatNumber(newContacts.length)} مخاطب از فایل CSV بارگذاری شد.`, 'success');
+      App.showToast(`${App.formatNumber(newlyAdded.length)} مخاطب جدید از فایل CSV بارگذاری شد.`, 'success');
       completeChecklistItem('contacts_imported');
+
+      const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId && c.status === 'active');
+      if (activeCampaign && newlyAdded.length > 0) {
+        newlyAdded.forEach(contact => {
+          App.sendCampaignInvite(contact, activeCampaign);
+        });
+        App.showToast(`دعوت‌نامه کمپین برای ${App.formatNumber(newlyAdded.length)} مخاطب جدید به‌صورت آنی ارسال شد.`, 'success');
+      }
+      updateWalletDisplay();
+      renderSendsLog();
+    }
+
+    function renderSendsLog() {
+      const tbody = document.getElementById('sends-log-tbody');
+      const badge = document.getElementById('sends-log-count-badge');
+      if (!tbody) return;
+
+      const bizId = window.MOCK.businesses[0].id;
+      const logs = (window.MOCK.notificationsLog || []).filter(l => l.business_id === bizId);
+
+      if (badge) {
+        badge.textContent = `${App.formatNumber(logs.length)} پیام`;
+      }
+
+      if (logs.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+              هیچ پیام یا لاگ ارسالی برای این کسب‌وکار ثبت نشده است.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = logs.map(l => {
+        let statusBadge = '';
+        if (l.status === 'sent') {
+          statusBadge = '<span class="badge badge-success">ارسال شده (sent)</span>';
+        } else if (l.status === 'skipped') {
+          if (l.skip_reason === 'insufficient_balance') {
+            statusBadge = '<span class="badge badge-danger">موجودی کافی نیست (skipped)</span>';
+          } else if (l.skip_reason === 'monthly_cap_reached') {
+            statusBadge = '<span class="badge badge-danger">سقف ماهانه پر شد (skipped)</span>';
+          } else {
+            statusBadge = '<span class="badge badge-warning">چشم‌پوشی/dedup (skipped)</span>';
+          }
+        } else if (l.status === 'failed') {
+          statusBadge = '<span class="badge badge-danger">ناموفق (failed)</span>';
+        } else {
+          statusBadge = `<span class="badge badge-secondary">${l.status}</span>`;
+        }
+
+        const channelBadge = l.channel === 'sms' ? '📱 پیامک (SMS)' : '✈️ تلگرام (Telegram)';
+        const triggerBadge = `<span class="badge badge-info">${l.trigger}</span>`;
+
+        return `
+          <tr>
+            <td style="font-weight: 600;">${l.customer || '-'}</td>
+            <td>${channelBadge}</td>
+            <td>${triggerBadge}</td>
+            <td>${statusBadge}</td>
+            <td style="color: #334155; max-width: 320px; word-break: break-word;">${l.text || ''}</td>
+            <td style="color: var(--text-muted); font-size: 0.82rem;">${l.time || 'همین الان'}</td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function handleCategoryChange(catSlug) {
@@ -944,10 +1176,12 @@
     const ONBOARDING_STEP_TITLES = {
       1: 'صنف کسب‌وکار',
       2: 'هدف کمپین',
-      3: 'مخاطب هدف',
+      3: 'مخاطب هدف و سیگنال اندازه',
       4: 'آفر و پاداش',
       5: 'مرور و تایید'
     };
+
+    let generatedProposalState = null;
 
     function renderOnboardingStep() {
       document.querySelectorAll('.onboarding-step').forEach(el => {
@@ -995,14 +1229,20 @@
       const conditional = document.getElementById('conditional-answer-select').value;
       const goal = document.getElementById('campaign-goal-select').value;
       const audience = document.getElementById('campaign-audience-input').value;
+      const followers = document.getElementById('biz-follower-input').value;
+      const budget = document.getElementById('biz-budget-input').value;
       const offer = document.getElementById('campaign-offer-input').value;
+
+      // Resolve tier dynamically for review display
+      const resolvedTier = App.resolveSizeTier(followers, budget);
 
       const summary = document.getElementById('onboarding-review-summary');
       if (!summary) return;
       summary.innerHTML = `
         <div><strong>🏷️ صنف:</strong> ${cat ? cat.name_fa : catSlug} — ${conditional}</div>
-        <div><strong>🎯 هدف کمپین:</strong> ${goal === 'acquisition' ? 'جذب مشتری جدید' : 'حفظ و سفارش مجدد مشتریان قبلی'}</div>
+        <div><strong>🎯 هدف کمپین:</strong> ${goal === 'acquisition' ? 'جذب مشتری جدید (Acquisition)' : 'حفظ و سفارش مجدد مشتریان قبلی (Retention)'}</div>
         <div><strong>👥 مخاطب هدف:</strong> ${audience}</div>
+        <div><strong>📊 اندازه کسب‌وکار (محاسبه شده):</strong> <span class="badge badge-info">${resolvedTier.name_fa} (ضریب امتیاز: ×${resolvedTier.pointMultiplier}، مدت پیشنهاد: ${resolvedTier.suggestedDurationDays} روز)</span></div>
         <div><strong>🎁 آفر پیشنهادی:</strong> ${offer}</div>
       `;
     }
@@ -1010,21 +1250,179 @@
     function handleOnboardingSubmit() {
       const catSlug = document.getElementById('biz-category-select').value;
       const goal = document.getElementById('campaign-goal-select').value;
+      const followers = document.getElementById('biz-follower-input').value;
+      const budget = document.getElementById('biz-budget-input').value;
+
+      // 1. Resolve size tier using follower count and offer budget
+      const resolvedTier = App.resolveSizeTier(followers, budget);
+
+      // 2. Scale points and tasks using scalePointsForTier and Goal-driven weighting override
+      const generatedTasks = App.generateCampaignTasksForCategory(catSlug, goal, resolvedTier);
+      const suggestedDays = App.getSuggestedDuration(resolvedTier);
+
+      generatedProposalState = {
+        catSlug,
+        goal,
+        tier: resolvedTier,
+        tasks: generatedTasks,
+        durationDays: suggestedDays
+      };
+
+      // 3. Populate proposal UI
+      document.getElementById('proposal-title').textContent = `کمپین پیشنهادی AI برای صنف (${catSlug === 'coffee_shop' ? 'کافه' : catSlug})`;
+      document.getElementById('proposal-tier-badge').textContent = `اندازه کسب‌وکار: ${resolvedTier.name_fa} (×${resolvedTier.pointMultiplier} امتیاز)`;
+      document.getElementById('proposal-duration-badge').textContent = `مدت پیشنهادی: ${resolvedTier.suggestedDurationDays} روز`;
+
+      const taskUl = document.getElementById('proposal-tasks');
+      taskUl.innerHTML = generatedTasks.map(t => `
+        <li>${t.title} — <strong>+${t.points_value} امتیاز</strong> (پایه: ${t.base_points} × ${resolvedTier.pointMultiplier}) [روش: ${t.verification_method}]</li>
+      `).join('');
 
       document.getElementById('ai-proposal-result').style.display = 'block';
-      document.getElementById('proposal-title').textContent = `کمپین پیشنهادی AI برای صنف ${catSlug} (هدف: ${goal === 'acquisition' ? 'جذب مشتری جدید' : 'حفظ مشتریان'})`;
-      App.showToast('پیشنهاد کمپین توسط هوش مصنوعی تولید شد!', 'success');
+      App.showToast(`پیشنهاد کمپین تولید شد! رده: ${resolvedTier.name_fa}، ضریب: ×${resolvedTier.pointMultiplier}`, 'success');
       document.getElementById('ai-proposal-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function launchCampaign() {
-      App.showToast('کمپین با موفقیت ایجاد و فعال شد!', 'success');
+      if (generatedProposalState) {
+        // Apply generated proposal to active mock data
+        const biz = window.MOCK.businesses[0];
+        biz.size_tier = generatedProposalState.tier.key;
+        biz.follower_count = Number(document.getElementById('biz-follower-input').value) || biz.follower_count;
+        biz.offer_budget_toman = Number(document.getElementById('biz-budget-input').value) || biz.offer_budget_toman;
+
+        const activeCampaign = window.MOCK.campaigns[0];
+        activeCampaign.point_multiplier = generatedProposalState.tier.pointMultiplier;
+        activeCampaign.duration_days = generatedProposalState.durationDays;
+        activeCampaign.goal = generatedProposalState.goal;
+
+        window.MOCK.campaignTasks = generatedProposalState.tasks.map(t => ({
+          id: t.id,
+          campaign_id: activeCampaign.id,
+          task_pattern_id: t.task_pattern_id,
+          title: t.title,
+          verification_method: t.verification_method,
+          points_value: t.points_value,
+          display_order: t.display_order,
+          instruction: t.instruction
+        }));
+
+        // Update header tier display
+        const tierDisplay = document.getElementById('biz-tier-display');
+        if (tierDisplay) {
+          tierDisplay.textContent = `${generatedProposalState.tier.name_fa} (ضریب ×${generatedProposalState.tier.pointMultiplier})`;
+        }
+        const chip = document.getElementById('dashboard-multiplier-chip');
+        if (chip) {
+          chip.textContent = `${generatedProposalState.tier.pointMultiplier} برابر پایه (${generatedProposalState.tier.name_fa})`;
+        }
+
+        renderActiveTasks();
+      }
+
+      App.showToast('کمپین با موفقیت ایجاد، مقیاس‌دهی و فعال شد!', 'success');
       switchTab('dashboard-view');
 
-      // Reset wizard for the next time someone opens the onboarding tab
       onboardingStep = 1;
       document.getElementById('ai-proposal-result').style.display = 'none';
       renderOnboardingStep();
+
+      const bizId = window.MOCK.businesses[0].id;
+      const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId && c.status === 'active') || window.MOCK.campaigns[0];
+      const contacts = window.MOCK.businessContacts.filter(c => c.business_id === bizId);
+      if (activeCampaign && contacts.length > 0) {
+        let sentCount = 0;
+        let skippedCount = 0;
+        contacts.forEach(c => {
+          const res = App.sendCampaignInvite(c, activeCampaign);
+          if (res) sentCount++; else skippedCount++;
+        });
+        App.showToast(`ارسال دعوت‌نامه کمپین: ${App.formatNumber(sentCount)} ارسال شد، ${App.formatNumber(skippedCount)} تکراری/ناموفق (dedup یا کیف‌پول/سقف).`, 'success');
+      }
+      updateWalletDisplay();
+      renderSendsLog();
+    }
+
+    // --- Point expiry & carryover simulation (plan.md Phase 0.5, decided 2026-09-08) ---
+    function simulateCarryoverDemo() {
+      const bizId = window.MOCK.businesses[0].id;
+      const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId) || window.MOCK.campaigns[0];
+      const results = App.simulateCampaignEndCarryover(activeCampaign);
+      renderCarryoverResults(results, activeCampaign);
+      renderPendingCarryovers();
+      if (results.length > 0) {
+        App.showToast(`مهلت ${App.formatNumber(activeCampaign.grace_period_days)} روزه سپری شد: موجودی ${App.formatNumber(results.length)} مشتری پردازش شد (مصادره/Carryover).`, 'success');
+      } else {
+        App.showToast('هیچ مشتری با موجودی باقیمانده برای پردازش پیدا نشد.', 'info');
+      }
+      renderActiveTasks();
+    }
+
+    function renderCarryoverResults(results, campaign) {
+      const container = document.getElementById('carryover-results-container');
+      if (!container) return;
+      if (!results || results.length === 0) {
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">هیچ مشتری با موجودی باقیمانده برای پردازش پیدا نشد.</p>`;
+        return;
+      }
+      const forfeitPct = 100 - campaign.carryover_percentage;
+      container.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>مشتری</th>
+              <th>موجودی قبل</th>
+              <th>مصادره شده (٪${App.formatNumber(forfeitPct)})</th>
+              <th>Carryover (٪${App.formatNumber(campaign.carryover_percentage)})</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${results.map(r => `
+              <tr>
+                <td style="font-weight: 600;">${r.customerName}</td>
+                <td>${App.formatNumber(r.before)}</td>
+                <td><span class="badge badge-danger">-${App.formatNumber(r.forfeited)}</span></td>
+                <td><span class="badge badge-success">+${App.formatNumber(r.carried)} (در انتظار مصرف)</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderPendingCarryovers() {
+      const container = document.getElementById('pending-carryovers-list');
+      if (!container) return;
+      const bizId = window.MOCK.businesses[0].id;
+      const pending = App.getPendingCarryovers(bizId);
+      if (!pending.length) {
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">اعتبار انتقالی در انتظار مصرفی وجود ندارد.</p>`;
+        return;
+      }
+      container.innerHTML = pending.map(p => {
+        const customer = window.MOCK.customers.find(c => c.id === p.customer_id);
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.9rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <strong style="font-size: 0.88rem;">${customer ? customer.name : p.customer_id}</strong>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">+${App.formatNumber(p.points)} امتیاز از کمپین قبلی باقی مانده</div>
+            </div>
+            <button class="btn btn-outline-primary btn-sm" onclick="applyCarryoverRow('${p.id}')">اعمال به عنوان مشتری کمپین بعدی</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function applyCarryoverRow(carryoverId) {
+      const bizId = window.MOCK.businesses[0].id;
+      const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId) || window.MOCK.campaigns[0];
+      const applied = App.applyCarryoverById(carryoverId, activeCampaign.id);
+      if (applied) {
+        App.showToast(`${App.formatNumber(applied.points)} امتیاز Carryover به عنوان بونوس شروع به کمپین جدید مشتری اضافه شد.`, 'success');
+        renderPendingCarryovers();
+      } else {
+        App.showToast('اعمال ناموفق بود: این مشتری هنوز کد فعال در این کمپین ندارد.', 'warning');
+      }
     }
 
     function renderMicrositeBuilder() {
@@ -1049,23 +1447,34 @@
 
       const modulesList = document.getElementById('modules-toggle-list');
       if (modulesList) {
-        modulesList.innerHTML = window.MOCK.websiteModules.map(m => `
+        const bizId = window.MOCK.businesses[0].id;
+        const savedState = App.getMicrositeModules(bizId);
+        modulesList.innerHTML = window.MOCK.websiteModules.map(m => {
+          const isOn = savedState[m.key] != null ? savedState[m.key] : m.default_coffee;
+          return `
           <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
             <div>
               <strong style="font-size: 0.88rem;">${m.name_fa}</strong>
               ${m.default_coffee ? '<span class="badge badge-low-risk" style="margin-right: 6px;">پیشنهاد AI</span>' : ''}
             </div>
             <label class="switch-label">
-              <input type="checkbox" class="switch-input" ${m.default_coffee ? 'checked' : ''}>
+              <input type="checkbox" class="switch-input" data-module-key="${m.key}" ${isOn ? 'checked' : ''}>
               <span class="switch-slider"></span>
             </label>
           </div>
-        `).join('');
+        `;
+        }).join('');
       }
     }
 
     function saveMicrositeModules() {
-      App.showToast('تنظیمات بخش‌های میکروسایت ذخیره شد. پیش‌نمایش به‌روزرسانی شد.', 'success');
+      const bizId = window.MOCK.businesses[0].id;
+      const modulesObj = {};
+      document.querySelectorAll('#modules-toggle-list input[data-module-key]').forEach(input => {
+        modulesObj[input.dataset.moduleKey] = input.checked;
+      });
+      App.saveMicrositeModules(bizId, modulesObj);
+      App.showToast('تنظیمات بخش‌های میکروسایت ذخیره شد. پیش‌نمایش زنده (microsite-preview.html) اکنون همین وضعیت را نشان می‌دهد.', 'success');
     }
 
     // Init page
@@ -1077,6 +1486,18 @@
     updateAutopilotEligibility();
     renderOnboardingStep();
     renderNextStepsChecklist();
+    renderSendsLog();
+    updateWalletDisplay();
+
+    (function initCarryoverSection() {
+      const bizId = window.MOCK.businesses[0].id;
+      const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId) || window.MOCK.campaigns[0];
+      const badge = document.getElementById('carryover-rule-badge');
+      if (badge && activeCampaign) {
+        badge.textContent = `${App.formatNumber(activeCampaign.grace_period_days)} روز مهلت • حفظ ٪${App.formatNumber(activeCampaign.carryover_percentage)}`;
+      }
+      renderPendingCarryovers();
+    })();
   </script>
 </body>
 </html>

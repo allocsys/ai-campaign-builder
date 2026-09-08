@@ -41,10 +41,11 @@
       </div>
 
       <div class="phone-screen-body">
-        <!-- Main Tabs for Staff: 1. Log Purchase, 2. Fulfill Reward -->
+        <!-- Main Tabs for Staff: 1. Log Purchase, 2. Fulfill Reward, 3. Offline Queue Sync -->
         <div class="tabs" style="margin-bottom: 1rem;">
-          <button class="tab-btn active" id="btn-tab-purchase" onclick="switchPosTab('purchase')">🛒 ثبت فاکتور و امتیاز خرید</button>
-          <button class="tab-btn" id="btn-tab-fulfill" onclick="switchPosTab('fulfill')">🎁 تحویل پاداش و کوپن</button>
+          <button class="tab-btn active" id="btn-tab-purchase" onclick="switchPosTab('purchase')">🛒 ثبت فاکتور</button>
+          <button class="tab-btn" id="btn-tab-fulfill" onclick="switchPosTab('fulfill')">🎁 تحویل پاداش</button>
+          <button class="tab-btn" id="btn-tab-queue" onclick="switchPosTab('queue')">📥 صف آفلاین (<span id="tab-queue-count">۳</span>)</button>
         </div>
 
         <!-- 1. LOG PURCHASE TAB -->
@@ -55,16 +56,16 @@
             </div>
             <div class="card-body">
               <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
-                <input type="text" id="pos-customer-code" class="form-control" placeholder="کد ۵ رقمی یا اسکن بارکد" style="font-size: 1.1rem; letter-spacing: 2px;">
+                <input type="text" id="pos-customer-code" class="form-control" placeholder="کد ۵ رقمی یا اسکن بارکد" style="font-size: 1.1rem; letter-spacing: 2px;" value="48291">
                 <button class="btn btn-outline-primary" onclick="simulateBarcodeScan('48291')" title="شبیه‌سازی خواندن بارکد با دوربین">
                   📷 اسکن بارکد
                 </button>
               </div>
 
               <!-- Customer lookup preview -->
-              <div id="customer-preview-box" style="background: #f8fafc; border: 1px solid var(--border-color); padding: 0.65rem; border-radius: var(--radius-sm); margin-bottom: 1rem; display: none;">
+              <div id="customer-preview-box" style="background: #f8fafc; border: 1px solid var(--border-color); padding: 0.65rem; border-radius: var(--radius-sm); margin-bottom: 1rem; display: block;">
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                  <strong id="found-cust-name">سارا احمدی</strong>
+                  <strong id="found-cust-name">سارا احمدی (کد 48291)</strong>
                   <span class="badge badge-success" id="found-cust-tier">مشتری دائم • ۱۹۰ امتیاز</span>
                 </div>
               </div>
@@ -75,7 +76,7 @@
               </div>
 
               <div class="alert alert-info" style="font-size: 0.82rem; margin-bottom: 1rem;">
-                <span>✨ <strong>امتیاز قابل اعطا:</strong> به ازای این خرید ۶۰ امتیاز (تسویه اولین خرید + ساعت عادی) محاسبه می‌شود.</span>
+                <span>✨ <strong>امتیاز قابل اعطا:</strong> به ازای این خرید ۶۰ امتیاز ثبت می‌شود. (اگر این مشتری با کد معرف ثبت‌نام کرده باشد، با ثبت اولین خرید، پاداش معرفی معرف آزاد و به حساب او واریز می‌شود).</span>
               </div>
 
               <button class="btn btn-primary btn-lg btn-block" onclick="submitPurchase()">
@@ -119,6 +120,39 @@
           </div>
         </div>
 
+        <!-- 3. OFFLINE QUEUE MANAGEMENT TAB (Gap #9 requirement 3) -->
+        <div id="pos-tab-queue" style="display: none;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" style="font-size: 0.95rem;">📥 مدیریت صف آفلاین و همگام‌سازی (Gap #9)</span>
+              <span class="badge badge-warning" id="queue-tab-badge">۳ در صف</span>
+            </div>
+            <div class="card-body">
+              <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+                آیتم‌های زیر در زمان قطع ارتباط در حافظه دستگاه ذخیره شده‌اند. هنگام همگام‌سازی، سرور مرکزی به طور خودکار بررسی‌های <strong>تشخیص تکراری (Idempotency)</strong> و <strong>راستی‌آزمایی اعتبار کد/کمپین</strong> را انجام می‌دهد.
+              </p>
+
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <button class="btn btn-success btn-block" onclick="triggerSyncWithServer()">
+                  🔄 همگام‌سازی و راستی‌آزمایی سرور (Sync & Validate)
+                </button>
+              </div>
+
+              <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">📋 اقلام صف آفلاین فعلی:</h4>
+              <div id="offline-queue-items-list" style="margin-bottom: 1.25rem;">
+                <!-- Rendered via JS -->
+              </div>
+
+              <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">📊 نتایج آخرین همگام‌سازی و راستی‌آزمایی سرور:</h4>
+              <div id="sync-results-container">
+                <div style="font-size: 0.82rem; color: var(--text-muted); padding: 0.75rem; background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: center;">
+                  هنوز همگام‌سازی در این نشست اجرا نشده است. روی دکمه بالا کلیک کنید.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- POS Recent Activity Log -->
         <div class="card" style="margin-top: 1rem;">
           <div class="card-header">
@@ -139,7 +173,6 @@
     document.getElementById('header-root').innerHTML = App.renderHeader('pos');
 
     let isOffline = false;
-    let offlineQueue = [];
     let recentActivities = [
       { type: 'purchase', text: 'ثبت فاکتور ۲۴۰,۰۰۰ تومان برای کد 33812 (+۶۰ امتیاز)', time: '۱۵ دقیقه پیش', status: 'synced' },
       { type: 'fulfill', text: 'تحویل پاداش ۲۰٪ تخفیف برای کد 71934 (کد RDM-19402)', time: '۳۲ دقیقه پیش', status: 'synced' },
@@ -147,16 +180,16 @@
     ];
 
     function switchPosTab(tab) {
-      if (tab === 'purchase') {
-        document.getElementById('pos-tab-purchase').style.display = 'block';
-        document.getElementById('pos-tab-fulfill').style.display = 'none';
-        document.getElementById('btn-tab-purchase').classList.add('active');
-        document.getElementById('btn-tab-fulfill').classList.remove('active');
-      } else {
-        document.getElementById('pos-tab-purchase').style.display = 'none';
-        document.getElementById('pos-tab-fulfill').style.display = 'block';
-        document.getElementById('btn-tab-purchase').classList.remove('active');
-        document.getElementById('btn-tab-fulfill').classList.add('active');
+      document.getElementById('pos-tab-purchase').style.display = tab === 'purchase' ? 'block' : 'none';
+      document.getElementById('pos-tab-fulfill').style.display = tab === 'fulfill' ? 'block' : 'none';
+      document.getElementById('pos-tab-queue').style.display = tab === 'queue' ? 'block' : 'none';
+
+      document.getElementById('btn-tab-purchase').classList.toggle('active', tab === 'purchase');
+      document.getElementById('btn-tab-fulfill').classList.toggle('active', tab === 'fulfill');
+      document.getElementById('btn-tab-queue').classList.toggle('active', tab === 'queue');
+
+      if (tab === 'queue') {
+        renderOfflineQueueList();
       }
     }
 
@@ -164,6 +197,13 @@
       document.getElementById('pos-customer-code').value = code;
       const preview = document.getElementById('customer-preview-box');
       preview.style.display = 'block';
+      const custCode = window.MOCK.customerCampaignCodes.find(c => c.personal_code === code);
+      if (custCode) {
+        const cust = window.MOCK.customers.find(cu => cu.id === custCode.customer_id);
+        const name = cust ? cust.name : 'مشتری';
+        document.getElementById('found-cust-name').textContent = `${name} (کد ${code})`;
+        document.getElementById('found-cust-tier').textContent = `مشتری • ${App.formatNumber(custCode.points_balance)} امتیاز`;
+      }
       App.showToast('بارکد مشتری خوانده شد: ' + code, 'info');
     }
 
@@ -182,39 +222,134 @@
         banner.style.display = 'flex';
         badge.className = 'badge badge-danger';
         badge.textContent = 'آفلاین (بدون اینترنت)';
-        App.showToast('دستگاه به حالت آفلاین رفت. کلیه عملیات در حافظه صندوق صف‌بندی می‌شوند.', 'warning');
+        App.showToast('دستگاه به حالت آفلاین رفت. کلیه عملیات در صف آفلاین ذخیره خواهند شد.', 'warning');
       } else {
         banner.style.display = 'none';
         badge.className = 'badge badge-success';
         badge.textContent = 'آنلاین (متصل به سرور)';
-        flushOfflineQueue();
+        // Trigger real server sync verification on reconnect
+        triggerSyncWithServer();
       }
     }
 
-    function flushOfflineQueue() {
-      if (offlineQueue.length > 0) {
-        App.showToast(`در حال همگام‌سازی و راستی‌آزمایی ${offlineQueue.length} تراکنش آفلاین با سرور مرکزی...`, 'info');
-        setTimeout(() => {
-          recentActivities.forEach(item => {
-            if (item.status === 'queued') item.status = 'synced';
-          });
-          offlineQueue = [];
-          document.getElementById('offline-queue-badge').textContent = '۰ در صف';
-          App.showToast('همگام‌سازی کامل شد! راستی‌آزمایی و ثبت نهایی در سرور انجام شد.', 'success');
-          renderActivities();
-        }, 1200);
-      } else {
-        App.showToast('اتصال به سرور مرکزی برقرار است.', 'success');
+    function triggerSyncWithServer() {
+      const queue = window.MOCK.offlineQueue || [];
+      if (queue.length === 0) {
+        App.showToast('صف آفلاین خالی است؛ اتصال به سرور برقرار و پایدار است.', 'success');
+        return;
       }
+
+      App.showToast(`در حال همگام‌سازی و راستی‌آزمایی ${queue.length} آیتم صف آفلاین با سرور مرکزی...`, 'info');
+
+      setTimeout(() => {
+        const results = App.syncStaffOfflineQueue();
+        updateQueueCounts();
+        renderOfflineQueueList();
+        renderSyncResults(results);
+
+        const successCount = results.filter(r => r.status === 'synced').length;
+        const dupCount = results.filter(r => r.status === 'duplicate_skipped').length;
+        const invalidCount = results.filter(r => r.status === 'invalid_skipped').length;
+
+        App.showToast(`همگام‌سازی کامل شد: ${successCount} موفق، ${dupCount} تکراری رد شد، ${invalidCount} نامعتبر رد شد.`, successCount > 0 ? 'success' : 'warning');
+        renderActivities();
+      }, 1000);
+    }
+
+    function updateQueueCounts() {
+      const count = (window.MOCK.offlineQueue || []).length;
+      document.getElementById('offline-queue-badge').textContent = `${App.formatNumber(count)} در صف`;
+      document.getElementById('tab-queue-count').textContent = App.formatNumber(count);
+      document.getElementById('queue-tab-badge').textContent = `${App.formatNumber(count)} در صف`;
+    }
+
+    function renderOfflineQueueList() {
+      const listDiv = document.getElementById('offline-queue-items-list');
+      const queue = window.MOCK.offlineQueue || [];
+
+      if (queue.length === 0) {
+        listDiv.innerHTML = `<div style="font-size: 0.82rem; color: var(--text-muted); padding: 0.75rem; background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: center;">صف آفلاین خالی است. همه اقلام همگام‌سازی شده‌اند. ✓</div>`;
+        return;
+      }
+
+      listDiv.innerHTML = queue.map(item => `
+        <div style="padding: 0.65rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); margin-bottom: 0.5rem; background: #fff; font-size: 0.82rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+            <strong>تراکنش ${item.action_type === 'purchase' ? 'ثبت فاکتور' : item.action_type}</strong>
+            <span class="badge badge-warning">در صف انتظار</span>
+          </div>
+          <div style="color: var(--text-muted); font-size: 0.78rem;">
+            مبلغ: <strong>${App.formatToman(item.amount_toman)}</strong> • کد مشتری: <code>${item.customer_campaign_code_id}</code>
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-light); margin-top: 2px; word-break: break-all;">
+            کلید یکتا (Idempotency Key): <code>${item.idempotency_key}</code>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderSyncResults(results) {
+      const container = document.getElementById('sync-results-container');
+      if (!results || results.length === 0) {
+        container.innerHTML = `<div style="font-size: 0.82rem; color: var(--text-muted); text-align: center;">هیچ نتیجه‌ای برای نمایش وجود ندارد.</div>`;
+        return;
+      }
+
+      container.innerHTML = results.map(r => {
+        let badgeHtml = '';
+        let borderColor = 'var(--border-color)';
+        let bg = '#fff';
+
+        if (r.status === 'synced') {
+          badgeHtml = '<span class="badge badge-success">✓ همگام و تایید شد</span>';
+          borderColor = '#a7f3d0';
+          bg = '#ecfdf5';
+        } else if (r.status === 'duplicate_skipped') {
+          badgeHtml = '<span class="badge badge-danger">✕ رد شد (تکراری / Duplicate)</span>';
+          borderColor = '#fecaca';
+          bg = '#fef2f2';
+        } else {
+          badgeHtml = '<span class="badge badge-danger">✕ رد شد (نامعتبر / Invalid)</span>';
+          borderColor = '#fecaca';
+          bg = '#fef2f2';
+        }
+
+        return `
+          <div style="padding: 0.75rem; border: 1px solid ${borderColor}; border-radius: var(--radius-sm); margin-bottom: 0.6rem; background: ${bg}; font-size: 0.82rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <strong>کلید: <code>${r.idempotencyKey.slice(0, 18)}...</code></strong>
+              ${badgeHtml}
+            </div>
+            <p style="margin: 0; font-size: 0.8rem; color: #334155;">${r.reason}</p>
+            ${r.pointsAwarded ? `<div style="margin-top: 3px; font-size: 0.75rem; color: #065f46;">امتیاز اعطا شده: +${r.pointsAwarded}</div>` : ''}
+          </div>
+        `;
+      }).join('');
     }
 
     function submitPurchase() {
-      const code = document.getElementById('pos-customer-code').value || '48291';
-      const amount = document.getElementById('pos-purchase-amount').value || '180000';
+      const codeInput = document.getElementById('pos-customer-code').value.trim() || '48291';
+      const amount = Number(document.getElementById('pos-purchase-amount').value) || 180000;
+
+      const customerCode = window.MOCK.customerCampaignCodes.find(c => c.personal_code === codeInput);
+      let purchasePoints = 60;
+      let referralMsg = '';
+
+      // Generate client-generated idempotency key (customer_campaign_code + timestamp + staff device id per Gap #9)
+      const customerCodeId = customerCode ? customerCode.id : ('code_' + codeInput);
+      const idempotencyKey = `${codeInput}_${Date.now()}_staffDevA`;
+
+      if (customerCode && !isOffline) {
+        customerCode.points_balance += purchasePoints;
+        const refRelease = App.processFirstPurchaseForCustomer(customerCode.id);
+        if (refRelease) {
+          referralMsg = ` (✓ پاداش معرفی معرف «${refRelease.referrerName}» آزاد شد: +${refRelease.pts} امتیاز)`;
+        }
+      }
 
       const entry = {
         type: 'purchase',
-        text: `ثبت فاکتور ${App.formatToman(amount)} برای کد ${code} (+۶۰ امتیاز)`,
+        text: `ثبت فاکتور ${App.formatToman(amount)} برای کد ${codeInput} (+${purchasePoints} امتیاز)${referralMsg}`,
         time: 'همین الان',
         status: isOffline ? 'queued' : 'synced'
       };
@@ -222,11 +357,33 @@
       recentActivities.unshift(entry);
 
       if (isOffline) {
-        offlineQueue.push(entry);
-        document.getElementById('offline-queue-badge').textContent = `${offlineQueue.length} در صف`;
+        const queueItem = {
+          id: 'q_' + Date.now(),
+          idempotency_key: idempotencyKey,
+          customer_campaign_code_id: customerCodeId,
+          campaign_id: 'c_narvan_autumn',
+          action_type: 'purchase',
+          amount_toman: amount,
+          points_awarded: purchasePoints,
+          created_at: 'همین الان',
+          status: 'queued'
+        };
+        window.MOCK.offlineQueue.push(queueItem);
+        updateQueueCounts();
         App.showToast('تراکنش در صف آفلاین دستگاه ذخیره شد و پس از اتصال اینترنت همگام می‌شود.', 'warning');
       } else {
-        App.showToast(`خرید با موفقیت ثبت شد و ۶۰ امتیاز به کد ${code} اعطا گردید.`, 'success');
+        // Also log to syncedServerRecords so future duplicate tests catch it
+        window.MOCK.syncedServerRecords.unshift({
+          id: 'sync_' + Date.now(),
+          idempotency_key: idempotencyKey,
+          customer_campaign_code_id: customerCodeId,
+          campaign_id: 'c_narvan_autumn',
+          action_type: 'purchase',
+          amount_toman: amount,
+          points_awarded: purchasePoints,
+          synced_at: 'همین الان'
+        });
+        App.showToast(`خرید با موفقیت ثبت شد و ${purchasePoints} امتیاز به کد ${codeInput} اعطا گردید.${referralMsg}`, 'success');
       }
 
       document.getElementById('pos-customer-code').value = '';
@@ -236,6 +393,7 @@
 
     function submitFulfillReward() {
       const code = document.getElementById('pos-redemption-code').value || 'RDM-84920';
+      const idempotencyKey = `rdm_${code}_${Date.now()}_staffDevA`;
 
       const entry = {
         type: 'fulfill',
@@ -247,8 +405,19 @@
       recentActivities.unshift(entry);
 
       if (isOffline) {
-        offlineQueue.push(entry);
-        document.getElementById('offline-queue-badge').textContent = `${offlineQueue.length} در صف`;
+        const queueItem = {
+          id: 'q_' + Date.now(),
+          idempotency_key: idempotencyKey,
+          customer_campaign_code_id: 'code_cust_1',
+          campaign_id: 'c_narvan_autumn',
+          action_type: 'fulfill_reward',
+          amount_toman: 0,
+          points_awarded: 0,
+          created_at: 'همین الان',
+          status: 'queued'
+        };
+        window.MOCK.offlineQueue.push(queueItem);
+        updateQueueCounts();
         App.showToast('تحویل پاداش در صف آفلاین ذخیره شد (راستی‌آزمایی مضاعف در سرور انجام خواهد شد).', 'warning');
       } else {
         App.showToast(`پاداش ${code} با موفقیت در سیستم باطل و تحویل داده شد.`, 'success');
@@ -276,6 +445,7 @@
       `).join('');
     }
 
+    updateQueueCounts();
     renderActivities();
   </script>
 </body>

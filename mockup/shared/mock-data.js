@@ -49,6 +49,25 @@ window.MOCK = (function () {
     }
   ];
 
+  // Business size-tier dynamic scaling configuration (plan.md / architecture.md)
+  const sizeTierConfig = {
+    tiers: [
+      { key: "micro", name_fa: "میکرو (Micro)", maxFollowers: 500, maxBudgetToman: 30000, pointMultiplier: 0.7, suggestedDurationDays: 10 },
+      { key: "small", name_fa: "کوچک (Small)", maxFollowers: 2000, maxBudgetToman: 100000, pointMultiplier: 1.0, suggestedDurationDays: 14 },
+      { key: "medium", name_fa: "متوسط (Medium)", maxFollowers: 20000, maxBudgetToman: 500000, pointMultiplier: 1.5, suggestedDurationDays: 21 },
+      { key: "large", name_fa: "بزرگ (Large)", maxFollowers: Infinity, maxBudgetToman: Infinity, pointMultiplier: 2.0, suggestedDurationDays: 30 }
+    ],
+    // Weighting table for Phase 1 Abstraction Layer (0 to 3)
+    patternWeights: {
+      coffee_shop: { social_proof: 3, referral: 2, repeat_purchase: 2, milestone_streak: 1, specific_product_push: 3, review_ugc: 1, first_action: 2, off_peak: 2, anniversary_birthday: 1 },
+      clothing: { social_proof: 2, referral: 2, repeat_purchase: 2, milestone_streak: 0, specific_product_push: 1, review_ugc: 1, first_action: 2, off_peak: 0, anniversary_birthday: 2 },
+      restaurant: { social_proof: 2, referral: 2, repeat_purchase: 3, milestone_streak: 0, specific_product_push: 2, review_ugc: 2, first_action: 2, off_peak: 2, anniversary_birthday: 1 },
+      online_store: { social_proof: 1, referral: 2, repeat_purchase: 2, milestone_streak: 0, specific_product_push: 1, review_ugc: 3, first_action: 3, off_peak: 0, anniversary_birthday: 1 },
+      gym: { social_proof: 1, referral: 2, repeat_purchase: 0, milestone_streak: 3, specific_product_push: 0, review_ugc: 1, first_action: 2, off_peak: 2, anniversary_birthday: 2 },
+      beauty_clinic: { social_proof: 3, referral: 2, repeat_purchase: 1, milestone_streak: 1, specific_product_push: 0, review_ugc: 2, first_action: 2, off_peak: 1, anniversary_birthday: 2 }
+    }
+  };
+
   const businesses = [
     {
       id: "b_narvan",
@@ -59,6 +78,8 @@ window.MOCK = (function () {
       sms_wallet_balance_toman: 420000,
       sms_monthly_cap_toman: 600000,
       instagram_handle: "narvan_cafe",
+      follower_count: 1450,
+      offer_budget_toman: 85000,
       autopilot_enabled: false,
       size_tier: "small",
       created_at: "1403/06/15"
@@ -72,6 +93,8 @@ window.MOCK = (function () {
       sms_wallet_balance_toman: 950000,
       sms_monthly_cap_toman: 1200000,
       instagram_handle: "sarina_boutique",
+      follower_count: 8500,
+      offer_budget_toman: 250000,
       autopilot_enabled: false,
       size_tier: "medium",
       created_at: "1403/06/18"
@@ -85,9 +108,38 @@ window.MOCK = (function () {
       sms_wallet_balance_toman: 1800000,
       sms_monthly_cap_toman: 2000000,
       instagram_handle: "energy_gym_tehran",
+      follower_count: 24000,
+      offer_budget_toman: 600000,
       autopilot_enabled: false,
       size_tier: "large",
       created_at: "1403/05/20"
+    }
+  ];
+
+  // SMS wallet pricing + transaction audit trail (Phase 0.9 "SMS cost control", architecture.md sms_pricing / sms_wallet_transactions)
+  const smsPricing = {
+    price_per_sms_toman: 350,
+    effective_from: "1403/01/01"
+  };
+
+  const smsWalletTransactions = [
+    {
+      id: "txn_seed_1",
+      business_id: "b_narvan",
+      type: "topup",
+      amount_toman: 500000,
+      notification_log_id: null,
+      balance_after_toman: 500000,
+      created_at: "1403/07/01"
+    },
+    {
+      id: "txn_seed_2",
+      business_id: "b_narvan",
+      type: "deduction",
+      amount_toman: -80000,
+      notification_log_id: null,
+      balance_after_toman: 420000,
+      created_at: "1403/07/03"
     }
   ];
 
@@ -126,7 +178,25 @@ window.MOCK = (function () {
     }
   };
 
-  const businessContacts = [];
+  // Point expiry & carryover (plan.md Phase 0.5 "Point expiry & carryover", architecture.md point_carryovers)
+  const pointCarryovers = [];
+
+  const businessContacts = [
+    {
+      id: "contact_1",
+      business_id: "b_narvan",
+      phone_number: "09121112233",
+      source: "manual_upload",
+      imported_at: "1403/07/01"
+    },
+    {
+      id: "contact_2",
+      business_id: "b_narvan",
+      phone_number: "09123334455",
+      source: "manual_upload",
+      imported_at: "1403/07/02"
+    }
+  ];
 
   const campaigns = [
     {
@@ -282,7 +352,9 @@ window.MOCK = (function () {
       qr_payload: "CAMP-NARVAN-48291",
       points_balance: 190,
       carryover_bonus: 30,
-      referral_count: 2
+      referral_count: 2,
+      referred_by_code_id: null,
+      created_at_days_ago: 15
     },
     {
       id: "code_cust_2",
@@ -292,7 +364,9 @@ window.MOCK = (function () {
       qr_payload: "CAMP-NARVAN-71934",
       points_balance: 110,
       carryover_bonus: 0,
-      referral_count: 0
+      referral_count: 0,
+      referred_by_code_id: null,
+      created_at_days_ago: 10
     },
     {
       id: "code_cust_3",
@@ -302,7 +376,60 @@ window.MOCK = (function () {
       qr_payload: "CAMP-NARVAN-33812",
       points_balance: 310,
       carryover_bonus: 0,
-      referral_count: 3
+      referral_count: 3,
+      referred_by_code_id: null,
+      created_at_days_ago: 12
+    }
+  ];
+
+  // Synced records store representing server-side committed transactions (Gap #9 requirement 1 & 2)
+  const syncedServerRecords = [
+    {
+      id: "sync_seed_1",
+      idempotency_key: "48291_1725523200000_devA",
+      customer_campaign_code_id: "code_cust_1",
+      campaign_id: "c_narvan_autumn",
+      action_type: "purchase",
+      amount_toman: 180000,
+      points_awarded: 60,
+      synced_at: "۱۴۰۳/۰۷/۰۳ ۱۰:۰۰"
+    }
+  ];
+
+  // Seed 1-2 mock queued items in offlineQueue that demonstrate duplicate and invalid cases (Gap #9 requirement 4)
+  const offlineQueue = [
+    {
+      id: "q_item_1",
+      idempotency_key: "48291_1725523200000_devA", // Matches syncedServerRecords[0] -> DUPLICATE test case!
+      customer_campaign_code_id: "code_cust_1",
+      campaign_id: "c_narvan_autumn",
+      action_type: "purchase",
+      amount_toman: 180000,
+      points_awarded: 60,
+      created_at: "۱۰ دقیقه پیش (آفلاین)",
+      status: "queued"
+    },
+    {
+      id: "q_item_2",
+      idempotency_key: "99999_1725524000000_devA",
+      customer_campaign_code_id: "code_invalid_999", // Invalid customer code / campaign -> INVALID test case!
+      campaign_id: "c_narvan_autumn",
+      action_type: "purchase",
+      amount_toman: 250000,
+      points_awarded: 80,
+      created_at: "۸ دقیقه پیش (آفلاین)",
+      status: "queued"
+    },
+    {
+      id: "q_item_3",
+      idempotency_key: "71934_1725525000000_devA", // Valid non-duplicate item -> SUCCESS test case!
+      customer_campaign_code_id: "code_cust_2",
+      campaign_id: "c_narvan_autumn",
+      action_type: "purchase",
+      amount_toman: 150000,
+      points_awarded: 50,
+      created_at: "۵ دقیقه پیش (آفلاین)",
+      status: "queued"
     }
   ];
 
@@ -320,36 +447,6 @@ window.MOCK = (function () {
       reviewed_by: "ai",
       points_awarded: 50,
       submitted_at: "۱۴۰۳/۰۷/۰۳ ۱۴:۲۰"
-    },
-    {
-      id: "sub_2",
-      customer_campaign_code_id: "code_cust_2",
-      campaign_task_id: "ct_1",
-      customer_name: "علی رضایی",
-      task_title: "استوری اینستاگرام",
-      submission_type: "screenshot",
-      evidence_url: "story_ali_blurry.jpg",
-      ai_confidence_score: 56,
-      status: "pending",
-      reviewed_by: null,
-      notes: "کد ۴ رقمی داخل تصویر محو است و نیازمند بررسی چشمی توسط تیم مرکزی می‌باشد.",
-      points_awarded: null,
-      submitted_at: "۱۴۰۳/۰۷/۰۵ ۱۸:۴۵"
-    },
-    {
-      id: "sub_3",
-      customer_campaign_code_id: "code_cust_3",
-      campaign_task_id: "ct_1",
-      customer_name: "نیما محمدی",
-      task_title: "استوری اینستاگرام",
-      submission_type: "screenshot",
-      evidence_url: "receipt_wrong_shop.jpg",
-      ai_confidence_score: 22,
-      status: "rejected",
-      reviewed_by: "ai",
-      rejection_reason: "تصویر ارسال شده با کافه نارون یا کد کاربری مطابقت ندارد.",
-      points_awarded: 0,
-      submitted_at: "۱۴۰۳/۰۷/۰۴ ۱۰:۱۵"
     }
   ];
 
@@ -361,108 +458,11 @@ window.MOCK = (function () {
       badge_fa: "گزارش روزانه",
       message: "نرخ تکمیل استوری منشن در ۲۴ ساعت گذشته ۱۲٪ بوده که از میانگین صنف کافه‌ها (۲۶٪) کمتر است.",
       suggested_action: "پیشنهاد افزایش امتیاز تسک استوری به ۷۰ جهت افزایش رغبت اعضا."
-    },
-    {
-      id: "ins_2",
-      campaign_id: "c_narvan_autumn",
-      cadence: "weekly",
-      badge_fa: "تحلیل هفتگی",
-      message: "مشتریان وارد شده از طریق دعوت دوستان (Referral) ۲.۴ برابر بیشتر از سایرین خرید حضوری تکراری ثبت کرده‌اند.",
-      suggested_action: "تمرکز بر پاداش‌های معرفی با کاهش آستانه پاداش سطح اول."
-    },
-    {
-      id: "ins_3",
-      campaign_id: "c_narvan_autumn",
-      cadence: "anomaly",
-      badge_fa: "هشدار رفتار غیرعادی",
-      message: "افزایش ناگهانی ۶۵٪ در ثبت کدهای معرف طی بازه زمانی ۱۴ تا ۱۶ عصر دیروز شناسایی شد.",
-      suggested_action: "بررسی الگو توسط سیستم ضدتقلب جهت اطمینان از خریدهای معتبر."
     }
   ];
 
-  const suggestedChanges = [
-    {
-      id: "sc_1",
-      campaign_id: "c_narvan_autumn",
-      risk_tier: "low",
-      change_type: "task_points",
-      title: "افزایش امتیاز تسک استوری منشن",
-      current_value: { points: 50, task_id: "ct_1" },
-      suggested_value: { points: 70 },
-      rationale: "به دلیل پایین بودن نرخ تکمیل (۱۲٪ در مقایسه با بنچمارک ۲۶٪)، افزایش ۲۰ امتیازی می‌تواند انگیزه کاربران را ۳۰٪ افزایش دهد.",
-      status: "pending",
-      applied_by: null
-    },
-    {
-      id: "sc_2",
-      campaign_id: "c_narvan_autumn",
-      risk_tier: "low",
-      change_type: "reward_threshold",
-      title: "کاهش آستانه پاداش فنجان قهوه رایگان",
-      current_value: { threshold: 120, reward_id: "cr_1" },
-      suggested_value: { threshold: 100 },
-      rationale: "رسیدن سریع‌تر مشتریان به اولین جایزه، نرخ ریزش هفته اول را به میزان ۴۲٪ کاهش می‌دهد.",
-      status: "pending",
-      applied_by: null
-    },
-    {
-      id: "sc_3",
-      campaign_id: "c_narvan_autumn",
-      risk_tier: "low",
-      change_type: "campaign_duration",
-      title: "تمدید مدت کمپین به مدت ۷ روز دیگر",
-      current_value: { duration_days: 14 },
-      suggested_value: { duration_days: 21 },
-      rationale: "با توجه به شتاب ثبت‌نام در روزهای اخیر، تمدید کمپین تا پایان ماه باعث جذب حدود ۵۰ مشتری وفادار جدید خواهد شد.",
-      status: "pending",
-      applied_by: null
-    },
-    {
-      id: "sc_4",
-      campaign_id: "c_narvan_autumn",
-      risk_tier: "high",
-      change_type: "reward_depth",
-      title: "افزایش تخفیف فاکتور از ۲۰٪ به ۳۰٪",
-      current_value: { discount_percent: 20, reward_id: "cr_2" },
-      suggested_value: { discount_percent: 30 },
-      rationale: "هشدار مالی: این تغییر مستقیماً بر حاشیه سود اثرگذار است. پیشنهاد شده برای رقابت با جشنواره پاییزه رقبا، اما نیازمند تایید دقیق است.",
-      status: "pending",
-      applied_by: null
-    }
-  ];
-
-  const referralFlags = [
-    {
-      id: "rf_1",
-      referrer_name: "امیرحسین کریمی (09129990008)",
-      rule_triggered: "velocity",
-      rule_name_fa: "تعداد دعوت نامتعارف در بازه کوتاه (Velocity)",
-      description: "۸ ثبت‌نام موفق با این کد معرف در کمتر از ۲۴ ساعت ثبت شده است (سقف مجاز سیستم ۵ است).",
-      triggered_at: "۱۴۰۳/۰۷/۰۸ ۱۱:۳۰",
-      status: "open",
-      notes: ""
-    },
-    {
-      id: "rf_2",
-      referrer_name: "مهدی پاکزاد (09351114444)",
-      rule_triggered: "dead_referral_ratio",
-      rule_name_fa: "دعوت‌های غیرفعال بدون خرید (Dead Referral Ratio)",
-      description: "۶ کاربر دعوت شده بیش از ۷ روز است ثبت‌نام کرده‌اند اما هیچ خرید یا فعالیتی در صندوق ثبت نکرده‌اند.",
-      triggered_at: "۱۴۰۳/۰۷/۰۷ ۱۶:۴۵",
-      status: "open",
-      notes: ""
-    },
-    {
-      id: "rf_3",
-      referrer_name: "رویا شمس (09198882211)",
-      rule_triggered: "velocity",
-      rule_name_fa: "تعداد دعوت نامتعارف در بازه کوتاه (Velocity)",
-      description: "۶ ثبت‌نام در ۱۲ ساعت انجام شده بود.",
-      triggered_at: "۱۴۰۳/۰۷/۰۵ ۰۹:۱۵",
-      status: "reviewed",
-      notes: "بررسی شد: ایشان از طریق استوری اینستاگرام پیج دانشجویی دعوت کرده‌اند و ۳ نفر خرید حضوری داشته‌اند. معتبر است."
-    }
-  ];
+  const suggestedChanges = [];
+  const referralFlags = [];
 
   const websiteTemplates = [
     {
@@ -472,30 +472,6 @@ window.MOCK = (function () {
       description: "طراحی گرم، صمیمی با تمرکز بر منوی نوشیدنی‌ها و فضاهای دنج",
       theme: "warm-amber",
       preview_badge: "پیشنهاد AI برای کافه‌ها"
-    },
-    {
-      id: "wt_boutique",
-      name: "استایل مدرن (Clean Boutique)",
-      category_slug: "clothing",
-      description: "حالت گالری عکس بزرگ، رنگ‌های خنثی و کالکشن‌های فصلی",
-      theme: "chic-stone",
-      preview_badge: "پیشنهاد AI برای پوشاک"
-    },
-    {
-      id: "wt_gourmet",
-      name: "مزه اصیل (Gourmet Dining)",
-      category_slug: "restaurant",
-      description: "منوی غذا همراه با جزییات، رزرو میز و تصاویر باکیفیت",
-      theme: "deep-slate",
-      preview_badge: "پیشنهاد AI برای رستوران"
-    },
-    {
-      id: "wt_power",
-      name: "انرژی و حرکت (Dynamic Gym)",
-      category_slug: "gym",
-      description: "رنگ‌بندی جسورانه، معرفی مربیان و جدول برنامه‌های هفتگی",
-      theme: "neon-energy",
-      preview_badge: "پیشنهاد AI برای باشگاه"
     }
   ];
 
@@ -510,55 +486,38 @@ window.MOCK = (function () {
     { key: "contact", name_fa: "اطلاعات تماس، لوکیشن و ساعات کاری (Contact)", default_coffee: true }
   ];
 
-  const notificationsLog = [
-    {
-      id: "notif_1",
-      customer: "سارا احمدی (09129990001)",
-      channel: "sms",
-      trigger: "submission_reviewed",
-      text: "سارا عزیز! عکس استوری شما تایید شد و ۵۰ امتیاز به حساب باشگاه مشتریان کافه نارون واریز شد.",
-      time: "۱۰ دقیقه پیش",
-      status: "sent"
-    },
-    {
-      id: "notif_2",
-      customer: "سارا احمدی (09129990001)",
-      channel: "telegram",
-      trigger: "reward_unlocked",
-      text: "تبریک 🎉 شما امتیاز کافی برای دریافت «یک فنجان قهوه گرم رایگان» را کسب کردید!",
-      time: "۸ دقیقه پیش",
-      status: "sent"
-    },
-    {
-      id: "notif_3",
-      customer: "علی رضایی (09129990002)",
-      channel: "sms",
-      trigger: "campaign_invite",
-      text: "علی عزیز، به کمپین پاییزه کافه نارون خوش آمدید! کد شخصی شما: 71934",
-      time: "۲ روز پیش",
-      status: "sent"
-    }
-  ];
+  const businessMicrositeModules = {
+    b_narvan: { hero: true, campaign_highlight: true, about: true, product_menu: true, gallery: true, testimonials: false, booking_cta: false, contact: true }
+  };
+
+  const notificationsLog = [];
 
   return {
     businessCategories,
+    sizeTierConfig,
+    smsPricing,
+    smsWalletTransactions,
     businesses,
     businessAiConstraints,
     checklistItems,
     businessChecklistProgress,
     businessContacts,
+    pointCarryovers,
     campaigns,
     taskPatterns,
     campaignTasks,
     campaignRewards,
     customers,
     customerCampaignCodes,
+    syncedServerRecords,
+    offlineQueue,
     taskSubmissions,
     insights,
     suggestedChanges,
     referralFlags,
     websiteTemplates,
     websiteModules,
+    businessMicrositeModules,
     notificationsLog
   };
 })();

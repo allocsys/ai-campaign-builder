@@ -13,21 +13,26 @@
     <div class="page-header">
       <div>
         <h1>🛡️ کنسول بررسی تیم مرکزی</h1>
-        <p>بررسی موارد نامطمئن هوش مصنوعی و مدیریت هشدارهای تقلب معرفی (Referral) — plan.md «سیستم تصمیم‌گیری بازبینی هوش مصنوعی» و «تشخیص ناهنجاری معرفی»</p>
+        <p>بررسی موارد نامطمئن هوش مصنوعی، ادعاهای خرید بازگشتی (Gap #8) و مدیریت هشدارهای تقلب معرفی (Referral) — plan.md «سیستم تصمیم‌گیری بازبینی هوش مصنوعی» و «تشخیص ناهنجاری معرفی»</p>
       </div>
     </div>
 
-    <!-- SECTION 1: Uncertain AI-reviewed submissions -->
-    <h2 style="margin-bottom: 1rem;">📋 صف بررسی دستی — موارد نامطمئن هوش مصنوعی</h2>
+    <!-- SECTION 1: Uncertain AI-reviewed submissions & Retroactive claims -->
+    <h2 style="margin-bottom: 1rem;">📋 صف بررسی دستی — موارد نامطمئن AI و ادعاهای خرید بازگشتی</h2>
     <div id="submissions-queue" class="grid grid-2" style="margin-bottom: 2.5rem;"></div>
     <div id="submissions-empty" class="alert alert-success" style="display: none;">
-      همه‌ی موارد نامطمئن بررسی شدند. ✓
+      همه‌ی موارد نامطمئن و ادعاها بررسی شدند. ✓
     </div>
 
     <!-- SECTION 2: Referral anomaly flags -->
-    <h2 style="margin-bottom: 1rem;">🚩 صف هشدارهای ناهنجاری معرفی (Referral Flags)</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+      <h2 style="margin: 0;">🚩 صف هشدارهای ناهنجاری معرفی (Referral Flags)</h2>
+      <button class="btn btn-primary btn-sm" onclick="runBatchAnomalyDetection()">
+        🔄 اجرای شبیه‌سازی دسته‌ای آنالیز تقلب (Run Batch Job)
+      </button>
+    </div>
     <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;">
-      این هشدارها صرفاً جنبه اطلاع‌رسانی دارند — پاداش معرفی همچنان بر اساس سه لایه دفاعی موجود (تایید OTP، گیت‌شدن به خرید واقعی، سقف تعداد) کنترل می‌شود؛ هیچ اکشن خودکاری از این صف اجرا نمی‌شود.
+      این هشدارها بر اساس قوانین قانون‌محور (سرعت بیش از ۵ معرفی در روز، یا نسبت بالای دعوت‌های بدون خرید) توسط باتچ شبیه‌سازی تولید می‌شوند. این هشدارها صرفاً جنبه اطلاع‌رسانی دارند — پاداش معرفی همچنان بر اساس سه لایه دفاعی موجود کنترل می‌شود؛ هیچ اکشن خودکاری از این صف اجرا نمی‌شود.
     </p>
     <div id="flags-queue"></div>
   </div>
@@ -52,19 +57,26 @@
       }
       emptyMsg.style.display = 'none';
 
-      wrap.innerHTML = pending.map(s => `
-        <div class="card">
+      wrap.innerHTML = pending.map(s => {
+        const isRetro = s.submission_type === 'retroactive_purchase_claim';
+        const badgeHtml = isRetro
+          ? `<span class="badge badge-retroactive"><span class="badge-dot"></span> ادعای خرید بازگشتی (رسید)</span>`
+          : `<span class="badge badge-warning">اعتماد AI: ${App.formatNumber(s.ai_confidence_score)}٪</span>`;
+
+        return `
+        <div class="card ${isRetro ? 'card-high-risk' : ''}">
           <div class="card-header">
             <span class="card-title">📎 ${s.task_title}</span>
-            <span class="badge badge-warning">اعتماد AI: ${App.formatNumber(s.ai_confidence_score)}٪</span>
+            ${badgeHtml}
           </div>
           <div class="card-body">
             <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 0.75rem;">
               <span><strong>کاربر:</strong> ${s.customer_name}</span>
               <span style="color: var(--text-muted);">${s.submitted_at}</span>
             </div>
+            ${s.receipt_number ? `<div style="font-size: 0.85rem; margin-bottom: 0.5rem; color: #b45309;"><strong>شماره رسید:</strong> ${s.receipt_number}</div>` : ''}
             <div style="background: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: var(--radius-sm); padding: 1.25rem; text-align: center; margin-bottom: 0.75rem; color: var(--text-muted); font-size: 0.85rem;">
-              🖼️ فایل پیوست: <code>${s.evidence_url}</code>
+              🖼️ فایل پیوست / رسید: <code>${s.evidence_url}</code>
             </div>
             ${s.notes ? `<div class="alert alert-info" style="margin-bottom: 0.75rem;">${s.notes}</div>` : ''}
           </div>
@@ -73,7 +85,8 @@
             <button class="btn btn-success btn-sm" onclick="resolveSubmission('${s.id}', 'approved')">✓ تایید و اعطای امتیاز</button>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     function resolveSubmission(id, decision) {
@@ -83,20 +96,46 @@
       sub.reviewed_by = 'central_team';
       if (decision === 'approved') {
         const task = window.MOCK.campaignTasks.find(t => t.id === sub.campaign_task_id);
-        sub.points_awarded = task ? task.points_value : 0;
+        sub.points_awarded = task ? task.points_value : 60;
+        
+        // If approved, also credit points to customer campaign code if found
+        const code = window.MOCK.customerCampaignCodes.find(c => c.id === sub.customer_campaign_code_id);
+        if (code) {
+          code.points_balance += sub.points_awarded;
+          // Check first purchase clearance if applicable
+          App.processFirstPurchaseForCustomer(code.id);
+        }
+
         App.showToast(`تایید شد — ${sub.points_awarded} امتیاز به ${sub.customer_name} اعطا شد.`, 'success');
-        App.logNotification(sub.customer_name, 'sms', 'submission_reviewed', `تبریک! ارسال شما تایید و امتیاز شما واریز شد.`);
+        App.logNotification(sub.customer_name, 'sms', 'submission_reviewed', `تبریک! ارسال/ادعای خرید شما تایید و امتیاز شما واریز شد.`);
       } else {
         sub.points_awarded = 0;
         App.showToast(`رد شد — به ${sub.customer_name} اطلاع داده شد که می‌تواند دوباره ارسال کند.`, 'error');
-        App.logNotification(sub.customer_name, 'sms', 'submission_reviewed', `متاسفانه ارسال شما تایید نشد؛ می‌توانید با مدرک واضح‌تر دوباره تلاش کنید.`);
+        App.logNotification(sub.customer_name, 'sms', 'submission_reviewed', `متاسفانه ارسال یا ادعای خرید شما تایید نشد؛ می‌توانید با مدرک معتبرتر دوباره تلاش کنید.`);
       }
       renderSubmissions();
     }
 
+    function runBatchAnomalyDetection() {
+      const added = App.runReferralAnomalyDetection();
+      renderFlags();
+      if (added > 0) {
+        App.showToast(`باتچ آنالیز تقلب اجرا شد: ${App.formatNumber(added)} هشدار ناهنجاری جدید شناسایی شد.`, 'success');
+      } else {
+        App.showToast('باتچ آنالیز تقلب اجرا شد: هیچ هشدار جدیدی اضافه نشد (موارد فعلی در حال بررسی هستند).', 'info');
+      }
+    }
+
     function renderFlags() {
       const wrap = document.getElementById('flags-queue');
-      wrap.innerHTML = flags.map(f => `
+      const currentFlags = window.MOCK.referralFlags || [];
+
+      if (currentFlags.length === 0) {
+        wrap.innerHTML = `<div class="card"><div class="empty-state"><div class="empty-state-icon">🛡️</div><h3>هیچ هشدار تقلب فعالی وجود ندارد</h3><p>روی دکمه «اجرای شبیه‌سازی دسته‌ای آنالیز تقلب» کلیک کنید تا قوانین Velocity و Dead Referral روی دیتای فعلی ارزیابی شوند.</p></div></div>`;
+        return;
+      }
+
+      wrap.innerHTML = currentFlags.map(f => `
         <div class="card ${f.status === 'open' ? 'card-high-risk' : ''}">
           <div class="card-header">
             <span class="card-title">👤 ${f.referrer_name}</span>

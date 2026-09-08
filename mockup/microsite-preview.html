@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>کافه نارون — میکروسایت</title>
+  <title id="preview-page-title">کافه نارون — میکروسایت</title>
   <link rel="stylesheet" href="shared/styles.css">
   <style>
     .ms-hero {
@@ -37,79 +37,86 @@
 
   <div class="container" style="margin-top: 1.25rem;">
     <div class="alert alert-info">
-      💡 این یک نمونه از میکروسایت واقعی است که یک کسب‌وکار پس از انتخاب قالب و فعال‌سازی ماژول‌های دلخواه (plan.md «دامنه microsite») دریافت می‌کند. آدرس نمونه: <code>narvan-cafe.ourdomain.com</code>
+      💡 این یک نمونه از میکروسایت واقعی است که یک کسب‌وکار پس از انتخاب قالب و فعال‌سازی ماژول‌های دلخواه در سازنده میکروسایت دریافت می‌کند. آدرس نمونه: <code id="preview-url-display">narvan.ourdomain.com</code>
     </div>
     <div id="template-picker-note" class="card" style="margin-bottom: 1.5rem;">
       <div class="card-body" style="font-size: 0.88rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-        <span>📁 قالب انتخابی صاحب کسب‌وکار: <strong>کافه دنج (Minimal Cafe)</strong> — از گالری فیلترشده بر اساس دسته «کافی‌شاپ»</span>
+        <span id="template-picker-text">📁 قالب انتخابی صاحب کسب‌وکار: <strong>کافه دنج (Minimal Cafe)</strong> — از گالری فیلترشده بر اساس دسته «کافی‌شاپ»</span>
         <span id="active-modules-badge"></span>
       </div>
     </div>
   </div>
 
-  <!-- HERO MODULE -->
-  <section class="ms-hero">
-    <span class="ms-badge-label">☕ کافه نارون</span>
-    <h1>طعم اصیل، فضای دنج، هر روز کنار شما</h1>
-    <p>از سال ۱۳۹۸ میزبان لحظات آرام شما در قلب ولیعصر — قهوه‌ی تخصصی، دسرهای خانگی و فضایی برای گفتگو.</p>
-  </section>
+  <!-- Modules Container: dynamically ordered and rendered based on websiteModules & businessMicrositeModules -->
+  <div id="modules-container">
+    <!-- HERO MODULE -->
+    <section class="ms-hero" id="module-hero" data-module-key="hero">
+      <span class="ms-badge-label" id="hero-badge-label">☕ کافه نارون</span>
+      <h1 id="hero-title">طعم اصیل، فضای دنج، هر روز کنار شما</h1>
+      <p id="hero-desc">از سال ۱۳۹۸ میزبان لحظات آرام شما در قلب ولیعصر — قهوه‌ی تخصصی، دسرهای خانگی و فضایی برای گفتگو.</p>
+    </section>
 
-  <!-- CAMPAIGN HIGHLIGHT MODULE -->
-  <div class="ms-campaign-cta">
-    <h3 style="color:#fff;">🎉 کمپین وفاداری پاییزه فعال است!</h3>
-    <p style="color:#fff7ed; margin: 0.5rem 0 1.25rem;">با عضویت رایگان، اولین نوشیدنی گرم شما مهمان ماست — به‌علاوه امکان دریافت جوایز بیشتر با دعوت از دوستان.</p>
-    <button class="btn btn-lg" style="background:#fff; color:#b45309;" onclick="App.showToast('در نسخه واقعی، این دکمه به فرم عضویت در کمپین با شماره موبایل می‌رود (customer.html).', 'info')">
-      عضویت در کمپین و دریافت کد شخصی 🎁
-    </button>
-    <div style="font-size: 0.78rem; color: #fef3c7; margin-top: 0.5rem;">لینک عمومی: ourdomain.com/join/narvan-autumn</div>
+    <!-- CAMPAIGN HIGHLIGHT MODULE -->
+    <div class="ms-campaign-cta" id="module-campaign_highlight" data-module-key="campaign_highlight">
+      <h3 style="color:#fff;" id="campaign-highlight-title">🎉 کمپین وفاداری پاییزه فعال است!</h3>
+      <p style="color:#fff7ed; margin: 0.5rem 0 1.25rem;" id="campaign-highlight-desc">با عضویت رایگان، اولین نوشیدنی گرم شما مهمان ماست — به‌علاوه امکان دریافت جوایز بیشتر با دعوت از دوستان.</p>
+      <button class="btn btn-lg" style="background:#fff; color:#b45309;" onclick="App.showToast('در نسخه واقعی، این دکمه به فرم عضویت در کمپین با شماره موبایل می‌رود (customer.html).', 'info')">
+        عضویت در کمپین و دریافت کد شخصی 🎁
+      </button>
+      <div style="font-size: 0.78rem; color: #fef3c7; margin-top: 0.5rem;" id="campaign-join-link-text">لینک عمومی: ourdomain.com/join/narvan-autumn</div>
+    </div>
+
+    <!-- ABOUT MODULE -->
+    <section class="ms-section" id="module-about" data-module-key="about">
+      <h2 id="about-heading">درباره کافه نارون</h2>
+      <p style="margin-top: 0.5rem;" id="about-desc">کافه نارون با هدف ساختن یک فضای گرم و صمیمی برای علاقه‌مندان به قهوه‌ی تخصصی راه‌اندازی شد. دانه‌های ما به‌صورت تازه بو داده می‌شوند و هر فنجان با دقت و عشق تهیه می‌شود.</p>
+    </section>
+
+    <!-- PRODUCT MENU MODULE -->
+    <section class="ms-section ms-section-alt" id="module-product_menu" data-module-key="product_menu">
+      <h2 style="margin-bottom: 1rem;" id="menu-heading">منوی محبوب‌ترین اقلام</h2>
+      <div class="ms-menu-item"><span>☕ آمریکانو</span><strong>۸۵,۰۰۰ تومان</strong></div>
+      <div class="ms-menu-item"><span>🥛 کاپوچینو</span><strong>۹۵,۰۰۰ تومان</strong></div>
+      <div class="ms-menu-item"><span>🍫 موکای مخصوص نارون</span><strong>۱۱۰,۰۰۰ تومان</strong></div>
+      <div class="ms-menu-item"><span>🍰 چیزکیک خانگی</span><strong>۱۴۰,۰۰۰ تومان</strong></div>
+    </section>
+
+    <!-- GALLERY MODULE -->
+    <section class="ms-section" id="module-gallery" data-module-key="gallery">
+      <h2 style="margin-bottom: 1rem;" id="gallery-heading">فضای کافه</h2>
+      <div class="ms-gallery-grid">
+        <div class="ms-gallery-item">🖼️ عکس فضای داخلی</div>
+        <div class="ms-gallery-item">🖼️ عکس بار قهوه</div>
+        <div class="ms-gallery-item">🖼️ عکس میزهای حیاط</div>
+        <div class="ms-gallery-item">🖼️ عکس دسر و نوشیدنی</div>
+      </div>
+    </section>
+
+    <!-- CONTACT MODULE -->
+    <section class="ms-section ms-section-alt" id="module-contact" data-module-key="contact">
+      <h2 style="margin-bottom: 1rem;">تماس با ما</h2>
+      <div class="grid grid-3">
+        <div class="stat-card"><div class="stat-icon" style="background:var(--primary-light);">📍</div><div><div class="stat-value" style="font-size:0.95rem;">تهران، ولیعصر</div><div class="stat-label">خیابان توانیر، پلاک ۱۲</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--success-light);">📞</div><div><div class="stat-value" style="font-size:0.95rem;">۰۲۱-۸۸۸۸۸۸۸۸</div><div class="stat-label">پاسخگویی ۹ صبح تا ۱۱ شب</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:var(--warning-light);">🕒</div><div><div class="stat-value" style="font-size:0.95rem;">همه‌روزه</div><div class="stat-label">۸:۰۰ تا ۲۳:۰۰</div></div></div>
+      </div>
+    </section>
+
+    <!-- TESTIMONIALS MODULE -->
+    <section class="ms-section" id="module-testimonials" data-module-key="testimonials">
+      <h2 style="margin-bottom: 1rem;">نظرات مشتریان وفادار</h2>
+      <div class="ms-testimonial">"بهترین قهوه محله‌مون! فضاش خیلی آرومه." — سارا ا.</div>
+    </section>
+
+    <!-- BOOKING CTA MODULE -->
+    <section class="ms-section ms-section-alt" id="module-booking_cta" data-module-key="booking_cta" style="text-align: center;">
+      <h2 style="margin-bottom: 0.75rem;">رزرو میز یا وقت قبلی</h2>
+      <button class="btn btn-primary" onclick="App.showToast('در نسخه واقعی این دکمه فرم رزرو را باز می‌کند.', 'info')">📅 رزرو میز</button>
+    </section>
   </div>
 
-  <!-- ABOUT MODULE -->
-  <section class="ms-section">
-    <h2>درباره کافه نارون</h2>
-    <p style="margin-top: 0.5rem;">کافه نارون با هدف ساختن یک فضای گرم و صمیمی برای علاقه‌مندان به قهوه‌ی تخصصی راه‌اندازی شد. دانه‌های ما به‌صورت تازه بو داده می‌شوند و هر فنجان با دقت و عشق تهیه می‌شود.</p>
-  </section>
-
-  <!-- PRODUCT MENU MODULE -->
-  <section class="ms-section ms-section-alt">
-    <h2 style="margin-bottom: 1rem;">منوی محبوب‌ترین اقلام</h2>
-    <div class="ms-menu-item"><span>☕ آمریکانو</span><strong>۸۵,۰۰۰ تومان</strong></div>
-    <div class="ms-menu-item"><span>🥛 کاپوچینو</span><strong>۹۵,۰۰۰ تومان</strong></div>
-    <div class="ms-menu-item"><span>🍫 موکای مخصوص نارون</span><strong>۱۱۰,۰۰۰ تومان</strong></div>
-    <div class="ms-menu-item"><span>🍰 چیزکیک خانگی</span><strong>۱۴۰,۰۰۰ تومان</strong></div>
-  </section>
-
-  <!-- GALLERY MODULE -->
-  <section class="ms-section">
-    <h2 style="margin-bottom: 1rem;">فضای کافه</h2>
-    <div class="ms-gallery-grid">
-      <div class="ms-gallery-item">🖼️ عکس فضای داخلی</div>
-      <div class="ms-gallery-item">🖼️ عکس بار قهوه</div>
-      <div class="ms-gallery-item">🖼️ عکس میزهای حیاط</div>
-      <div class="ms-gallery-item">🖼️ عکس دسر و نوشیدنی</div>
-    </div>
-  </section>
-
-  <!-- CONTACT MODULE -->
-  <section class="ms-section ms-section-alt">
-    <h2 style="margin-bottom: 1rem;">تماس با ما</h2>
-    <div class="grid grid-3">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--primary-light);">📍</div><div><div class="stat-value" style="font-size:0.95rem;">تهران، ولیعصر</div><div class="stat-label">خیابان توانیر، پلاک ۱۲</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--success-light);">📞</div><div><div class="stat-value" style="font-size:0.95rem;">۰۲۱-۸۸۸۸۸۸۸۸</div><div class="stat-label">پاسخگویی ۹ صبح تا ۱۱ شب</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--warning-light);">🕒</div><div><div class="stat-value" style="font-size:0.95rem;">همه‌روزه</div><div class="stat-label">۸:۰۰ تا ۲۳:۰۰</div></div></div>
-    </div>
-  </section>
-
-  <!-- (testimonials & booking_cta modules exist but are OFF by default for this category — shown here disabled for reference -->
-  <section class="ms-section" style="opacity: 0.5;">
-    <div class="alert alert-info" style="margin-bottom: 1rem;">
-      ماژول‌های «نظرات مشتریان» و «رزرو میز» برای دسته کافی‌شاپ به‌صورت پیش‌فرض غیرفعال هستند (قابل فعال‌سازی توسط صاحب کسب‌وکار از پنل business-owner.html).
-    </div>
-    <div class="ms-testimonial">"بهترین قهوه محله‌مون! فضاش خیلی آرومه." — یکی از مشتریان (نمونه غیرفعال)</div>
-  </section>
-
   <footer class="ms-footer">
-    © کافه نارون — این صفحه بخشی از موکاپ کلیک‌خور پروژه است، نه یک سایت واقعی.
+    <span id="footer-business-name">© کافه نارون</span> — این صفحه بخشی از موکاپ کلیک‌خور پروژه است، نه یک سایت واقعی.
   </footer>
 
   <script src="shared/mock-data.js"></script>
@@ -117,9 +124,55 @@
   <script>
     document.getElementById('header-root').innerHTML = App.renderHeader('microsite');
 
-    const activeModules = window.MOCK.websiteModules.filter(m => m.default_coffee);
-    document.getElementById('active-modules-badge').innerHTML =
-      `<span class="badge badge-success">${App.formatNumber(activeModules.length)} ماژول فعال</span>`;
+    // 1. Identify scoping business via query param (?business_id=... or ?id=...) or fallback to MOCK.businesses[0]
+    function getQueryParam(param) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
+    }
+
+    const bizId = getQueryParam('business_id') || getQueryParam('id') || (window.MOCK.businesses && window.MOCK.businesses[0] ? window.MOCK.businesses[0].id : 'b_narvan');
+    const business = window.MOCK.businesses.find(b => b.id === bizId) || window.MOCK.businesses[0];
+
+    // Update dynamic texts for the scoped business
+    document.title = `${business.name} — میکروسایت`;
+    const previewUrlDisplay = document.getElementById('preview-url-display');
+    if (previewUrlDisplay) previewUrlDisplay.textContent = `${business.id.replace('b_', '')}.ourdomain.com`;
+
+    const heroBadgeLabel = document.getElementById('hero-badge-label');
+    if (heroBadgeLabel) heroBadgeLabel.textContent = `☕ ${business.name}`;
+
+    const heroTitle = document.getElementById('hero-title');
+    if (heroTitle) heroTitle.textContent = `${business.name} — فضای دنج و صمیمی`;
+
+    const footerName = document.getElementById('footer-business-name');
+    if (footerName) footerName.textContent = `© ${business.name}`;
+
+    // 2. Read per-business module state from shared in-memory MOCK object (via App.getMicrositeModules)
+    // and render/reorder sections conditionally in the exact order websiteModules lists them (Gap #6 fix).
+    const modulesState = App.getMicrositeModules(business.id);
+    const container = document.getElementById('modules-container');
+    let activeCount = 0;
+
+    if (container && window.MOCK.websiteModules) {
+      window.MOCK.websiteModules.forEach(m => {
+        const sectionEl = document.getElementById(`module-${m.key}`);
+        if (!sectionEl) return;
+
+        const isOn = modulesState[m.key] != null ? modulesState[m.key] : m.default_coffee;
+        if (isOn) {
+          sectionEl.style.display = '';
+          container.appendChild(sectionEl); // Re-appending ensures exact order matching websiteModules array order
+          activeCount++;
+        } else {
+          sectionEl.style.display = 'none';
+        }
+      });
+    }
+
+    const badgeEl = document.getElementById('active-modules-badge');
+    if (badgeEl) {
+      badgeEl.innerHTML = `<span class="badge badge-success">${App.formatNumber(activeCount)} ماژول فعال</span>`;
+    }
   </script>
 </body>
 </html>
