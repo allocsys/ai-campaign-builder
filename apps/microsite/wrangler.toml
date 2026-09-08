@@ -1,0 +1,35 @@
+# Cloudflare Worker config for the public Microsite SSR renderer.
+# Self-contained per plan.md "Deployment architecture" — 5 separate deployments,
+# one per persona, each with its own wrangler.toml.
+#
+# UNLIKE the other 4 persona apps, this is NOT a static SPA: it's a public,
+# multi-tenant, SEO-facing renderer that needs a live server-rendered response
+# on every request (business content — e.g. featured_campaign_id — can change
+# and must be fresh, not baked into a static build). Built with React Router v7
+# in framework/SSR mode, deployed as an actual Cloudflare Worker (`main` entry
+# point below), not [assets]-only static hosting like the SPA siblings.
+#
+# Data layer: mock-data-backed for now (see app/lib/mock-data.ts), matching
+# the same pattern the other 4 apps use — no real backend/D1 binding wired up
+# yet (apps/backend doesn't exist yet). Swapping getMicrositeData() in that
+# file for a real D1 query or backend fetch is the intended single-seam change
+# once that's ready.
+#
+# Subdomain -> business resolution happens per-request in the root route's
+# loader by reading the Host header (see app/routes/_index.tsx) — this is
+# also why SSR is required rather than a static build per business.
+
+name = "ai-campaign-builder-microsite"
+compatibility_date = "2026-09-08"
+compatibility_flags = ["nodejs_compat"]
+main = "./workers/app.ts"
+
+[assets]
+directory = "./build/client"
+binding = "ASSETS"
+
+# TODO before first real deploy: set `routes` or a custom domain once business
+# domain/subdomain naming is decided (see plan.md Phase 5 "NEXT STEP" note —
+# not yet decided as of 2026-09-09). This app in particular needs a WILDCARD
+# route (e.g. "*.ourdomain.com/*") once the domain is chosen, since it must
+# handle every business's subdomain, not one fixed host like the other apps.
