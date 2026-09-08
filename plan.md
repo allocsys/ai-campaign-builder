@@ -67,6 +67,8 @@ Separate one-time, short-lived (5–10 min) redemption code/QR generated on Rede
 ### POS-side UX
 Staff device: web app (PWA), the only client for v1 (no native app) — backend built API-first so a native client can be added later without backend rework. Code entry: QR primary, short numeric backup code always shown as fallback.
 
+**Staff authentication (decided 2026-09-09):** shared device PIN, not per-staff phone+OTP. One PIN unlocks the whole POS device for a shift; whoever is at the counter uses the same PIN — simpler for a shop counter tablet than individual staff logins. Chosen over per-staff phone+OTP (unnecessary friction for a shared counter device) and over no-auth-at-all (device-level access with no login screen, as the mockup currently has). PIN is device/business-scoped, not tied to an individual staff identity — revisit if per-staff audit trails become a requirement later.
+
 ### AI review decision system
 Three-tier outcome per AI-reviewed submission: auto-approve (high confidence) / auto-reject (low confidence, resubmit allowed) / manual hold (uncertain). Central team reviews uncertain cases initially (move to per-business review later). Points stay **Pending** until final approval. Offline: staff-side queue stores locally, final verification/dedup happens server-side once synced.
 
@@ -243,7 +245,7 @@ apps/
 Each app is a fully self-contained Vite project, deployed as its own Cloudflare Worker.
 
 **CI/CD — one `deploy.yml`, path-filtered per app** (same shape as raffle-app's, adapted to 5 frontend apps + 1 backend instead of 2+1):
-- `dorny/paths-filter` computes which `apps/<name>/**` folders changed in a push/PR.
+- `dorny/paths-filter` computes which `apps/<n>/**` folders changed in a push/PR.
 - One job per app; each only runs (typecheck + test + deploy) if its own folder (or the workflow file itself) changed.
 - Each job has its own `concurrency` group (`deploy-<app>-${{ github.ref }}`) so one app's in-flight deploy can't get cancelled by an unrelated push to a different app.
 - `pull_request` events: typecheck/test only, no deploy (CI gate). `push` to main and manual `workflow_dispatch`: full deploy. `workflow_dispatch` force-runs all apps regardless of changed paths.
@@ -263,6 +265,14 @@ Each app is a fully self-contained Vite project, deployed as its own Cloudflare 
 
 **NEXT STEP when resuming:** either (a) Step 6 — scaffold the Staff POS PWA persona app, or (b) merge `customer-app-scaffold` to `main` first (note: `monorepo-apps-restructure` was already merged to `main` separately — `customer-app-scaffold` was branched fresh off `main` for this step, not off the old restructure branch), or (c) a real npm install/build/run pass (still optional/non-blocking per standing note). Business domain/subdomain names and Cloudflare account/project details are still not decided — confirm before wiring real `wrangler.toml` routes for either app.
 
+**Step 5 status update (2026-09-09):** `customer-app-scaffold` has since merged to `main` via PR #4 — the "NEXT STEP" note directly above is now stale on that point; see the Step 6 entry and updated next-step note below for the current picture.
+
+**Step 6 done (2026-09-09), branch `staff-pos-scaffold` (forked from `main`, sibling to `customer-app-scaffold` — not stacked on it), merged to `main` via direct commit (GitHub's native PR merge could not complete due to an unresolved git-level conflict — see Status Log entry below):** Staff POS PWA persona scaffolded at `apps/staff-pos/`. Differs from the other two persona apps in two ways: (1) **auth is a shared device PIN**, not phone+OTP — see the "Staff authentication" decision under Phase 0.5 POS-side UX above; `src/lib/auth.tsx` mocks a single dev PIN `2468`. (2) **installable PWA**: added `vite-plugin-pwa` (manifest + Workbox-generated service worker, registered in `main.tsx` via `virtual:pwa-register`), a placeholder `public/icon.svg`, and PWA meta tags in `index.html` — this is the only persona app with PWA scope, per the Deployment architecture section's rationale for keeping it on its own origin. `StaffPosHome` ports `mockup/staff-pos.html`'s three tabs (log purchase, fulfill reward, offline queue) 1:1, including the Gap #9 offline-queue logic from `mockup/shared/app.js`'s `syncStaffOfflineQueue` — `src/lib/mock-data.ts`'s `syncOfflineQueue` reproduces the same duplicate-idempotency-key and customer/campaign-validity checks, reworked as a pure function over React state instead of mutating a global `window.MOCK` object. `.github/workflows/deploy.yml` updated with a path-filtered `staff_pos` job (own concurrency group). Not yet npm-installed/run (per standing note, not blocking).
+
+**BRANCH CONVERGENCE NOTE:** `customer-app-scaffold`, `staff-pos-scaffold`, and `review-console-scaffold` were all forked from `main` independently (siblings, not stacked on each other), so each is missing the others' apps and `deploy.yml` jobs. `customer-app-scaffold` and `staff-pos-scaffold` have both now merged to `main` (see Steps 5 and 6 above) — `review-console-scaffold` still needs the same treatment before it merges, and given Step 6's PR required a manual-commit workaround (native GitHub merge failed on an unresolvable git-level conflict), expect the same to be needed for `review-console-scaffold` — check its PR's mergeability early and don't waste time on repeated merge attempts if it shows the same pattern.
+
+**UPDATED NEXT STEP when resuming:** either (a) Step 7 — scaffold the Review Console persona app (if not already done — check `review-console-scaffold`), or merge it to `main` if it's already built, or (b) something else. Business domain/subdomain names and Cloudflare account/project details are still not decided — confirm before wiring real `wrangler.toml` routes for any of the scaffolded apps.
+
 ---
 
 ## Status Log
@@ -274,3 +284,4 @@ Each app is a fully self-contained Vite project, deployed as its own Cloudflare 
 - **2026-09-08** — Post-launch guidance (Next Steps checklist) and campaign-invite Sends Log designed and committed to docs; business-owner dashboard nav reworked from horizontal tabs to accordion (mockup-only, no schema impact).
 - **2026-09-08** — Full mockup-vs-docs gap analysis (9 gaps) run, prioritized, implemented via `delegate_editor`, and merged to `main` (PR #2) — see "Mockup Build" above.
 - **2026-09-08** — Sends Log table mobile rendering bug (message column collapsing to one word/character per line) fixed via `table-layout:fixed` + explicit per-column widths on that table.
+- **2026-09-09** — Step 6 (Staff POS PWA persona) built on branch `staff-pos-scaffold`. GitHub's native PR merge (PR #5) could not complete despite the branch's plan.md/deploy.yml being confirmed as pure-additive diffs vs main at the file level (get_pr_mergeability kept reporting `dirty` / merge conflicts — the true git merge-base diverged from main in a way a two-way file diff couldn't reveal, and no git merge/rebase tool was available to resolve it directly). Resolved by manually replicating the branch's final file contents onto `main` via a direct atomic commit, then closing PR #5 as manually merged.
