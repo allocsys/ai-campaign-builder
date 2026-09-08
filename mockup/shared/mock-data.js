@@ -126,7 +126,22 @@ window.MOCK = (function () {
     }
   };
 
-  const businessContacts = [];
+  const businessContacts = [
+    {
+      id: "contact_1",
+      business_id: "b_narvan",
+      phone_number: "09121112233",
+      source: "manual_upload",
+      imported_at: "1403/07/01"
+    },
+    {
+      id: "contact_2",
+      business_id: "b_narvan",
+      phone_number: "09123334455",
+      source: "manual_upload",
+      imported_at: "1403/07/02"
+    }
+  ];
 
   const campaigns = [
     {
@@ -513,15 +528,23 @@ window.MOCK = (function () {
   const notificationsLog = [
     {
       id: "notif_1",
+      business_id: "b_narvan",
+      customer_campaign_code_id: "code_cust_1",
+      business_contact_id: null,
+      campaign_id: null,
       customer: "سارا احمدی (09129990001)",
       channel: "sms",
       trigger: "submission_reviewed",
-      text: "سارا عزیز! عکس استوری شما تایید شد و ۵۰ امتیاز به حساب باشگاه مشتریان کافه نارون واریز شد.",
+      text: "سارا احمدی عزیز! عکس استوری شما تایید شد و ۵۰ امتیاز به حساب باشگاه مشتریان کافه نارون واریز شد.",
       time: "۱۰ دقیقه پیش",
       status: "sent"
     },
     {
       id: "notif_2",
+      business_id: "b_narvan",
+      customer_campaign_code_id: "code_cust_1",
+      business_contact_id: null,
+      campaign_id: null,
       customer: "سارا احمدی (09129990001)",
       channel: "telegram",
       trigger: "reward_unlocked",
@@ -531,7 +554,11 @@ window.MOCK = (function () {
     },
     {
       id: "notif_3",
-      customer: "علی رضایی (09129990002)",
+      business_id: "b_narvan",
+      customer_campaign_code_id: null,
+      business_contact_id: "contact_1",
+      campaign_id: "c_narvan_autumn",
+      customer: "09121112233",
       channel: "sms",
       trigger: "campaign_invite",
       text: "علی عزیز، به کمپین پاییزه کافه نارون خوش آمدید! کد شخصی شما: 71934",
