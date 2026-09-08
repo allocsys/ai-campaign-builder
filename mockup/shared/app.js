@@ -11,6 +11,114 @@ window.App = (function () {
     redemptionTimers: {}
   };
 
+  /**
+   * Resolve size tier using follower count and offer budget Toman inputs.
+   * Signal conflict rule: if the two signals point to different tiers, use the HIGHER tier.
+   */
+  function resolveSizeTier(followerCount, offerBudgetToman) {
+    const tiers = window.MOCK && window.MOCK.sizeTierConfig ? window.MOCK.sizeTierConfig.tiers : [
+      { key: "micro", maxFollowers: 500, maxBudgetToman: 30000, pointMultiplier: 0.7, suggestedDurationDays: 10 },
+      { key: "small", maxFollowers: 2000, maxBudgetToman: 100000, pointMultiplier: 1.0, suggestedDurationDays: 14 },
+      { key: "medium", maxFollowers: 20000, maxBudgetToman: 500000, pointMultiplier: 1.5, suggestedDurationDays: 21 },
+      { key: "large", maxFollowers: Infinity, maxBudgetToman: Infinity, pointMultiplier: 2.0, suggestedDurationDays: 30 }
+    ];
+
+    const fCount = Number(followerCount) || 0;
+    const bToman = Number(offerBudgetToman) || 0;
+
+    let followerTierIndex = 0;
+    for (let i = 0; i < tiers.length; i++) {
+      if (fCount <= tiers[i].maxFollowers) {
+        followerTierIndex = i;
+        break;
+      }
+    }
+
+    let budgetTierIndex = 0;
+    for (let i = 0; i < tiers.length; i++) {
+      if (bToman <= tiers[i].maxBudgetToman) {
+        budgetTierIndex = i;
+        break;
+      }
+    }
+
+    // Signal conflict rule: use the HIGHER tier index
+    const resolvedIndex = Math.max(followerTierIndex, budgetTierIndex);
+    return tiers[resolvedIndex];
+  }
+
+  /**
+   * Scale base points for a given tier.
+   */
+  function scalePointsForTier(basePoints, tierKeyOrObj) {
+    let multiplier = 1.0;
+    if (typeof tierKeyOrObj === 'object' && tierKeyOrObj !== null) {
+      multiplier = tierKeyOrObj.pointMultiplier != null ? tierKeyOrObj.pointMultiplier : 1.0;
+    } else if (typeof tierKeyOrObj === 'string' && window.MOCK && window.MOCK.sizeTierConfig) {
+      const found = window.MOCK.sizeTierConfig.tiers.find(t => t.key === tierKeyOrObj);
+      if (found) multiplier = found.pointMultiplier;
+    }
+    return Math.round((Number(basePoints) || 0) * multiplier);
+  }
+
+  /**
+   * Get suggested duration in days for a tier.
+   */
+  function getSuggestedDuration(tierKeyOrObj) {
+    let days = 14;
+    if (typeof tierKeyOrObj === 'object' && tierKeyOrObj !== null) {
+      days = tierKeyOrObj.suggestedDurationDays != null ? tierKeyOrObj.suggestedDurationDays : 14;
+    } else if (typeof tierKeyOrObj === 'string' && window.MOCK && window.MOCK.sizeTierConfig) {
+      const found = window.MOCK.sizeTierConfig.tiers.find(t => t.key === tierKeyOrObj);
+      if (found) days = found.suggestedDurationDays;
+    }
+    return days;
+  }
+
+  /**
+   * Goal-driven First Action/Conversion weighting override:
+   * When generating a campaign's task list, if campaign.goal === 'acquisition', boost the First Action/Conversion task pattern's weight toward 3;
+   * if goal === 'retention', drop its weight toward 0-1.
+   */
+  function generateCampaignTasksForCategory(categorySlug, goal, tier) {
+    const taskPatterns = window.MOCK ? window.MOCK.taskPatterns : [];
+    const weightsConfig = window.MOCK && window.MOCK.sizeTierConfig ? window.MOCK.sizeTierConfig.patternWeights : {};
+    const catWeights = weightsConfig[categorySlug] || {
+      social_proof: 2, referral: 2, repeat_purchase: 2, milestone_streak: 1, specific_product_push: 2, review_ugc: 2, first_action: 2, off_peak: 1, anniversary_birthday: 1
+    };
+
+    // Apply Goal-driven First Action override
+    let resolvedWeights = { ...catWeights };
+    if (goal === 'acquisition') {
+      resolvedWeights.first_action = 3; // boost toward 3
+    } else if (goal === 'retention') {
+      resolvedWeights.first_action = 1; // drop toward 0-1
+    }
+
+    // Select top task patterns with weight >= 2 (or top 4)
+    const sortedPatterns = [...taskPatterns].sort((a, b) => {
+      const wA = resolvedWeights[a.name] ?? 1;
+      const wB = resolvedWeights[b.name] ?? 1;
+      return wB - wA;
+    });
+
+    const chosen = sortedPatterns.slice(0, 4);
+    return chosen.map((p, idx) => {
+      const basePts = p.base_points;
+      const scaledPts = scalePointsForTier(basePts, tier);
+      return {
+        id: 'ct_gen_' + (idx + 1),
+        task_pattern_id: p.id,
+        title: p.name_fa,
+        verification_method: p.verification_method,
+        base_points: basePts,
+        points_value: scaledPts,
+        display_order: idx + 1,
+        instruction: `تسک مرتبط با ${p.name_fa} همراه با درج کد اختصاصی شما.`
+      };
+    });
+  }
+
   function showToast(message, type = 'info') {
     let container = document.getElementById('toast-container');
     if (!container) {
@@ -215,6 +323,10 @@ window.App = (function () {
 
   return {
     session,
+    resolveSizeTier,
+    scalePointsForTier,
+    getSuggestedDuration,
+    generateCampaignTasksForCategory,
     showToast,
     formatNumber,
     formatToman,
