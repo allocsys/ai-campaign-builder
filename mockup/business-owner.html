@@ -1449,23 +1449,34 @@
 
       const modulesList = document.getElementById('modules-toggle-list');
       if (modulesList) {
-        modulesList.innerHTML = window.MOCK.websiteModules.map(m => `
+        const bizId = window.MOCK.businesses[0].id;
+        const savedState = App.getMicrositeModules(bizId);
+        modulesList.innerHTML = window.MOCK.websiteModules.map(m => {
+          const isOn = savedState[m.key] != null ? savedState[m.key] : m.default_coffee;
+          return `
           <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
             <div>
               <strong style="font-size: 0.88rem;">${m.name_fa}</strong>
               ${m.default_coffee ? '<span class="badge badge-low-risk" style="margin-right: 6px;">پیشنهاد AI</span>' : ''}
             </div>
             <label class="switch-label">
-              <input type="checkbox" class="switch-input" ${m.default_coffee ? 'checked' : ''}>
+              <input type="checkbox" class="switch-input" data-module-key="${m.key}" ${isOn ? 'checked' : ''}>
               <span class="switch-slider"></span>
             </label>
           </div>
-        `).join('');
+        `;
+        }).join('');
       }
     }
 
     function saveMicrositeModules() {
-      App.showToast('تنظیمات بخش‌های میکروسایت ذخیره شد. پیش‌نمایش به‌روزرسانی شد.', 'success');
+      const bizId = window.MOCK.businesses[0].id;
+      const modulesObj = {};
+      document.querySelectorAll('#modules-toggle-list input[data-module-key]').forEach(input => {
+        modulesObj[input.dataset.moduleKey] = input.checked;
+      });
+      App.saveMicrositeModules(bizId, modulesObj);
+      App.showToast('تنظیمات بخش‌های میکروسایت ذخیره شد. پیش‌نمایش زنده (microsite-preview.html) اکنون همین وضعیت را نشان می‌دهد.', 'success');
     }
 
     // Init page
