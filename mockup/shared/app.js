@@ -119,6 +119,65 @@ window.App = (function () {
     });
   }
 
+  /**
+   * SMS wallet: real per-send deduction + optional monthly cap enforcement (Phase 0.9 "SMS cost control").
+   */
+  function getSmsPricePerSms() {
+    return (window.MOCK && window.MOCK.smsPricing) ? window.MOCK.smsPricing.price_per_sms_toman : 350;
+  }
+
+  function getMonthlySmsSpend(businessId) {
+    // Mock simplification: sums all deduction transactions logged this session (no real calendar-month tracking in the mock).
+    if (!window.MOCK || !window.MOCK.smsWalletTransactions) return 0;
+    return window.MOCK.smsWalletTransactions
+      .filter(t => t.business_id === businessId && t.type === 'deduction')
+      .reduce((sum, t) => sum + Math.abs(t.amount_toman), 0);
+  }
+
+  function recordSmsWalletTransaction(businessId, type, amountToman, notificationLogId) {
+    const business = window.MOCK.businesses.find(b => b.id === businessId);
+    const balanceAfter = business ? business.sms_wallet_balance_toman : null;
+    const txn = {
+      id: 'txn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      business_id: businessId,
+      type: type,
+      amount_toman: amountToman,
+      notification_log_id: notificationLogId || null,
+      balance_after_toman: balanceAfter,
+      created_at: 'همین الان'
+    };
+    if (window.MOCK && window.MOCK.smsWalletTransactions) {
+      window.MOCK.smsWalletTransactions.unshift(txn);
+    }
+    return txn;
+  }
+
+  /**
+   * Attempt to deduct the cost of one SMS send from a business's prepaid wallet.
+   * Checks (in order): wallet balance sufficiency, then optional monthly spending cap.
+   * Returns { allowed, reason, costToman } — reason is 'insufficient_balance' | 'monthly_cap_reached' | null.
+   * Does NOT deduct or record a transaction unless allowed === true.
+   */
+  function deductForSmsSend(businessId) {
+    const business = window.MOCK.businesses.find(b => b.id === businessId);
+    const price = getSmsPricePerSms();
+    if (!business) {
+      return { allowed: false, reason: 'insufficient_balance', costToman: price };
+    }
+    if (business.sms_wallet_balance_toman < price) {
+      return { allowed: false, reason: 'insufficient_balance', costToman: price };
+    }
+    if (business.sms_monthly_cap_toman != null) {
+      const monthlySpend = getMonthlySmsSpend(businessId);
+      if ((monthlySpend + price) > business.sms_monthly_cap_toman) {
+        return { allowed: false, reason: 'monthly_cap_reached', costToman: price };
+      }
+    }
+    business.sms_wallet_balance_toman -= price;
+    recordSmsWalletTransaction(businessId, 'deduction', -price, null);
+    return { allowed: true, reason: null, costToman: price };
+  }
+
   function showToast(message, type = 'info') {
     let container = document.getElementById('toast-container');
     if (!container) {
