@@ -116,6 +116,33 @@ window.MOCK = (function () {
     }
   ];
 
+  // SMS wallet pricing + transaction audit trail (Phase 0.9 "SMS cost control", architecture.md sms_pricing / sms_wallet_transactions)
+  const smsPricing = {
+    price_per_sms_toman: 350,
+    effective_from: "1403/01/01"
+  };
+
+  const smsWalletTransactions = [
+    {
+      id: "txn_seed_1",
+      business_id: "b_narvan",
+      type: "topup",
+      amount_toman: 500000,
+      notification_log_id: null,
+      balance_after_toman: 500000,
+      created_at: "1403/07/01"
+    },
+    {
+      id: "txn_seed_2",
+      business_id: "b_narvan",
+      type: "deduction",
+      amount_toman: -80000,
+      notification_log_id: null,
+      balance_after_toman: 420000,
+      created_at: "1403/07/03"
+    }
+  ];
+
   const businessAiConstraints = {
     b_narvan: {
       business_id: "b_narvan",
