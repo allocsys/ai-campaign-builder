@@ -25,7 +25,7 @@
           </div>
           <div class="meta-chip">
             <span class="meta-chip-label">رده کسب‌وکار</span>
-            <span class="meta-chip-value">کوچک (Small — تا ۲۰۰۰ مشتری)</span>
+            <span class="meta-chip-value" id="biz-tier-display">کوچک (Small — تا ۲۰۰۰ مشتری)</span>
           </div>
         </div>
       </div>
@@ -98,17 +98,34 @@
                     <div class="form-group">
                       <label class="form-label">۲. هدف اصلی این کمپین چیه؟</label>
                       <select id="campaign-goal-select" class="form-select">
-                        <option value="acquisition">جذب مشتری جدید (Acquisition)</option>
-                        <option value="retention">نگه‌داشتن و سفارش مجدد مشتریان قبلی (Retention)</option>
+                        <option value="acquisition">جذب مشتری جدید (Acquisition — با وزن‌دهی بالا به اولین خرید)</option>
+                        <option value="retention">نگه‌داشتن و سفارش مجدد مشتریان قبلی (Retention — تمرکز بر خرید مجدد و کاهش وزن اولین خرید)</option>
                       </select>
                     </div>
                   </div>
 
-                  <!-- Step 3: Audience -->
+                  <!-- Step 3: Audience & Size-Tier Signals -->
                   <div class="onboarding-step" data-step="3" style="display: none;">
                     <div class="form-group">
                       <label class="form-label">۳. مخاطب هدفت کیه؟</label>
                       <input type="text" id="campaign-audience-input" class="form-control" value="دانشجویان و جوانان محدوده مرکز شهر، علاقه‌مند به کار یا دورهمی در کافه">
+                    </div>
+
+                    <div style="background: #f8fafc; border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-sm); margin-top: 1rem;">
+                      <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--primary);">📊 سیگنال‌های محاسبه اندازه کسب‌وکار (Size-Tier Dynamic Scaling)</h4>
+                      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.85rem;">
+                        سیستم به صورت هوشمند رده کسب‌وکار شما (میکرو، کوچک، متوسط، بزرگ) را بر اساس دو سیگنال زیر محاسبه می‌کند و ضریب امتیازات و مدت زمان کمپین را تنظیم می‌نماید:
+                      </p>
+                      
+                      <div class="form-group">
+                        <label class="form-label">تعداد فالوورها یا مشتریان موجود:</label>
+                        <input type="number" id="biz-follower-input" class="form-control" value="1450" step="100">
+                      </div>
+
+                      <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">بودجه آفر تخفیف یا پاداش (تومان):</label>
+                        <input type="number" id="biz-budget-input" class="form-control" value="85000" step="10000">
+                      </div>
                     </div>
                   </div>
 
@@ -144,28 +161,29 @@
                     <h2>✨ پیشنهاد کمپین آماده شد <span class="section-subtitle">قابل ویرایش قبل از راه‌اندازی</span></h2>
                   </div>
                   <div class="alert alert-success">
-                    <span>🎉 <strong>پیشنهاد اولیه کمپین توسط هوش مصنوعی آماده شد!</strong> وزن‌دهی تسک‌ها بر اساس الگوهای انتزاعی فاز ۱ انجام گرفت.</span>
+                    <span>🎉 <strong>پیشنهاد اولیه کمپین توسط هوش مصنوعی آماده شد!</strong> اندازه کسب‌وکار، ضریب امتیاز و وزن‌دهی تسک‌ها (با اعمال قانون هدایت هدف کمپین) با موفقیت محاسبه گردید.</span>
                   </div>
 
                   <div class="card" style="border: 2px solid var(--primary);">
                     <div class="card-header" style="background: var(--primary-light);">
-                      <strong id="proposal-title">کمپین پیشنهادی: رشد و جذب اعضای جدید</strong>
-                      <span class="badge badge-primary">مدت پیشنهادی: ۱۴ روز</span>
+                      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <strong id="proposal-title">کمپین پیشنهادی: رشد و جذب اعضای جدید</strong>
+                        <span class="badge badge-info" id="proposal-tier-badge">اندازه کسب‌وکار: متوسط (×1.5 امتیاز)</span>
+                      </div>
+                      <span class="badge badge-primary" id="proposal-duration-badge">مدت پیشنهادی: ۲۱ روز</span>
                     </div>
                     <div class="card-body">
                       <div style="margin-bottom: 1rem;">
-                        <strong>تسک‌های وزن‌دهی شده:</strong>
+                        <strong>تسک‌های وزن‌دهی شده (با اعمال مقیاس رده و وزن هدف):</strong>
                         <ul id="proposal-tasks" style="padding-right: 1.5rem; margin-top: 0.5rem; font-size: 0.88rem;">
-                          <li>استوری اینستاگرام از کافه با درج کد اختصاصی (۵۰ امتیاز)</li>
-                          <li>دعوت دوست با لینک و اولین خرید او (۸۰ امتیاز)</li>
-                          <li>سفارش در ساعات خلوت روز (۴۵ امتیاز)</li>
+                          <!-- Rendered via JS -->
                         </ul>
                       </div>
                       <div style="margin-bottom: 1rem;">
                         <strong>پاداش‌های چندسطحی:</strong>
                         <ul id="proposal-rewards" style="padding-right: 1.5rem; margin-top: 0.5rem; font-size: 0.88rem;">
-                          <li>سطح ۱ (۱۲۰ امتیاز): قهوه دمی رایگان</li>
-                          <li>سطح ۲ (۲۲۰ امتیاز): ۲۰٪ تخفیف کل فاکتور</li>
+                          <li>سطح ۱ (۱۲۷ امتیاز): قهوه دمی رایگان</li>
+                          <li>سطح ۲ (۲۳۲ امتیاز): ۲۰٪ تخفیف کل فاکتور</li>
                         </ul>
                       </div>
                       <div class="alert alert-warning" style="margin-bottom: 0;">
@@ -257,7 +275,7 @@
                     </div>
                     <div class="meta-chip">
                       <span class="meta-chip-label">ضریب امتیازات</span>
-                      <span class="meta-chip-value">۱.۰ برابر پایه</span>
+                      <span class="meta-chip-value" id="dashboard-multiplier-chip">۱.۰ برابر پایه (کوچک)</span>
                     </div>
                     <div class="meta-chip">
                       <span class="meta-chip-label">مهلت بازخرید (Grace Period)</span>
@@ -647,8 +665,6 @@
     let currentDismissingId = null;
 
     // --- Accordion navigation (replaces the old horizontal switchTab, decided 2026-09-08) ---
-    // toggleAccordionItem: used by clicking a header directly. Opens it (closing all others),
-    // or closes it if it was already the open one — no need to manually close before opening the next.
     function toggleAccordionItem(tabId) {
       const item = document.querySelector(`.acc-item[data-tab="${tabId}"]`);
       if (!item) return;
@@ -660,10 +676,6 @@
       }
     }
 
-    // switchTab: used by every other button/link in the page that wants to jump to and open
-    // a specific section (e.g. "طراحی کمپین جدید", the Next Steps checklist CTAs, launchCampaign()).
-    // Kept under its original name so none of those call sites needed to change.
-    // Unlike toggleAccordionItem, this always opens the target (never toggles it closed).
     function switchTab(tabId) {
       document.querySelectorAll('.acc-item').forEach(el => el.classList.remove('open'));
       const item = document.querySelector(`.acc-item[data-tab="${tabId}"]`);
@@ -804,12 +816,11 @@
         item.applied_by = 'business_owner';
         App.session.appliedSuggestionsCount++;
 
-        // If it was task_points ct_1
         if (item.change_type === 'task_points') {
-          const task = window.MOCK.campaignTasks.find(t => t.id === 'ct_1');
+          const task = window.MOCK.campaignTasks.find(t => t.id === item.target_id || t.id === 'ct_1');
           if (task) task.points_value = item.suggested_value.points;
         } else if (item.change_type === 'reward_threshold') {
-          const reward = window.MOCK.campaignRewards.find(r => r.id === 'cr_1');
+          const reward = window.MOCK.campaignRewards.find(r => r.id === item.target_id || r.id === 'cr_1');
           if (reward) reward.threshold_points = item.suggested_value.threshold;
         }
 
@@ -973,7 +984,6 @@
       App.showToast(`${App.formatNumber(newlyAdded.length)} مخاطب جدید از فایل CSV بارگذاری شد.`, 'success');
       completeChecklistItem('contacts_imported');
 
-      // Wire contact-import flow: immediately send/log campaign_invite for ONLY the newly-added contacts if there is an active campaign
       const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId && c.status === 'active');
       if (activeCampaign && newlyAdded.length > 0) {
         newlyAdded.forEach(contact => {
@@ -1051,10 +1061,12 @@
     const ONBOARDING_STEP_TITLES = {
       1: 'صنف کسب‌وکار',
       2: 'هدف کمپین',
-      3: 'مخاطب هدف',
+      3: 'مخاطب هدف و سیگنال اندازه',
       4: 'آفر و پاداش',
       5: 'مرور و تایید'
     };
+
+    let generatedProposalState = null;
 
     function renderOnboardingStep() {
       document.querySelectorAll('.onboarding-step').forEach(el => {
@@ -1102,14 +1114,20 @@
       const conditional = document.getElementById('conditional-answer-select').value;
       const goal = document.getElementById('campaign-goal-select').value;
       const audience = document.getElementById('campaign-audience-input').value;
+      const followers = document.getElementById('biz-follower-input').value;
+      const budget = document.getElementById('biz-budget-input').value;
       const offer = document.getElementById('campaign-offer-input').value;
+
+      // Resolve tier dynamically for review display
+      const resolvedTier = App.resolveSizeTier(followers, budget);
 
       const summary = document.getElementById('onboarding-review-summary');
       if (!summary) return;
       summary.innerHTML = `
         <div><strong>🏷️ صنف:</strong> ${cat ? cat.name_fa : catSlug} — ${conditional}</div>
-        <div><strong>🎯 هدف کمپین:</strong> ${goal === 'acquisition' ? 'جذب مشتری جدید' : 'حفظ و سفارش مجدد مشتریان قبلی'}</div>
+        <div><strong>🎯 هدف کمپین:</strong> ${goal === 'acquisition' ? 'جذب مشتری جدید (Acquisition)' : 'حفظ و سفارش مجدد مشتریان قبلی (Retention)'}</div>
         <div><strong>👥 مخاطب هدف:</strong> ${audience}</div>
+        <div><strong>📊 اندازه کسب‌وکار (محاسبه شده):</strong> <span class="badge badge-info">${resolvedTier.name_fa} (ضریب امتیاز: ×${resolvedTier.pointMultiplier}، مدت پیشنهاد: ${resolvedTier.suggestedDurationDays} روز)</span></div>
         <div><strong>🎁 آفر پیشنهادی:</strong> ${offer}</div>
       `;
     }
@@ -1117,23 +1135,83 @@
     function handleOnboardingSubmit() {
       const catSlug = document.getElementById('biz-category-select').value;
       const goal = document.getElementById('campaign-goal-select').value;
+      const followers = document.getElementById('biz-follower-input').value;
+      const budget = document.getElementById('biz-budget-input').value;
+
+      // 1. Resolve size tier using follower count and offer budget
+      const resolvedTier = App.resolveSizeTier(followers, budget);
+
+      // 2. Scale points and tasks using scalePointsForTier and Goal-driven weighting override
+      const generatedTasks = App.generateCampaignTasksForCategory(catSlug, goal, resolvedTier);
+      const suggestedDays = App.getSuggestedDuration(resolvedTier);
+
+      generatedProposalState = {
+        catSlug,
+        goal,
+        tier: resolvedTier,
+        tasks: generatedTasks,
+        durationDays: suggestedDays
+      };
+
+      // 3. Populate proposal UI
+      document.getElementById('proposal-title').textContent = `کمپین پیشنهادی AI برای صنف (${catSlug === 'coffee_shop' ? 'کافه' : catSlug})`;
+      document.getElementById('proposal-tier-badge').textContent = `اندازه کسب‌وکار: ${resolvedTier.name_fa} (×${resolvedTier.pointMultiplier} امتیاز)`;
+      document.getElementById('proposal-duration-badge').textContent = `مدت پیشنهادی: ${resolvedTier.suggestedDurationDays} روز`;
+
+      const taskUl = document.getElementById('proposal-tasks');
+      taskUl.innerHTML = generatedTasks.map(t => `
+        <li>${t.title} — <strong>+${t.points_value} امتیاز</strong> (پایه: ${t.base_points} × ${resolvedTier.pointMultiplier}) [روش: ${t.verification_method}]</li>
+      `).join('');
 
       document.getElementById('ai-proposal-result').style.display = 'block';
-      document.getElementById('proposal-title').textContent = `کمپین پیشنهادی AI برای صنف ${catSlug} (هدف: ${goal === 'acquisition' ? 'جذب مشتری جدید' : 'حفظ مشتریان'})`;
-      App.showToast('پیشنهاد کمپین توسط هوش مصنوعی تولید شد!', 'success');
+      App.showToast(`پیشنهاد کمپین تولید شد! رده: ${resolvedTier.name_fa}، ضریب: ×${resolvedTier.pointMultiplier}`, 'success');
       document.getElementById('ai-proposal-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function launchCampaign() {
-      App.showToast('کمپین با موفقیت ایجاد و فعال شد!', 'success');
+      if (generatedProposalState) {
+        // Apply generated proposal to active mock data
+        const biz = window.MOCK.businesses[0];
+        biz.size_tier = generatedProposalState.tier.key;
+        biz.follower_count = Number(document.getElementById('biz-follower-input').value) || biz.follower_count;
+        biz.offer_budget_toman = Number(document.getElementById('biz-budget-input').value) || biz.offer_budget_toman;
+
+        const activeCampaign = window.MOCK.campaigns[0];
+        activeCampaign.point_multiplier = generatedProposalState.tier.pointMultiplier;
+        activeCampaign.duration_days = generatedProposalState.durationDays;
+        activeCampaign.goal = generatedProposalState.goal;
+
+        window.MOCK.campaignTasks = generatedProposalState.tasks.map(t => ({
+          id: t.id,
+          campaign_id: activeCampaign.id,
+          task_pattern_id: t.task_pattern_id,
+          title: t.title,
+          verification_method: t.verification_method,
+          points_value: t.points_value,
+          display_order: t.display_order,
+          instruction: t.instruction
+        }));
+
+        // Update header tier display
+        const tierDisplay = document.getElementById('biz-tier-display');
+        if (tierDisplay) {
+          tierDisplay.textContent = `${generatedProposalState.tier.name_fa} (ضریب ×${generatedProposalState.tier.pointMultiplier})`;
+        }
+        const chip = document.getElementById('dashboard-multiplier-chip');
+        if (chip) {
+          chip.textContent = `${generatedProposalState.tier.pointMultiplier} برابر پایه (${generatedProposalState.tier.name_fa})`;
+        }
+
+        renderActiveTasks();
+      }
+
+      App.showToast('کمپین با موفقیت ایجاد، مقیاس‌دهی و فعال شد!', 'success');
       switchTab('dashboard-view');
 
-      // Reset wizard for the next time someone opens the onboarding tab
       onboardingStep = 1;
       document.getElementById('ai-proposal-result').style.display = 'none';
       renderOnboardingStep();
 
-      // Wire launchCampaign: loop over window.MOCK.businessContacts for current business and send/log campaign_invite respecting dedup
       const bizId = window.MOCK.businesses[0].id;
       const activeCampaign = window.MOCK.campaigns.find(c => c.business_id === bizId && c.status === 'active') || window.MOCK.campaigns[0];
       const contacts = window.MOCK.businessContacts.filter(c => c.business_id === bizId);
