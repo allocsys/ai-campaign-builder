@@ -438,6 +438,7 @@ p {
 /* Tables (Sends Log, etc.) */
 table {
   width: 100%;
+  min-width: 640px; /* prevents mobile auto table-layout from crushing narrow columns (e.g. متن پیام) down to near-zero width, which forces word-break to wrap every single character onto its own line. Container has overflow-x:auto, so this scrolls horizontally on narrow screens instead. */
   border-collapse: collapse;
   text-align: right;
   font-size: 0.88rem;
