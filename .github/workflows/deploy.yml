@@ -54,8 +54,10 @@ jobs:
       pull-requests: read
     outputs:
       business_owner: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.business_owner == 'true' }}
-      # customer / staff_pos / review_console / microsite / backend outputs go
-      # here once those apps' filters are added below.
+      review_console: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.review_console == 'true' }}
+      # customer / staff_pos / microsite / backend outputs go here once those
+      # apps' filters are merged in from their own scaffold branches (see
+      # plan.md Phase 5 "BRANCH CONVERGENCE NOTE").
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -64,6 +66,11 @@ jobs:
           filters: |
             business_owner:
               - 'apps/business-owner/**'
+              - 'packages/**'
+              - 'package.json'
+              - '.github/workflows/deploy.yml'
+            review_console:
+              - 'apps/review-console/**'
               - 'packages/**'
               - 'package.json'
               - '.github/workflows/deploy.yml'
@@ -90,3 +97,26 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npm run deploy --workspace=apps/business-owner
+
+  review-console:
+    needs: changes
+    if: needs.changes.outputs.review_console == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-review-console-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run typecheck --workspace=apps/review-console
+      - run: npm test --workspace=apps/review-console
+      - run: npm run build --workspace=apps/review-console
+      - name: Deploy
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run deploy --workspace=apps/review-console
