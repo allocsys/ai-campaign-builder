@@ -180,6 +180,85 @@ window.App = (function () {
     return { allowed: true, reason: null, costToman: price };
   }
 
+  /**
+   * Point expiry & carryover (plan.md Phase 0.5): after a campaign's grace period ends,
+   * carryover_percentage of a customer's remaining balance is preserved as a carryover credit
+   * (tied to customer+business, not a specific future campaign); the rest is forfeited.
+   */
+  function computeCarryoverSplit(pointsBalance, carryoverPercentage) {
+    const balance = Number(pointsBalance) || 0;
+    const pct = Number(carryoverPercentage) != null ? Number(carryoverPercentage) : 30;
+    const carried = Math.round(balance * (pct / 100));
+    const forfeited = balance - carried;
+    return { forfeited, carried };
+  }
+
+  /**
+   * Simulates a campaign's grace period ending: for every customer_campaign_code in the campaign
+   * with a remaining balance, splits it per computeCarryoverSplit, zeroes the in-campaign balance
+   * (forfeited + carried both leave the ended campaign), and creates a pending point_carryovers row
+   * for the carried portion. Returns a per-customer breakdown for display.
+   */
+  function simulateCampaignEndCarryover(campaign) {
+    if (!window.MOCK || !campaign) return [];
+    const codes = window.MOCK.customerCampaignCodes.filter(c => c.campaign_id === campaign.id && c.points_balance > 0);
+    const results = [];
+    codes.forEach(code => {
+      const before = code.points_balance;
+      const { forfeited, carried } = computeCarryoverSplit(before, campaign.carryover_percentage);
+      const customer = window.MOCK.customers.find(c => c.id === code.customer_id);
+
+      if (carried > 0) {
+        const row = {
+          id: 'carryover_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          customer_id: code.customer_id,
+          business_id: campaign.business_id,
+          source_campaign_id: campaign.id,
+          points: carried,
+          consumed_in_campaign_id: null,
+          created_at: 'همین الان'
+        };
+        if (window.MOCK.pointCarryovers) window.MOCK.pointCarryovers.unshift(row);
+      }
+
+      code.points_balance = 0; // grace period closed — balance leaves the ended campaign either way
+
+      results.push({
+        customerId: code.customer_id,
+        customerName: customer ? customer.name : code.customer_id,
+        codeId: code.id,
+        before,
+        forfeited,
+        carried
+      });
+    });
+    return results;
+  }
+
+  function getPendingCarryovers(businessId) {
+    if (!window.MOCK || !window.MOCK.pointCarryovers) return [];
+    return window.MOCK.pointCarryovers.filter(p => p.business_id === businessId && p.consumed_in_campaign_id == null);
+  }
+
+  /**
+   * Applies a pending carryover row (by id) as a starting-bonus credit into the given target campaign's
+   * customer_campaign_code for that same customer — simulating "customer joins the business's next campaign".
+   * Marks the row consumed. Returns the applied row, or null if not found/already consumed/no matching code.
+   */
+  function applyCarryoverById(carryoverId, targetCampaignId) {
+    if (!window.MOCK || !window.MOCK.pointCarryovers) return null;
+    const row = window.MOCK.pointCarryovers.find(p => p.id === carryoverId && p.consumed_in_campaign_id == null);
+    if (!row) return null;
+
+    const targetCode = window.MOCK.customerCampaignCodes.find(c => c.customer_id === row.customer_id && c.campaign_id === targetCampaignId);
+    if (!targetCode) return null;
+
+    targetCode.points_balance += row.points;
+    targetCode.carryover_bonus = (targetCode.carryover_bonus || 0) + row.points;
+    row.consumed_in_campaign_id = targetCampaignId;
+    return row;
+  }
+
   function showToast(message, type = 'info') {
     let container = document.getElementById('toast-container');
     if (!container) {
