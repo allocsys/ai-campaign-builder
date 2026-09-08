@@ -444,6 +444,69 @@ window.App = (function () {
   }
 
   /**
+   * GAP #8: Retroactive purchase claim flow (plan.md Phase 0.5 & Gap #8).
+   * - Enforces 48-72 hour time window (mocked via hoursAgo parameter, max 72).
+   * - Enforces duplicate detection via receipt_hash.
+   * - Enforces rate limiting (max 3 retroactive claims per customer per campaign).
+   * - Sets submission_type: 'retroactive_purchase_claim', status: 'pending', low/cautious ai_confidence_score (42).
+   */
+  function submitRetroactivePurchaseClaim(customerCampaignCodeId, campaignId, receiptImageHash, receiptNumber, hoursAgo = 12) {
+    if (!window.MOCK) return { success: false, reason: 'system_error' };
+
+    // 1. Time limit enforcement (48-72 hours max)
+    const hours = Number(hoursAgo) || 12;
+    if (hours > 72) {
+      return { success: false, reason: 'outside_time_window' };
+    }
+
+    // 2. Duplicate detection via receipt hash
+    const hash = receiptImageHash ? String(receiptImageHash).trim() : ('hash_' + Date.now());
+    const existingByHash = (window.MOCK.taskSubmissions || []).find(s => 
+      s.submission_type === 'retroactive_purchase_claim' && 
+      s.receipt_hash === hash
+    );
+    if (existingByHash) {
+      return { success: false, reason: 'duplicate_receipt' };
+    }
+
+    // 3. Rate limiting (max 3 retroactive claims per customer per campaign)
+    const existingForCustomer = (window.MOCK.taskSubmissions || []).filter(s =>
+      s.customer_campaign_code_id === customerCampaignCodeId &&
+      s.submission_type === 'retroactive_purchase_claim'
+    );
+    if (existingForCustomer.length >= 3) {
+      return { success: false, reason: 'rate_limited' };
+    }
+
+    const code = window.MOCK.customerCampaignCodes.find(c => c.id === customerCampaignCodeId);
+    const customer = code ? window.MOCK.customers.find(cu => cu.id === code.customer_id) : null;
+    const customerName = customer ? customer.name : 'مشتری';
+
+    const purchaseTask = window.MOCK.campaignTasks.find(t => t.task_pattern_id === 'first_action' || t.task_pattern_id === 'repeat_purchase') || window.MOCK.campaignTasks[2];
+
+    const submission = {
+      id: 'sub_retro_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      customer_campaign_code_id: customerCampaignCodeId,
+      campaign_task_id: purchaseTask ? purchaseTask.id : 'ct_3',
+      customer_name: customerName,
+      task_title: 'ادعای خرید بازگشتی (فراموشی اسکن)',
+      submission_type: 'retroactive_purchase_claim',
+      evidence_url: 'receipt_' + (receiptNumber || 'scan') + '.jpg',
+      receipt_number: receiptNumber ? String(receiptNumber).trim() : ('RCP-' + Math.floor(1000 + Math.random() * 9000)),
+      receipt_hash: hash,
+      ai_confidence_score: 42, // Cautious score, routes to manual review
+      status: 'pending',
+      reviewed_by: null,
+      notes: `ادعای خرید بازگشتی با شماره رسید ${receiptNumber || 'نامشخص'}. ثبت‌شده خارج از صندوق — نیازمند بررسی دقیق دستی (حسابرسی احتیاطی).`,
+      points_awarded: null,
+      submitted_at: 'همین الان'
+    };
+
+    window.MOCK.taskSubmissions.unshift(submission);
+    return { success: true, submissionId: submission.id };
+  }
+
+  /**
    * Phase 3/4 change-type scope classification (plan.md "What the AI can suggest" / Phase 4 "Scope").
    * Structural change types always require a manual Apply, even with autopilot on.
    * Autopilot-eligible types are the numeric/parameter-only subset autopilot may auto-apply.
@@ -782,6 +845,7 @@ window.App = (function () {
     runReferralAnomalyDetection,
     processCustomerSignupWithReferral,
     processFirstPurchaseForCustomer,
+    submitRetroactivePurchaseClaim,
     isStructuralChangeType,
     isAutopilotEligibleChangeType,
     checkSuggestionAgainstConstraints,
