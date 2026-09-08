@@ -642,15 +642,15 @@
               </div>
               <div class="card-body" style="padding: 0;">
                 <div style="overflow-x: auto;">
-                  <table>
+                  <table class="sends-log-table">
                     <thead>
                       <tr>
-                        <th>مخاطب / مشتری</th>
-                        <th>کانال</th>
-                        <th>نوع تریگر</th>
-                        <th>وضعیت</th>
-                        <th>متن پیام</th>
-                        <th>زمان</th>
+                        <th class="col-contact">مخاطب / مشتری</th>
+                        <th class="col-channel">کانال</th>
+                        <th class="col-trigger">نوع تریگر</th>
+                        <th class="col-status">وضعیت</th>
+                        <th class="col-text">متن پیام</th>
+                        <th class="col-time">زمان</th>
                       </tr>
                     </thead>
                     <tbody id="sends-log-tbody">
@@ -1153,7 +1153,7 @@
             <td>${channelBadge}</td>
             <td>${triggerBadge}</td>
             <td>${statusBadge}</td>
-            <td style="color: #334155; max-width: 320px; word-break: break-word;">${l.text || ''}</td>
+            <td class="col-text" style="color: #334155;">${l.text || ''}</td>
             <td style="color: var(--text-muted); font-size: 0.82rem;">${l.time || 'همین الان'}</td>
           </tr>
         `;
