@@ -104,6 +104,13 @@ window.App = (function () {
     });
   }
 
+  function getSubscriptionStatus(businessId) {
+    const sub = window.MOCK && window.MOCK.businessSubscriptions ? window.MOCK.businessSubscriptions[businessId] : null;
+    if (!sub) return null;
+    const plan = window.MOCK.subscriptionPlans ? window.MOCK.subscriptionPlans[sub.plan_key] : null;
+    return { ...sub, plan };
+  }
+
   function getSmsPricePerSms() {
     return (window.MOCK && window.MOCK.smsPricing) ? window.MOCK.smsPricing.price_per_sms_toman : 350;
   }
@@ -820,6 +827,7 @@ window.App = (function () {
 
   return {
     session,
+    getSubscriptionStatus,
     resolveSizeTier,
     scalePointsForTier,
     getSuggestedDuration,
