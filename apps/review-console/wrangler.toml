@@ -1,0 +1,23 @@
+# Cloudflare Worker config for the Review Console persona app.
+# Self-contained per plan.md "Deployment architecture" — 5 separate deployments,
+# one per persona, each with its own wrangler.toml.
+#
+# This is the internal-team-only persona (plan.md: "isolated for security /
+# smaller attack surface, can sit behind extra auth later") — deployed
+# separately from the public-facing apps for that reason, even though the
+# build output shape (static SPA) is identical to the others for now.
+#
+# Build output is a static SPA (Vite build → dist/), served as static assets.
+# No D1 binding here — this app talks to the backend API over HTTP; D1 is bound
+# directly in apps/backend/wrangler.toml only (once the backend exists).
+
+name = "ai-campaign-builder-review-console"
+compatibility_date = "2026-09-08"
+
+[assets]
+directory = "dist"
+
+# TODO before first real deploy: set `routes` or a custom domain once business
+# domain/subdomain naming is decided (see plan.md Phase 5 "NEXT STEP" note —
+# not yet decided as of 2026-09-09). Consider putting this app on a
+# non-public-facing subdomain given its internal-only nature.
