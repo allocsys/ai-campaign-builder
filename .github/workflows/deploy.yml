@@ -61,6 +61,7 @@ jobs:
       staff_pos: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.staff_pos == 'true' }}
       review_console: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.review_console == 'true' }}
       microsite: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.microsite == 'true' }}
+      deploy_index: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.deploy_index == 'true' }}
       # backend output goes here once that app's filter is added below.
     steps:
       - uses: actions/checkout@v4
@@ -91,6 +92,10 @@ jobs:
             microsite:
               - 'apps/microsite/**'
               - 'packages/**'
+              - 'package.json'
+              - '.github/workflows/deploy.yml'
+            deploy_index:
+              - 'apps/deploy-index/**'
               - 'package.json'
               - '.github/workflows/deploy.yml'
 
@@ -208,3 +213,26 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npm run deploy --workspace=apps/microsite
+
+  deploy-index:
+    needs: changes
+    if: needs.changes.outputs.deploy_index == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-deploy-index-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run typecheck --workspace=apps/deploy-index
+      - run: npm test --workspace=apps/deploy-index
+      - run: npm run build --workspace=apps/deploy-index
+      - name: Deploy
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run deploy --workspace=apps/deploy-index
