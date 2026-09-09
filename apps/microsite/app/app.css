@@ -5,7 +5,37 @@
 /* This app's visual identity is intentionally independent from the internal
    dashboard apps' dark/glass theme (packages/ui-kit) — it's a public-facing
    business microsite, not an authenticated persona app. Kept minimal here;
-   per-template visual variation (theme_identifier) is future work. */
+   per-template visual variation (theme_identifier) uses CSS variables configured below. */
+:root {
+  --surface: #ffffff;
+  --surface-alt: #fafaf9;
+  --surface-card: #ffffff;
+  --border: #e7e5e4;
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --text-subtle: #78716c;
+  --accent-bg: #1c1917;
+  --accent-text: #ffffff;
+  --accent-hover: #f5f5f4;
+  --gallery-tile: #e7e5e4;
+  --gallery-tile-text: #78716c;
+}
+
+[data-theme="bold_retail"] {
+  --surface: #ffffff;
+  --surface-alt: #fdf3ea;
+  --surface-card: #ffffff;
+  --border: #ecd9c4;
+  --text: #201510;
+  --text-muted: #6b5847;
+  --text-subtle: #8a7562;
+  --accent-bg: #c1440e;
+  --accent-text: #ffffff;
+  --accent-hover: #f2e2d2;
+  --gallery-tile: #f0ddc9;
+  --gallery-tile-text: #8a7562;
+}
+
 @layer base {
   html {
     direction: rtl;
