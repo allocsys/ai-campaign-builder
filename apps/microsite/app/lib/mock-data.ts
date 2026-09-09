@@ -454,12 +454,28 @@ const MOCK_DB: Record<string, MicrositeData> = {
         },
       },
       {
+        id: "bmm_titan_campaign",
+        business_microsite_id: "ms_titan",
+        website_module_id: "wm_campaign_highlight",
+        module_key: "campaign_highlight",
+        enabled: true,
+        display_order: 1,
+        content: {
+          title: "",
+          description: "",
+          cta_label: "",
+          no_campaign_title: "کمپین بعدی به‌زودی می‌آید",
+          no_campaign_description:
+            "در حال حاضر کمپین فعالی نداریم — به‌زودی جزئیات کمپین جدید و لینک عضویت اینجا نمایش داده می‌شود.",
+        },
+      },
+      {
         id: "bmm_titan_about",
         business_microsite_id: "ms_titan",
         website_module_id: "wm_about",
         module_key: "about",
         enabled: true,
-        display_order: 1,
+        display_order: 2,
         content: {
           heading: "درباره باشگاه تایتان",
           description:
@@ -472,7 +488,7 @@ const MOCK_DB: Record<string, MicrositeData> = {
         website_module_id: "wm_product_menu",
         module_key: "product_menu",
         enabled: true,
-        display_order: 2,
+        display_order: 3,
         content: {
           heading: "بسته‌های عضویت",
           items: [
@@ -489,7 +505,7 @@ const MOCK_DB: Record<string, MicrositeData> = {
         website_module_id: "wm_gallery",
         module_key: "gallery",
         enabled: true,
-        display_order: 3,
+        display_order: 4,
         content: {
           heading: "فضای باشگاه",
           images: [
@@ -506,7 +522,7 @@ const MOCK_DB: Record<string, MicrositeData> = {
         website_module_id: "wm_testimonials",
         module_key: "testimonials",
         enabled: true,
-        display_order: 4,
+        display_order: 5,
         content: {
           heading: "نظرات ورزشکاران",
           items: [
@@ -520,7 +536,7 @@ const MOCK_DB: Record<string, MicrositeData> = {
         website_module_id: "wm_contact",
         module_key: "contact",
         enabled: true,
-        display_order: 5,
+        display_order: 6,
         content: {
           address: "تهران، سعادت‌آباد، بلوار دریا، پلاک ۸",
           phone: "۰۲۱-۲۶۶۶۶۶۶۶",
@@ -533,7 +549,7 @@ const MOCK_DB: Record<string, MicrositeData> = {
         website_module_id: "wm_booking_cta",
         module_key: "booking_cta",
         enabled: true,
-        display_order: 6,
+        display_order: 7,
         content: {
           heading: "یک جلسه رایگان رزرو کنید",
           button_label: "رزرو جلسه رایگان",
