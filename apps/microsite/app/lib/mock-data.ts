@@ -62,6 +62,12 @@ export interface CampaignHighlightContent {
   title: string;
   description: string;
   cta_label: string;
+  // Shown instead of title/description/cta_label when featuredCampaign is
+  // null (module enabled, but no campaign currently live). Optional so
+  // narvan's existing content (which always has a live campaign for now)
+  // doesn't need updating.
+  no_campaign_title?: string;
+  no_campaign_description?: string;
 }
 
 export type ModuleContentByKey = {
