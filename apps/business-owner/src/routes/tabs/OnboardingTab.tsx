@@ -10,7 +10,7 @@ import { checklistItems } from '../../lib/mock-data'
 export function OnboardingTab() {
   const allDone = checklistItems.every((i) => i.completed)
   if (allDone) {
-    return <p className="text-sm text-slate-400">همه مراحل تکمیل شده‌اند ✅</p>
+    return <p className="text-sm text-slate-400">همه مراحل تکمیل شده‌اند <span aria-hidden="true">✅</span></p>
   }
   return (
     <div className="flex flex-col gap-3">
