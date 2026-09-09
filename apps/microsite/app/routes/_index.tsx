@@ -11,6 +11,7 @@ import { Contact } from "../components/Contact";
 import { Testimonials } from "../components/Testimonials";
 import { BookingCta } from "../components/BookingCta";
 import { NotFound } from "../components/NotFound";
+import { Reveal } from "../components/Reveal";
 
 /**
  * Extracts the business subdomain slug from a Host header, e.g.
@@ -62,27 +63,51 @@ export default function MicrositeIndex() {
       {data.modules.map((mod) => {
         switch (mod.module_key) {
           case "hero":
+            // Not wrapped in Reveal: it's always above the fold at load,
+            // and already has its own ambient canvas motion (HeroAmbient).
             return <Hero key={mod.id} content={mod.content} />;
           case "campaign_highlight":
             return data.featuredCampaign ? (
-              <CampaignHighlight
-                key={mod.id}
-                content={mod.content}
-                campaign={data.featuredCampaign}
-              />
+              <Reveal key={mod.id}>
+                <CampaignHighlight content={mod.content} campaign={data.featuredCampaign} />
+              </Reveal>
             ) : null;
           case "about":
-            return <About key={mod.id} content={mod.content} />;
+            return (
+              <Reveal key={mod.id}>
+                <About content={mod.content} />
+              </Reveal>
+            );
           case "product_menu":
-            return <ProductMenu key={mod.id} content={mod.content} />;
+            return (
+              <Reveal key={mod.id}>
+                <ProductMenu content={mod.content} />
+              </Reveal>
+            );
           case "gallery":
-            return <Gallery key={mod.id} content={mod.content} />;
+            return (
+              <Reveal key={mod.id}>
+                <Gallery content={mod.content} />
+              </Reveal>
+            );
           case "contact":
-            return <Contact key={mod.id} content={mod.content} />;
+            return (
+              <Reveal key={mod.id}>
+                <Contact content={mod.content} />
+              </Reveal>
+            );
           case "testimonials":
-            return <Testimonials key={mod.id} content={mod.content} />;
+            return (
+              <Reveal key={mod.id}>
+                <Testimonials content={mod.content} />
+              </Reveal>
+            );
           case "booking_cta":
-            return <BookingCta key={mod.id} content={mod.content} />;
+            return (
+              <Reveal key={mod.id}>
+                <BookingCta content={mod.content} />
+              </Reveal>
+            );
           default:
             return null;
         }
