@@ -271,6 +271,130 @@ const MOCK_DB: Record<string, MicrositeData> = {
       },
     ],
   },
+  velora: {
+    microsite: {
+      id: "ms_velora",
+      business_id: "b_velora",
+      website_template_id: "tmpl_bold_retail",
+      subdomain_slug: "velora",
+      content: {
+        logo_url: null,
+        business_name: "بوتیک ولورا",
+        tagline: "استایل شخصی، امضای خودت",
+      },
+      featured_campaign_id: null,
+      published: true,
+      addon_status: "active",
+    },
+    template: {
+      id: "tmpl_bold_retail",
+      name: "بوتیک مدرن (Bold Retail)",
+      theme_identifier: "bold_retail",
+    },
+    featuredCampaign: null,
+    modules: [
+      {
+        id: "bmm_velora_hero",
+        business_microsite_id: "ms_velora",
+        website_module_id: "wm_hero",
+        module_key: "hero",
+        enabled: true,
+        display_order: 0,
+        content: {
+          badge_label: "🧵 بوتیک ولورا",
+          title: "لباسی که داستان شما را روایت می‌کند",
+          subtitle:
+            "گزیده‌ای از پوشاک زنانه و مردانه با طراحی محدود — کیفیت پارچه، برش دقیق و سبکی که فقط برای شما انتخاب شده.",
+        },
+      },
+      {
+        id: "bmm_velora_about",
+        business_microsite_id: "ms_velora",
+        website_module_id: "wm_about",
+        module_key: "about",
+        enabled: true,
+        display_order: 1,
+        content: {
+          heading: "درباره ولورا",
+          description:
+            "ولورا از دل عشق به طراحی محدود و متفاوت شکل گرفت. هر مجموعه در تیراژ کم تولید می‌شود تا حس خاص‌بودن را برای مشتریانش حفظ کند.",
+        },
+      },
+      {
+        id: "bmm_velora_menu",
+        business_microsite_id: "ms_velora",
+        website_module_id: "wm_product_menu",
+        module_key: "product_menu",
+        enabled: true,
+        display_order: 2,
+        content: {
+          heading: "محصولات منتخب",
+          items: [
+            { name: "کت بلند پشمی", price_toman: 2450000 },
+            { name: "پیراهن ابریشمی", price_toman: 980000 },
+            { name: "شلوار پارچه‌ای برش‌دار", price_toman: 760000 },
+            { name: "شال دست‌بافت", price_toman: 420000 },
+          ],
+        },
+      },
+      {
+        id: "bmm_velora_gallery",
+        business_microsite_id: "ms_velora",
+        website_module_id: "wm_gallery",
+        module_key: "gallery",
+        enabled: true,
+        display_order: 3,
+        content: {
+          heading: "از مجموعه جدید",
+          images: [
+            { alt: "عکس مجموعه پاییزه" },
+            { alt: "عکس ویترین بوتیک" },
+            { alt: "عکس جزئیات پارچه" },
+            { alt: "عکس فضای فروشگاه" },
+          ],
+        },
+      },
+      {
+        id: "bmm_velora_testimonials",
+        business_microsite_id: "ms_velora",
+        website_module_id: "wm_testimonials",
+        module_key: "testimonials",
+        enabled: true,
+        display_order: 4,
+        content: {
+          heading: "نظرات مشتریان",
+          items: [
+            { quote: "کیفیت دوخت و پارچه واقعاً حرف نداره.", author: "نگین م." },
+          ],
+        },
+      },
+      {
+        id: "bmm_velora_contact",
+        business_microsite_id: "ms_velora",
+        website_module_id: "wm_contact",
+        module_key: "contact",
+        enabled: true,
+        display_order: 5,
+        content: {
+          address: "تهران، زعفرانیه، خیابان ولیعصر، پلاک ۴۵",
+          phone: "۰۲۱-۲۲۲۲۲۲۲۲",
+          hours: "شنبه تا پنجشنبه، ۱۰:۰۰ تا ۲۰:۰۰",
+        },
+      },
+      {
+        id: "bmm_velora_booking",
+        business_microsite_id: "ms_velora",
+        website_module_id: "wm_booking_cta",
+        module_key: "booking_cta",
+        enabled: true,
+        display_order: 6,
+        content: {
+          heading: "وقت مشاوره استایل رزرو کنید",
+          button_label: "رزرو مشاوره",
+        },
+      },
+    ],
+  },
 };
 
 /**
