@@ -286,6 +286,21 @@ Each app is a fully self-contained Vite project, deployed as its own Cloudflare 
 
 **Microsite routing — revised decision (2026-09-09):** superseding the wildcard-subdomain (`{slug}.yourdomain.com`) approach described above and in the Deployment architecture section. Since a real domain isn't purchased yet, business resolution will switch from the `Host` header to a **path param** (`microsite.yourdomain.com/{slug}` — exact root subdomain name TBD) so the app is fully testable on the default `workers.dev` URL without waiting on domain purchase or wildcard DNS/route setup. This requires a code change in `apps/microsite`'s root route loader (Host-header lookup → path-param lookup), not yet implemented — tracked as follow-up work, to be done on its own branch (not `step9-a11y-part2`). **Future custom-domain option (noted, not yet needed):** for larger business customers who want their microsite on their own domain, a custom domain can be added later as an additional route on the same Worker, alongside the path-based route — no code change required, config-only, consistent with the deployment-portability principle above.
 
+**Step 9 part 3 — deploy-index app + naming scheme formalized (2026-09-09):** a 6th app, `apps/deploy-index/`, was added: a static single-page directory (no framework, own `wrangler.toml` + `[assets]` block, mirrors the root mockup Worker's static-assets pattern) that links out to the other 5 deployed apps. It exists purely as a temporary, no-real-domain-yet convenience — the current stand-in for the "you're not lost, here's what's live" landing page a real domain's root would otherwise serve. Superseded once a real domain is purchased and DNS/routes are wired per-app.
+
+**Current naming scheme (interim, `workers.dev`-only, no custom domain yet):** every app deploys as its own Cloudflare Worker under a single flat naming convention, `ai-campaign-builder-<app>`, resolving to `ai-campaign-builder-<app>.pachoolai24.workers.dev`:
+
+| App | Worker name | URL |
+|---|---|---|
+| Business Owner | `ai-campaign-builder-business-owner` | `ai-campaign-builder-business-owner.pachoolai24.workers.dev` |
+| Customer | `ai-campaign-builder-customer` | `ai-campaign-builder-customer.pachoolai24.workers.dev` |
+| Staff POS | `ai-campaign-builder-staff-pos` | `ai-campaign-builder-staff-pos.pachoolai24.workers.dev` |
+| Review Console | `ai-campaign-builder-review-console` | `ai-campaign-builder-review-console.pachoolai24.workers.dev` |
+| Microsite (public) | `ai-campaign-builder-microsite` | `ai-campaign-builder-microsite.pachoolai24.workers.dev` |
+| Deploy index (directory page) | `ai-campaign-builder-deploy-index` | `ai-campaign-builder-deploy-index.pachoolai24.workers.dev` |
+
+This is a placeholder scheme, not the target production naming — once a real business domain is purchased, the intent (per the Deployment architecture section above) is roughly: business-owner/customer/staff-pos/review-console each get a dedicated subdomain of the real domain (e.g. `app.`, `staff.`, `review.` — exact prefixes TBD), and microsite takes over the per-business routing (`{slug}.yourdomain.com` or the interim `/{slug}` path scheme, per the routing decision above) since it's the multi-tenant, SEO-facing app. `deploy-index` has no role once a real domain exists — the domain's own root/marketing page replaces it, and this Worker can be decommissioned at that point.
+
 ---
 
 ## Status Log
