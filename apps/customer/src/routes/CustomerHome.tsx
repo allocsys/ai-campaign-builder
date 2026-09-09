@@ -125,9 +125,17 @@ export function CustomerHome() {
       <Card className="p-6 text-center bg-gradient-to-br from-slate-900 to-slate-800">
         <p className="text-xs text-slate-400">کد شناسایی اختصاصی شما در {businessName}:</p>
         <p className="text-3xl font-extrabold tracking-widest text-sky-400 my-1">{initialProfile.personalCode}</p>
-        <div className="mx-auto my-3 grid grid-cols-6 gap-1 w-32">
+        <div
+          role="img"
+          aria-label="کد QR اختصاصی مشتری جهت شناسایی در صندوق و ثبت امتیاز"
+          className="mx-auto my-3 grid grid-cols-6 gap-1 w-32"
+        >
           {Array.from({ length: 18 }).map((_, i) => (
-            <div key={i} className={`aspect-square rounded-sm ${i % 5 === 0 ? 'bg-transparent' : 'bg-slate-100'}`} />
+            <div
+              key={i}
+              aria-hidden="true"
+              className={`aspect-square rounded-sm ${i % 5 === 0 ? 'bg-transparent' : 'bg-slate-100'}`}
+            />
           ))}
         </div>
         <p className="text-xs font-semibold text-slate-400">اسکن در صندوق {businessName}</p>
@@ -152,31 +160,31 @@ export function CustomerHome() {
       {/* Telegram opt-in */}
       {!telegramOptedIn ? (
         <Card className="p-4 flex items-center justify-between">
-          <span className="text-sm">✈️ دریافت نوتیفیکیشن‌ها در تلگرام</span>
+          <span className="text-sm"><span aria-hidden="true">✈️ </span>دریافت نوتیفیکیشن‌ها در تلگرام</span>
           <Button variant="secondary" onClick={handleTelegramOptIn}>
             فعال‌سازی در بات
           </Button>
         </Card>
       ) : (
         <Card className="p-4">
-          <span className="text-sm">✅ اتصال به تلگرام فعال شد</span>
+          <span className="text-sm"><span aria-hidden="true">✅ </span>اتصال به تلگرام فعال شد</span>
         </Card>
       )}
 
       {/* Retroactive claim entry */}
       <Card className="p-5 text-center border-2 border-dashed border-glass-border">
-        <h3 className="text-sm font-semibold mb-1">❓ فراموش کردید کد خود را در صندوق اسکن کنید؟</h3>
+        <h3 className="text-sm font-semibold mb-1"><span aria-hidden="true">❓ </span>فراموش کردید کد خود را در صندوق اسکن کنید؟</h3>
         <p className="text-xs text-slate-400 mb-3">
           می‌توانید رسید خرید یا سفارش خود را تا ۷۲ ساعت بعد آپلود کنید تا پس از بررسی تیم مرکزی امتیاز شما ثبت شود.
         </p>
         <Button variant="secondary" onClick={() => setRetroOpen(true)}>
-          🧾 ثبت ادعای خرید بازگشتی
+          <span aria-hidden="true">🧾 </span>ثبت ادعای خرید بازگشتی
         </Button>
       </Card>
 
       {/* Rewards progress */}
       <div>
-        <h3 className="text-sm font-semibold mb-2 text-slate-300">🎁 پیشرفت تا پاداش‌ها</h3>
+        <h3 className="text-sm font-semibold mb-2 text-slate-300"><span aria-hidden="true">🎁 </span>پیشرفت تا پاداش‌ها</h3>
         <div className="flex flex-col gap-3">
           {campaignRewards.map((r) => {
             const canRedeem = pointsBalance >= r.thresholdPoints
@@ -187,7 +195,14 @@ export function CustomerHome() {
                   <strong className="text-sm">{r.title}</strong>
                   <Badge tone={canRedeem ? 'success' : 'neutral'}>{r.thresholdPoints} امتیاز</Badge>
                 </div>
-                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  role="progressbar"
+                  aria-valuenow={Math.min(pointsBalance, r.thresholdPoints)}
+                  aria-valuemin={0}
+                  aria-valuemax={r.thresholdPoints}
+                  aria-label={`پیشرفت پاداش ${r.title}`}
+                  className="h-1.5 rounded-full bg-white/10 overflow-hidden"
+                >
                   <div
                     className={`h-full rounded-full ${canRedeem ? 'bg-emerald-500' : 'bg-brand-500'}`}
                     style={{ width: `${percent}%` }}
@@ -197,7 +212,7 @@ export function CustomerHome() {
                   <span className="text-xs text-slate-400">{percent}٪ تکمیل</span>
                   {canRedeem ? (
                     <Button variant="primary" onClick={() => handleRedeem(r.title, r.thresholdPoints)}>
-                      🎁 دریافت پاداش
+                      <span aria-hidden="true">🎁 </span>دریافت پاداش
                     </Button>
                   ) : (
                     <span className="text-xs text-slate-400">{r.thresholdPoints - pointsBalance} امتیاز تا این جایزه</span>
@@ -211,7 +226,7 @@ export function CustomerHome() {
 
       {/* Tasks */}
       <div>
-        <h3 className="text-sm font-semibold mb-2 text-slate-300">⚡ تسک‌های دریافت امتیاز</h3>
+        <h3 className="text-sm font-semibold mb-2 text-slate-300"><span aria-hidden="true">⚡ </span>تسک‌های دریافت امتیاز</h3>
         <div className="flex flex-col gap-2">
           {campaignTasks.map((t) => {
             const status = submissions[t.id] ?? null
@@ -240,14 +255,14 @@ export function CustomerHome() {
                         <span className="text-xs text-emerald-400">✓ امتیاز ثبت شد</span>
                       ) : status === 'pending' ? (
                         <Button variant="secondary" onClick={() => handleAiApproveSimulation(t)}>
-                          🤖 شبیه‌سازی بررسی AI
+                          <span aria-hidden="true">🤖 </span>شبیه‌سازی بررسی AI
                         </Button>
                       ) : (
-                        <Button onClick={() => setModalTask(t)}>📷 ارسال مدرک</Button>
+                        <Button onClick={() => setModalTask(t)}><span aria-hidden="true">📷 </span>ارسال مدرک</Button>
                       )
                     ) : t.verificationMethod === 'code_link_auto' ? (
                       <Button variant="secondary" onClick={handleCopyReferralLink}>
-                        🔗 کپی لینک دعوت
+                        <span aria-hidden="true">🔗 </span>کپی لینک دعوت
                       </Button>
                     ) : (
                       <span className="text-xs text-slate-400">اسکن خودکار در صندوق</span>
@@ -268,19 +283,19 @@ export function CustomerHome() {
           <p className="text-2xl font-black tracking-widest text-emerald-400 my-2">{redemption.code}</p>
           <p className="text-xs text-emerald-300 mb-2">این کد را جهت دریافت جایزه به صندوقدار نشان دهید.</p>
           <div className="bg-emerald-500/10 rounded-xl2 py-1.5 text-sm font-bold text-emerald-300">
-            ⏱️ زمان باقی‌مانده تا ابطال کد: {formatCountdown(secondsLeft)}
+            <span aria-hidden="true">⏱️ </span>زمان باقی‌مانده تا ابطال کد: {formatCountdown(secondsLeft)}
           </div>
         </Card>
       )}
 
       {/* Notifications feed */}
       <div>
-        <h3 className="text-sm font-semibold mb-2 text-slate-300">🔔 پیامک‌ها و اطلاعیه‌های دریافتی</h3>
+        <h3 className="text-sm font-semibold mb-2 text-slate-300"><span aria-hidden="true">🔔 </span>پیامک‌ها و اطلاعیه‌های دریافتی</h3>
         <Card className="p-0 divide-y divide-glass-border overflow-hidden">
           {notifications.slice(0, 4).map((n) => (
             <div key={n.id} className="p-3 text-sm">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                <span>{n.channel === 'sms' ? '📱 پیامک' : '✈️ تلگرام'} • {n.time}</span>
+                <span><span aria-hidden="true">{n.channel === 'sms' ? '📱 ' : '✈️ '}</span>{n.channel === 'sms' ? 'پیامک' : 'تلگرام'} • {n.time}</span>
                 <Badge tone="neutral">{n.trigger}</Badge>
               </div>
               <p>{n.text}</p>
