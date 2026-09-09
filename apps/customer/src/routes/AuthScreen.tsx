@@ -64,12 +64,20 @@ export function AuthScreen() {
     <div className="min-h-screen flex items-center justify-center p-6">
       <Card className="max-w-sm w-full p-8">
         <div className="text-center mb-6">
-          <div className="text-4xl mb-2">☕</div>
+          <div className="text-4xl mb-2">
+            <span aria-hidden="true">☕</span>
+          </div>
           <h1 className="text-xl font-bold mb-1">به باشگاه مشتریان {businessName} خوش آمدید!</h1>
           <p className="text-slate-400 text-sm">
             {step === 'phone' ? 'با عضویت، در ازای هر سفارش، استوری یا معرفی دوستان امتیاز بگیرید.' : `کد ارسال شده به ${phone} را وارد کنید`}
           </p>
         </div>
+
+        {error && (
+          <div role="alert" className="sr-only">
+            {error}
+          </div>
+        )}
 
         {step === 'phone' ? (
           <form onSubmit={handlePhoneSubmit} className="flex flex-col gap-4">
