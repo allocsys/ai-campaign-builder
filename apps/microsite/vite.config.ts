@@ -8,11 +8,18 @@ import { defineConfig } from "vite";
 // `npm run dev` a dev-time Workers runtime (so `context.cloudflare.env`
 // behaves like it will in production) instead of a plain Node dev server.
 export default defineConfig({
-  // viteEnvironment.name controls the Cloudflare plugin's per-environment
-  // build output folder (dist/<name>). react-router.config.ts sets
-  // buildDirectory: "dist", and @react-router/dev's own convention expects
-  // the server bundle at dist/server — so this must be "server", not the
-  // plugin's own default "ssr", or the two build steps write/read from
-  // different folders and the SSR step fails to find its manifest.
-  plugins: [cloudflare({ viteEnvironment: { name: "server" } }), reactRouter()],
+  // viteEnvironment.name MUST be the literal string "ssr" — this is not an
+  // arbitrary label. React Router's Vite plugin hardcodes its SSR build to
+  // a Vite environment named "ssr" (see @react-router/dev/dist/vite.js).
+  // The Cloudflare plugin only writes its .wrangler/deploy/config.json
+  // build->deploy redirect for whichever environment name is configured
+  // here as the "entry worker" environment. Any other value — including no
+  // override at all, which falls back to a sanitized version of the
+  // wrangler.toml `name` field — creates a *second*, disconnected Vite
+  // environment that never receives React Router's actual SSR build, so
+  // the redirect is never written and `wrangler deploy` falls back to
+  // wrangler.toml's `main`, which still points at unresolved source
+  // containing the Vite-only "virtual:react-router/server-build" import.
+  // Confirmed against Cloudflare's own docs: developers.cloudflare.com/workers/vite-plugin/reference/vite-environments/
+  plugins: [cloudflare({ viteEnvironment: { name: "ssr" } }), reactRouter()],
 });
