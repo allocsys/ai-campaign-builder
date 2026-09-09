@@ -1,0 +1,13 @@
+name = "ai-campaign-builder-backend"
+main = "src/index.ts"
+compatibility_date = "2024-09-09"
+
+# TODO: no D1 database has been provisioned yet — replace with the real
+# database_id once `wrangler d1 create ai-campaign-builder-db` has been run.
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-campaign-builder-db"
+database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+
+# JWT_SECRET and any OTP/SMS provider secrets are set via `wrangler secret put`,
+# not committed here.
