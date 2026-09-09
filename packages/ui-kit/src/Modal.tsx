@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useId, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { motionDuration, motionEasing } from './animation-tokens'
 
 export interface ModalProps {
   open: boolean
@@ -74,7 +75,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
+            transition={{ duration: motionDuration.base, ease: motionEasing.out }}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md bg-slate-950/90 backdrop-blur-md border border-glass-border rounded-xl2 shadow-glass p-6 outline-none"
           >

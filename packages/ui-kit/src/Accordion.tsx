@@ -1,5 +1,6 @@
 import { type ReactNode, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { motionDuration, motionEasing } from './animation-tokens'
 
 export interface AccordionItem {
   id: string
@@ -52,7 +53,11 @@ export function Accordion({ items, openId, onOpenChange, defaultOpenId }: Accord
               aria-controls={panelId}
             >
               {item.header}
-              <motion.span aria-hidden="true" animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+              <motion.span
+                aria-hidden="true"
+                animate={{ rotate: isOpen ? 180 : 0 }}
+                transition={{ duration: motionDuration.fast }}
+              >
                 ▾
               </motion.span>
             </button>
@@ -65,7 +70,7 @@ export function Accordion({ items, openId, onOpenChange, defaultOpenId }: Accord
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  transition={{ duration: motionDuration.base, ease: motionEasing.out }}
                   className="px-4 pb-4"
                 >
                   {item.content}

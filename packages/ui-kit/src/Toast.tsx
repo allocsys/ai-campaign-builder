@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { motionDuration, motionEasing } from './animation-tokens'
 
 export type ToastTone = 'info' | 'success' | 'warning' | 'danger'
 
@@ -49,6 +50,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 16 }}
+              transition={{ duration: motionDuration.base, ease: motionEasing.out }}
               className={`bg-slate-950/90 backdrop-blur-md border rounded-xl2 shadow-glass px-4 py-2.5 text-sm text-slate-100 max-w-sm w-full pointer-events-auto ${toneClasses[t.tone]}`}
             >
               {t.message}
