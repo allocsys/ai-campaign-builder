@@ -95,6 +95,25 @@
   --gallery-tile-text: #9c8d7e;
 }
 
+/* Light theme, cool blue/indigo accent on crisp white/gray — clean,
+   tech-forward feel for the online_store category. Deliberately a cooler,
+   less warm palette than bold_retail (terracotta) or serene_beauty
+   (blush) so all three light themes stay visually distinct. */
+[data-theme="sleek_shop"] {
+  --surface: #ffffff;
+  --surface-alt: #f5f7fa;
+  --surface-card: #ffffff;
+  --border: #dde3ea;
+  --text: #171b21;
+  --text-muted: #5b6672;
+  --text-subtle: #8b95a1;
+  --accent-bg: #2f5fff;
+  --accent-text: #ffffff;
+  --accent-hover: #eaf0ff;
+  --gallery-tile: #e7ecf5;
+  --gallery-tile-text: #8b95a1;
+}
+
 @layer base {
   html {
     direction: rtl;
