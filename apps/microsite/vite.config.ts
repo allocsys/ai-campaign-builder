@@ -8,5 +8,11 @@ import { defineConfig } from "vite";
 // `npm run dev` a dev-time Workers runtime (so `context.cloudflare.env`
 // behaves like it will in production) instead of a plain Node dev server.
 export default defineConfig({
-  plugins: [cloudflare({ viteEnvironment: { name: "ssr" } }), reactRouter()],
+  // viteEnvironment.name controls the Cloudflare plugin's per-environment
+  // build output folder (dist/<name>). react-router.config.ts sets
+  // buildDirectory: "dist", and @react-router/dev's own convention expects
+  // the server bundle at dist/server — so this must be "server", not the
+  // plugin's own default "ssr", or the two build steps write/read from
+  // different folders and the SSR step fails to find its manifest.
+  plugins: [cloudflare({ viteEnvironment: { name: "server" } }), reactRouter()],
 });
