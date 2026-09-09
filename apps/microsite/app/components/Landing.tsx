@@ -9,6 +9,7 @@
 const DEMO_LINKS = [
   { slug: "narvan", label: "کافه نارون", description: "قالب Minimal Cafe" },
   { slug: "velora", label: "بوتیک ولورا", description: "قالب Bold Retail" },
+  { slug: "titan", label: "باشگاه تایتان", description: "قالب Energetic Gym" },
 ];
 
 export function Landing() {
