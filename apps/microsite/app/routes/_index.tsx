@@ -5,6 +5,7 @@ import { getMicrositeData } from "../lib/mock-data";
 import { Hero } from "../components/Hero";
 import { Landing } from "../components/Landing";
 import { CampaignHighlight } from "../components/CampaignHighlight";
+import { StickyJoinCta } from "../components/StickyJoinCta";
 import { About } from "../components/About";
 import { ProductMenu } from "../components/ProductMenu";
 import { Gallery } from "../components/Gallery";
@@ -83,11 +84,14 @@ export default function MicrositeIndex() {
             // and already has its own ambient canvas motion (HeroAmbient).
             return <Hero key={mod.id} content={mod.content} />;
           case "campaign_highlight":
-            return data.featuredCampaign ? (
+            // Always rendered when the module is enabled — CampaignHighlight
+            // itself switches between the real CTA and a "no campaign yet"
+            // fallback based on whether featuredCampaign is null.
+            return (
               <Reveal key={mod.id}>
                 <CampaignHighlight content={mod.content} campaign={data.featuredCampaign} />
               </Reveal>
-            ) : null;
+            );
           case "about":
             return (
               <Reveal key={mod.id}>
@@ -131,6 +135,15 @@ export default function MicrositeIndex() {
       <footer className="border-t border-[var(--border)] px-6 py-8 text-center text-sm text-[var(--text-subtle)]">
         © {data.microsite.content.business_name}
       </footer>
+      {data.featuredCampaign ? (
+        <StickyJoinCta
+          href={`/join/${data.featuredCampaign.public_join_slug}`}
+          label={
+            data.modules.find((m) => m.module_key === "campaign_highlight")?.content.cta_label ??
+            "عضویت در کمپین"
+          }
+        />
+      ) : null}
     </main>
   );
 }
