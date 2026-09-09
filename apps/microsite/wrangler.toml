@@ -25,7 +25,7 @@ compatibility_flags = ["nodejs_compat"]
 main = "./workers/app.ts"
 
 [assets]
-directory = "./build/client"
+directory = "./dist/client"
 binding = "ASSETS"
 
 # TODO before first real deploy: set `routes` or a custom domain once business
