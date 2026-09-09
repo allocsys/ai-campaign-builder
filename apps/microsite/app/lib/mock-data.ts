@@ -874,12 +874,28 @@ const MOCK_DB: Record<string, MicrositeData> = {
         },
       },
       {
+        id: "bmm_novin_campaign",
+        business_microsite_id: "ms_novin",
+        website_module_id: "wm_campaign_highlight",
+        module_key: "campaign_highlight",
+        enabled: true,
+        display_order: 1,
+        content: {
+          title: "",
+          description: "",
+          cta_label: "",
+          no_campaign_title: "کمپین بعدی به‌زودی می‌آید",
+          no_campaign_description:
+            "در حال حاضر کمپین فعالی نداریم — به‌زودی جزئیات کمپین جدید و لینک عضویت اینجا نمایش داده می‌شود.",
+        },
+      },
+      {
         id: "bmm_novin_about",
         business_microsite_id: "ms_novin",
         website_module_id: "wm_about",
         module_key: "about",
         enabled: true,
-        display_order: 1,
+        display_order: 2,
         content: {
           heading: "درباره نوین",
           description:
@@ -892,7 +908,7 @@ const MOCK_DB: Record<string, MicrositeData> = {
         website_module_id: "wm_product_menu",
         module_key: "product_menu",
         enabled: true,
-        display_order: 2,
+        display_order: 3,
         content: {
           heading: "پرفروش‌ترین‌ها",
           items: [
@@ -909,7 +925,7 @@ const MOCK_DB: Record<string, MicrositeData> = {
         website_module_id: "wm_gallery",
         module_key: "gallery",
         enabled: true,
-        display_order: 3,
+        display_order: 4,
         content: {
           heading: "محصولات منتخب",
           images: [
@@ -926,7 +942,7 @@ const MOCK_DB: Record<string, MicrositeData> = {
         website_module_id: "wm_testimonials",
         module_key: "testimonials",
         enabled: true,
-        display_order: 4,
+        display_order: 5,
         content: {
           heading: "نظرات مشتریان",
           items: [
@@ -940,7 +956,7 @@ const MOCK_DB: Record<string, MicrositeData> = {
         website_module_id: "wm_contact",
         module_key: "contact",
         enabled: true,
-        display_order: 5,
+        display_order: 6,
         content: {
           address: "تهران، پونک، خیابان میرداماد، پلاک ۳۷ (انبار و پشتیبانی)",
           phone: "۰۲۱-۴۴۴۴۴۴۴۴",
@@ -953,7 +969,7 @@ const MOCK_DB: Record<string, MicrositeData> = {
         website_module_id: "wm_booking_cta",
         module_key: "booking_cta",
         enabled: true,
-        display_order: 6,
+        display_order: 7,
         content: {
           heading: "سوالی درباره خرید دارید؟",
           button_label: "چت با پشتیبانی",
