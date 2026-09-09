@@ -18,7 +18,7 @@ export function SendsLogTab() {
   }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
+      <table className="w-full text-sm" style={{ tableLayout: 'fixed' }} aria-label="لاگ ارسال پیام‌ها">
         <colgroup>
           <col style={{ width: '30%' }} />
           <col style={{ width: '20%' }} />
