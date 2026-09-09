@@ -27,7 +27,7 @@ export function TaskSubmitModal({ task, onClose, onSubmit }: TaskSubmitModalProp
               className="hidden"
               onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
             />
-            <span className="block text-2xl mb-1">📷</span>
+            <span className="block text-2xl mb-1" aria-hidden="true">📷</span>
             <span className="text-sm text-slate-400">
               {fileName ? `فایل انتخاب شد: ${fileName}` : 'کلیک برای انتخاب فایل شبیه‌سازی'}
             </span>
