@@ -27,7 +27,9 @@ export function SettingsTab() {
             سقف ماهانه: {businessProfile.smsMonthlyCapToman ? `${businessProfile.smsMonthlyCapToman.toLocaleString('fa-IR')} تومان` : 'بدون سقف'}
           </p>
         </div>
-        <span className="text-sm font-semibold">{businessProfile.smsWalletBalanceToman.toLocaleString('fa-IR')} تومان</span>
+        <span className="text-sm font-semibold" role="img" aria-label={`موجودی کیف پول: ${businessProfile.smsWalletBalanceToman.toLocaleString('fa-IR')} تومان`}>
+          {businessProfile.smsWalletBalanceToman.toLocaleString('fa-IR')} تومان
+        </span>
       </Card>
 
       <Card className="p-5">

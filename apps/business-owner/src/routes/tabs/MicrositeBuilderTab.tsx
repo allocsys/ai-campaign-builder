@@ -31,7 +31,11 @@ export function MicrositeBuilderTab() {
         {modules.map((m) => (
           <Card key={m.key} className="flex items-center justify-between p-3.5">
             <span className="text-sm">{m.labelFa}</span>
-            <Button variant={m.enabled ? 'secondary' : 'ghost'} onClick={() => toggle(m.key)}>
+            <Button
+              variant={m.enabled ? 'secondary' : 'ghost'}
+              onClick={() => toggle(m.key)}
+              aria-label={`${m.labelFa}: ${m.enabled ? 'فعال، کلیک برای غیرفعال کردن' : 'غیرفعال، کلیک برای فعال کردن'}`}
+            >
               {m.enabled ? 'فعال' : 'غیرفعال'}
             </Button>
           </Card>

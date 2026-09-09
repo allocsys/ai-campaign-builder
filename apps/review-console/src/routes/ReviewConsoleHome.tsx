@@ -57,7 +57,7 @@ export function ReviewConsoleHome() {
     <div className="min-h-screen p-6 max-w-5xl mx-auto">
       <header className="flex items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-xl font-bold">🛡️ کنسول بررسی تیم مرکزی</h1>
+          <h1 className="text-xl font-bold"><span aria-hidden="true">🛡️</span> کنسول بررسی تیم مرکزی</h1>
           <p className="text-slate-400 text-sm mt-1">
             بررسی موارد نامطمئن هوش مصنوعی، ادعاهای خرید بازگشتی و مدیریت هشدارهای تقلب معرفی
           </p>
@@ -72,10 +72,10 @@ export function ReviewConsoleHome() {
 
       <section className="mb-10">
         <h2 className="text-lg font-semibold mb-4">
-          📋 صف بررسی دستی — موارد نامطمئن AI و ادعاهای خرید بازگشتی
+          <span aria-hidden="true">📋</span> صف بررسی دستی — موارد نامطمئن AI و ادعاهای خرید بازگشتی
         </h2>
         {pending.length === 0 ? (
-          <Card className="text-center text-emerald-300">همه‌ی موارد نامطمئن و ادعاها بررسی شدند. ✓</Card>
+          <Card className="text-center text-emerald-300">همه‌ی موارد نامطمئن و ادعاها بررسی شدند. <span aria-hidden="true">✓</span></Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {pending.map((s) => {
@@ -83,7 +83,7 @@ export function ReviewConsoleHome() {
               return (
                 <Card key={s.id} className="flex flex-col gap-3">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-medium">📎 {s.taskTitle}</span>
+                    <span className="font-medium"><span aria-hidden="true">📎</span> {s.taskTitle}</span>
                     {isRetro ? (
                       <Badge tone="warning">ادعای خرید بازگشتی (رسید)</Badge>
                     ) : (
@@ -102,15 +102,15 @@ export function ReviewConsoleHome() {
                     </div>
                   )}
                   <div className="bg-white/5 border border-dashed border-white/15 rounded-xl2 p-4 text-center text-xs text-slate-400">
-                    🖼️ فایل پیوست / رسید: <code>{s.evidenceUrl}</code>
+                    <span aria-hidden="true">🖼️</span> فایل پیوست / رسید: <code>{s.evidenceUrl}</code>
                   </div>
                   {s.notes && <div className="text-xs bg-brand-500/10 border border-brand-500/20 rounded-xl2 p-3">{s.notes}</div>}
                   <div className="flex gap-2 mt-1">
-                    <Button variant="danger" className="flex-1" onClick={() => handleResolveSubmission(s.id, 'rejected')}>
-                      ✕ رد کردن
+                    <Button variant="danger" className="flex-1" onClick={() => handleResolveSubmission(s.id, 'rejected')} aria-label="رد کردن">
+                      <span aria-hidden="true">✕</span> رد کردن
                     </Button>
-                    <Button className="flex-1" onClick={() => handleResolveSubmission(s.id, 'approved')}>
-                      ✓ تایید و اعطای امتیاز
+                    <Button className="flex-1" onClick={() => handleResolveSubmission(s.id, 'approved')} aria-label="تایید و اعطای امتیاز">
+                      <span aria-hidden="true">✓</span> تایید و اعطای امتیاز
                     </Button>
                   </div>
                 </Card>
@@ -122,9 +122,9 @@ export function ReviewConsoleHome() {
 
       <section>
         <div className="flex items-center justify-between gap-4 mb-2">
-          <h2 className="text-lg font-semibold">🚩 صف هشدارهای ناهنجاری معرفی (Referral Flags)</h2>
-          <Button variant="secondary" onClick={handleRunBatch}>
-            🔄 اجرای شبیه‌سازی دسته‌ای آنالیز تقلب
+          <h2 className="text-lg font-semibold"><span aria-hidden="true">🚩</span> صف هشدارهای ناهنجاری معرفی (Referral Flags)</h2>
+          <Button variant="secondary" onClick={handleRunBatch} aria-label="اجرای شبیه‌سازی دسته‌ای آنالیز تقلب">
+            <span aria-hidden="true">🔄</span> اجرای شبیه‌سازی دسته‌ای آنالیز تقلب
           </Button>
         </div>
         <p className="text-sm text-slate-400 mb-4">
@@ -134,7 +134,7 @@ export function ReviewConsoleHome() {
         </p>
         {flags.length === 0 ? (
           <Card className="text-center text-slate-400">
-            <div className="text-2xl mb-2">🛡️</div>
+            <div className="text-2xl mb-2" aria-hidden="true">🛡️</div>
             <h3 className="font-medium text-slate-200 mb-1">هیچ هشدار تقلب فعالی وجود ندارد</h3>
             <p className="text-sm">روی دکمه «اجرای شبیه‌سازی دسته‌ای آنالیز تقلب» کلیک کنید.</p>
           </Card>
@@ -143,7 +143,7 @@ export function ReviewConsoleHome() {
             {flags.map((f) => (
               <Card key={f.id} className="flex flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-medium">👤 {f.referrerName}</span>
+                  <span className="font-medium"><span aria-hidden="true">👤</span> {f.referrerName}</span>
                   <Badge tone={f.status === 'open' ? 'warning' : f.status === 'reviewed' ? 'brand' : 'neutral'}>
                     {f.status === 'open' ? 'در انتظار بررسی' : f.status === 'reviewed' ? 'بررسی شد' : 'رد شده'}
                   </Badge>
@@ -154,7 +154,7 @@ export function ReviewConsoleHome() {
                 <p className="text-sm">{f.description}</p>
                 <p className="text-xs text-slate-500">شناسایی شده در: {f.triggeredAt}</p>
                 {f.notes && (
-                  <div className="text-xs bg-brand-500/10 border border-brand-500/20 rounded-xl2 p-3">📝 {f.notes}</div>
+                  <div className="text-xs bg-brand-500/10 border border-brand-500/20 rounded-xl2 p-3"><span aria-hidden="true">📝</span> {f.notes}</div>
                 )}
                 {f.status === 'open' && (
                   <div className="flex gap-2 mt-1">
