@@ -70,7 +70,7 @@ export function RetroClaimModal({ open, existingClaims, onClose, onClaimed }: Re
         />
         <label className="border-2 border-dashed border-glass-border rounded-xl2 p-5 text-center cursor-pointer hover:bg-white/5 transition-colors">
           <input type="file" className="hidden" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} />
-          <span className="block text-xl mb-1">📷</span>
+          <span className="block text-xl mb-1" aria-hidden="true">📷</span>
           <span className="text-sm text-slate-400">
             {fileName ? `فایل انتخاب شد: ${fileName}` : 'انتخاب فایل رسید'}
           </span>
