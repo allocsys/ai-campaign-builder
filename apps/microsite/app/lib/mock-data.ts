@@ -767,6 +767,130 @@ const MOCK_DB: Record<string, MicrositeData> = {
       },
     ],
   },
+  novin: {
+    microsite: {
+      id: "ms_novin",
+      business_id: "b_novin",
+      website_template_id: "tmpl_sleek_shop",
+      subdomain_slug: "novin",
+      content: {
+        logo_url: null,
+        business_name: "فروشگاه اینترنتی نوین",
+        tagline: "خرید آسان ، ارسال سریع",
+      },
+      featured_campaign_id: null,
+      published: true,
+      addon_status: "active",
+    },
+    template: {
+      id: "tmpl_sleek_shop",
+      name: "فروشگاه اینترنتی (Sleek Shop)",
+      theme_identifier: "sleek_shop",
+    },
+    featuredCampaign: null,
+    modules: [
+      {
+        id: "bmm_novin_hero",
+        business_microsite_id: "ms_novin",
+        website_module_id: "wm_hero",
+        module_key: "hero",
+        enabled: true,
+        display_order: 0,
+        content: {
+          badge_label: "📦 فروشگاه نوین",
+          title: "خرید آسان، ارسال سریع، کیفیت تضمینی",
+          subtitle:
+            "گستره‌ای از لوازم دیجیتال و لوازم جانبی با ارسال سریع در سراسر تهران و ضمانت اصالت کالا.",
+        },
+      },
+      {
+        id: "bmm_novin_about",
+        business_microsite_id: "ms_novin",
+        website_module_id: "wm_about",
+        module_key: "about",
+        enabled: true,
+        display_order: 1,
+        content: {
+          heading: "درباره نوین",
+          description:
+            "فروشگاه اینترنتی نوین با هدف ارائه لوازم دیجیتال اصل با قیمت مناسب و ارسال سریع راه‌اندازی شد. تیم پشتیبانی ما همیشه آماده پاسخگویی به سوالات شماست.",
+        },
+      },
+      {
+        id: "bmm_novin_menu",
+        business_microsite_id: "ms_novin",
+        website_module_id: "wm_product_menu",
+        module_key: "product_menu",
+        enabled: true,
+        display_order: 2,
+        content: {
+          heading: "پرفروش‌ترین‌ها",
+          items: [
+            { name: "هدفون بی‌سیم", price_toman: 1450000 },
+            { name: "ساعت هوشمند", price_toman: 3200000 },
+            { name: "پاوربانک ۲۰۰۰واتی", price_toman: 890000 },
+            { name: "اسپیکر بلوتوث", price_toman: 1250000 },
+          ],
+        },
+      },
+      {
+        id: "bmm_novin_gallery",
+        business_microsite_id: "ms_novin",
+        website_module_id: "wm_gallery",
+        module_key: "gallery",
+        enabled: true,
+        display_order: 3,
+        content: {
+          heading: "محصولات منتخب",
+          images: [
+            { alt: "عکس لوازم جانبی" },
+            { alt: "عکس بسته‌بندی و ارسال" },
+            { alt: "عکس انبار کالا" },
+            { alt: "عکس تیم پشتیبانی" },
+          ],
+        },
+      },
+      {
+        id: "bmm_novin_testimonials",
+        business_microsite_id: "ms_novin",
+        website_module_id: "wm_testimonials",
+        module_key: "testimonials",
+        enabled: true,
+        display_order: 4,
+        content: {
+          heading: "نظرات مشتریان",
+          items: [
+            { quote: "ارسال فوق‌العاده سریع بود و بسته‌بندی دقیقاً مطابق سایت بود.", author: "رضا ح." },
+          ],
+        },
+      },
+      {
+        id: "bmm_novin_contact",
+        business_microsite_id: "ms_novin",
+        website_module_id: "wm_contact",
+        module_key: "contact",
+        enabled: true,
+        display_order: 5,
+        content: {
+          address: "تهران، پونک، خیابان میرداماد، پلاک ۳۷ (انبار و پشتیبانی)",
+          phone: "۰۲۱-۴۴۴۴۴۴۴۴",
+          hours: "پشتیبانی آنلاین: همه‌روزه، ساعت ۹:۰۰ تا ۲۱:۰۰",
+        },
+      },
+      {
+        id: "bmm_novin_booking",
+        business_microsite_id: "ms_novin",
+        website_module_id: "wm_booking_cta",
+        module_key: "booking_cta",
+        enabled: true,
+        display_order: 6,
+        content: {
+          heading: "سوالی درباره خرید دارید؟",
+          button_label: "چت با پشتیبانی",
+        },
+      },
+    ],
+  },
 };
 
 /**
