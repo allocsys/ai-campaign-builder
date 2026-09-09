@@ -77,7 +77,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          BRANCH="lockfile-sync-${{ github.run_number }}"
+          # run_id (not run_number) -- github.run_number collided across runs
+          # in practice (see PR #9's manual recovery on 2026-09-09), while run_id
+          # is guaranteed globally unique.
+          BRANCH="lockfile-sync-${{ github.run_id }}"
           git checkout -b "$BRANCH"
           git add package-lock.json
           git commit -m "chore: sync package-lock.json"
