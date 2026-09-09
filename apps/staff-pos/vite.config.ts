@@ -11,6 +11,11 @@ import path from 'path'
 // caching logic needed at the service-worker level, since the offline queue
 // itself is handled in-app via localStorage (see src/lib/mock-data.ts), not
 // via service-worker background sync, for this stub/pre-backend phase.
+//
+// Step 9 polish (2026-09-09): vendor libs (react/react-dom/react-router-dom/framer-motion)
+// and the shared ui-kit are split into their own chunks, separate from app code — these
+// rarely change between deploys of this app, so browsers can cache them across releases
+// instead of re-downloading them every time app code changes.
 export default defineConfig({
   plugins: [
     react(),
@@ -36,6 +41,17 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          motion: ['framer-motion'],
+          'ui-kit': ['@ai-campaign-builder/ui-kit'],
+        },
+      },
     },
   },
 })
