@@ -36,6 +36,26 @@
   --gallery-tile-text: #8a7562;
 }
 
+/* Dark theme, deliberately different in kind (not just hue) from the two
+   light themes above — a light neon accent on a dark surface, used for
+   high-energy/fitness-category businesses. Note --accent-text is DARK here
+   (not white like the other themes) since --accent-bg is a light neon
+   green in this theme, not a dark shade. */
+[data-theme="energetic_gym"] {
+  --surface: #0f1210;
+  --surface-alt: #171b18;
+  --surface-card: #1c211d;
+  --border: #2a322c;
+  --text: #f4f7f4;
+  --text-muted: #a9b3ac;
+  --text-subtle: #7c877f;
+  --accent-bg: #c8ff4d;
+  --accent-text: #10140f;
+  --accent-hover: #262b24;
+  --gallery-tile: #20251f;
+  --gallery-tile-text: #8b968d;
+}
+
 @layer base {
   html {
     direction: rtl;
