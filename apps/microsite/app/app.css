@@ -56,6 +56,45 @@
   --gallery-tile-text: #8b968d;
 }
 
+/* Light theme, soft blush/mauve palette — elegant, calm spa feel for the
+   beauty/skincare category. Deliberately a different light palette from
+   bold_retail (dusty rose vs terracotta) so the two don't read as the same
+   theme with a different accent swapped in. */
+[data-theme="serene_beauty"] {
+  --surface: #ffffff;
+  --surface-alt: #fdf6f5;
+  --surface-card: #ffffff;
+  --border: #f0dcdb;
+  --text: #2b2320;
+  --text-muted: #7a6a67;
+  --text-subtle: #a08f8b;
+  --accent-bg: #a9717c;
+  --accent-text: #ffffff;
+  --accent-hover: #f6e9ea;
+  --gallery-tile: #f3e3e2;
+  --gallery-tile-text: #a08f8b;
+}
+
+/* Dark theme, upscale/moody palette for the restaurant category —
+   deliberately different in feel from energetic_gym's dark theme: a muted
+   warm gold on near-black/burgundy-brown instead of a bright neon accent,
+   for a fine-dining rather than high-energy mood. --accent-text is dark
+   here too, since --accent-bg (the gold) is mid-light. */
+[data-theme="fine_dining"] {
+  --surface: #14100e;
+  --surface-alt: #1c1613;
+  --surface-card: #211a16;
+  --border: #3a2e27;
+  --text: #f2e9df;
+  --text-muted: #b8a998;
+  --text-subtle: #8f8175;
+  --accent-bg: #b8863b;
+  --accent-text: #14100e;
+  --accent-hover: #2b2119;
+  --gallery-tile: #241c17;
+  --gallery-tile-text: #9c8d7e;
+}
+
 @layer base {
   html {
     direction: rtl;
