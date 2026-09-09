@@ -14,6 +14,10 @@ interface AuthContextValue {
   /** Mocked — no backend yet. Accepts the fixed dev PIN "2468" (device-level, not per-staff). */
   login: (pin: string) => Promise<boolean>
   logout: () => void
+  // === DEV BYPASS START — delete this line + the matching block below (and the button in AuthScreen.tsx) to remove ===
+  /** Skips PIN entry entirely, for quickly viewing mock data. Dev/QA only. */
+  devBypass: () => void
+  // === DEV BYPASS END ===
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -43,8 +47,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false)
   }
 
+  // === DEV BYPASS START — delete this block + the matching interface line above (and the button in AuthScreen.tsx) to remove ===
+  const devBypass = () => {
+    localStorage.setItem(STORAGE_KEY, 'true')
+    setIsAuthenticated(true)
+  }
+  // === DEV BYPASS END ===
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, login, logout, devBypass }}>
       {children}
     </AuthContext.Provider>
   )

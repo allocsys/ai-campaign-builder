@@ -13,7 +13,7 @@ export function AuthScreen() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const { login } = useAuth()
+  const { login, devBypass } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: FormEvent) => {
@@ -55,6 +55,20 @@ export function AuthScreen() {
             ورود
           </Button>
         </form>
+
+        {/* === DEV BYPASS START — delete this block + the devBypass wiring in auth.tsx to remove === */}
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full mt-4 border border-dashed border-amber-500/50 text-amber-500"
+          onClick={() => {
+            devBypass()
+            navigate('/', { replace: true })
+          }}
+        >
+          🔓 ورود آزمایشی (Dev Bypass)
+        </Button>
+        {/* === DEV BYPASS END === */}
       </Card>
     </div>
   )
