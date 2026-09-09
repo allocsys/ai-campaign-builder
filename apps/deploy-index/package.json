@@ -1,0 +1,14 @@
+{
+  "name": "ai-campaign-builder-deploy-index",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "typecheck": "echo \"no typecheck needed (static html)\" && exit 0",
+    "test": "echo \"no tests needed (static html)\" && exit 0",
+    "build": "echo \"no build needed (static html)\" && exit 0",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}

@@ -1,0 +1,10 @@
+# Cloudflare Worker config for the internal "deployment index" page — a
+# single static HTML file linking out to the other 5 persona-app workers.
+# Not part of the product; just a convenience nav page for the team, deployed
+# here instead of GitHub Pages since the repo is private.
+
+name = "ai-campaign-builder-deploy-index"
+compatibility_date = "2026-09-08"
+
+[assets]
+directory = "public"
