@@ -14,3 +14,15 @@
     @apply bg-white font-sans text-stone-900 antialiased;
   }
 }
+
+/* Used by <Reveal> (components/Reveal.tsx). Default state is fully visible
+   with no transition cost — JS only ever adds .reveal-hidden for below-the-
+   fold content at load time, so no-JS/crawler/reduced-motion users never see
+   anything but the plain, always-visible .reveal state. */
+.reveal {
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+.reveal-hidden {
+  opacity: 0;
+  transform: translateY(16px);
+}
