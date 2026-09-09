@@ -61,7 +61,9 @@ jobs:
       - name: Check for lockfile changes
         id: diff
         run: |
-          if git diff --quiet -- package-lock.json; then
+          # git diff alone misses a brand-new (untracked) lockfile -- status
+          # --porcelain catches both "modified" and "never existed before".
+          if [ -z "$(git status --porcelain -- package-lock.json)" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
