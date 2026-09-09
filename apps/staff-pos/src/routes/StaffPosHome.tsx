@@ -183,7 +183,7 @@ export function StaffPosHome() {
       {/* Header */}
       <Card className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xl">🧾</span>
+          <span className="text-xl" aria-hidden="true">🧾</span>
           <strong className="text-sm">صندوق کافه نارون</strong>
         </div>
         <div className="flex items-center gap-2">
@@ -212,8 +212,8 @@ export function StaffPosHome() {
       </Card>
 
       {isOffline && (
-        <Card className="p-3 border-2 border-dashed border-red-500/40 flex items-center justify-between">
-          <span className="text-xs text-red-300">⚠️ اینترنت قطع است — عملیات در صف آفلاین ذخیره خواهند شد</span>
+        <Card className="p-3 border-2 border-dashed border-red-500/40 flex items-center justify-between" role="img" aria-label="هشدار: اینترنت قطع است — عملیات در صف آفلاین ذخیره خواهند شد">
+          <span className="text-xs text-red-300"><span aria-hidden="true">⚠️</span> اینترنت قطع است — عملیات در صف آفلاین ذخیره خواهند شد</span>
           <Badge tone="danger">{offlineQueue.length} در صف</Badge>
         </Card>
       )}
@@ -221,13 +221,13 @@ export function StaffPosHome() {
       {/* Tabs */}
       <div className="flex gap-2">
         <Button variant={tab === 'purchase' ? 'primary' : 'secondary'} onClick={() => setTab('purchase')} className="flex-1">
-          🛒 ثبت فاکتور
+          <span aria-hidden="true">🛒</span> ثبت فاکتور
         </Button>
         <Button variant={tab === 'fulfill' ? 'primary' : 'secondary'} onClick={() => setTab('fulfill')} className="flex-1">
-          🎁 تحویل پاداش
+          <span aria-hidden="true">🎁</span> تحویل پاداش
         </Button>
         <Button variant={tab === 'queue' ? 'primary' : 'secondary'} onClick={() => setTab('queue')} className="flex-1">
-          📥 صف ({offlineQueue.length})
+          <span aria-hidden="true">📥</span> صف ({offlineQueue.length})
         </Button>
       </div>
 
@@ -245,8 +245,8 @@ export function StaffPosHome() {
               }}
               className="flex-1"
             />
-            <Button variant="secondary" className="self-end" onClick={() => handleScanCustomer('48291')}>
-              📷 اسکن
+            <Button variant="secondary" className="self-end" onClick={() => handleScanCustomer('48291')} aria-label="اسکن بارکد مشتری">
+              <span aria-hidden="true">📷</span>
             </Button>
           </div>
           {foundCustomer && (
@@ -262,7 +262,7 @@ export function StaffPosHome() {
             onChange={(e) => setPurchaseAmount(e.target.value)}
           />
           <p className="text-xs text-slate-400">
-            ✨ به ازای این خرید {DEFAULT_PURCHASE_POINTS} امتیاز ثبت می‌شود. (اگر این مشتری با کد معرف ثبت‌نام کرده باشد، پاداش معرفی معرف پس از این اولین خرید آزاد می‌شود.)
+            <span aria-hidden="true">✨</span> به ازای این خرید {DEFAULT_PURCHASE_POINTS} امتیاز ثبت می‌شود. (اگر این مشتری با کد معرف ثبت‌نام کرده باشد، پاداش معرفی معرف پس از این اولین خرید آزاد می‌شود.)
           </p>
           <Button onClick={handleSubmitPurchase} className="w-full">
             ✓ ثبت خرید و اعمال امتیاز
@@ -287,8 +287,8 @@ export function StaffPosHome() {
               }}
               className="flex-1"
             />
-            <Button variant="secondary" className="self-end" onClick={() => handleScanRedemption('RDM-84920')}>
-              📷 اسکن
+            <Button variant="secondary" className="self-end" onClick={() => handleScanRedemption('RDM-84920')} aria-label="اسکن کد یک‌بار مصرف پاداش">
+              <span aria-hidden="true">📷</span>
             </Button>
           </div>
           {foundRedemption && (
@@ -314,7 +314,7 @@ export function StaffPosHome() {
               آیتم‌های زیر در زمان قطع ارتباط در حافظه دستگاه ذخیره شده‌اند. هنگام همگام‌سازی، سرور مرکزی به طور خودکار بررسی‌های تشخیص تکراری (Idempotency) و راستی‌آزمایی اعتبار کد/کمپین را انجام می‌دهد.
             </p>
             <Button variant="secondary" onClick={handleSync} className="w-full">
-              🔄 همگام‌سازی و راستی‌آزمایی سرور
+              <span aria-hidden="true">🔄</span> همگام‌سازی و راستی‌آزمایی سرور
             </Button>
           </Card>
 
