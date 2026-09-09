@@ -37,6 +37,7 @@ export function AutopilotTab() {
         <Badge tone={enabled ? 'success' : 'neutral'}>{enabled ? 'فعال' : 'غیرفعال'}</Badge>
         <Button
           variant={enabled ? 'ghost' : 'primary'}
+          aria-pressed={enabled}
           onClick={() => {
             setEnabled((v) => !v)
             show(!enabled ? 'خودکارسازی فعال شد' : 'خودکارسازی غیرفعال شد', 'info')
