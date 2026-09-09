@@ -1,28 +1,105 @@
+import { lazy, Suspense } from 'react'
 import { Accordion, type AccordionItem } from '@ai-campaign-builder/ui-kit'
-import { OnboardingTab } from './tabs/OnboardingTab'
-import { DashboardTab } from './tabs/DashboardTab'
-import { InsightsTab } from './tabs/InsightsTab'
-import { SuggestionsTab } from './tabs/SuggestionsTab'
-import { AutopilotTab } from './tabs/AutopilotTab'
-import { MicrositeBuilderTab } from './tabs/MicrositeBuilderTab'
-import { SettingsTab } from './tabs/SettingsTab'
-import { SendsLogTab } from './tabs/SendsLogTab'
+
+const OnboardingTab = lazy(() => import('./tabs/OnboardingTab').then((m) => ({ default: m.OnboardingTab })))
+const DashboardTab = lazy(() => import('./tabs/DashboardTab').then((m) => ({ default: m.DashboardTab })))
+const InsightsTab = lazy(() => import('./tabs/InsightsTab').then((m) => ({ default: m.InsightsTab })))
+const SuggestionsTab = lazy(() => import('./tabs/SuggestionsTab').then((m) => ({ default: m.SuggestionsTab })))
+const AutopilotTab = lazy(() => import('./tabs/AutopilotTab').then((m) => ({ default: m.AutopilotTab })))
+const MicrositeBuilderTab = lazy(() =>
+  import('./tabs/MicrositeBuilderTab').then((m) => ({ default: m.MicrositeBuilderTab })),
+)
+const SettingsTab = lazy(() => import('./tabs/SettingsTab').then((m) => ({ default: m.SettingsTab })))
+const SendsLogTab = lazy(() => import('./tabs/SendsLogTab').then((m) => ({ default: m.SendsLogTab })))
+
+/** Lightweight per-panel fallback while a tab chunk loads — mirrors Card's glass surface so it doesn't flash unstyled. */
+function TabFallback() {
+  return <div className="h-24 rounded-xl2 bg-glass-light animate-pulse" aria-hidden="true" />
+}
 
 /**
  * Main authenticated screen — click-to-expand accordion nav, mirrors the mockup's
  * business-owner.html dashboard pattern (see plan.md/session notes: accordion, not
  * horizontal tabs; no auto-advance-to-next-panel — deliberate, per earlier mockup feedback).
  * Each section's content is a Phase-5-Step-4 stub screen backed by mock-data.ts.
+ *
+ * Tabs are React.lazy-loaded (Step 9 bundle-size follow-up): each is its own chunk that
+ * only loads when its accordion panel is first opened, since Accordion only mounts the
+ * currently-open panel's content anyway.
  */
 const items: AccordionItem[] = [
-  { id: 'onboarding', header: 'مراحل شروع', content: <OnboardingTab /> },
-  { id: 'dashboard', header: 'داشبورد', content: <DashboardTab /> },
-  { id: 'insights', header: 'تحلیل‌ها', content: <InsightsTab /> },
-  { id: 'suggestions', header: 'پیشنهادها', content: <SuggestionsTab /> },
-  { id: 'autopilot', header: 'خودکارسازی', content: <AutopilotTab /> },
-  { id: 'microsite', header: 'سازنده وب‌سایت', content: <MicrositeBuilderTab /> },
-  { id: 'settings', header: 'تنظیمات', content: <SettingsTab /> },
-  { id: 'sends-log', header: 'لاگ ارسال‌ها', content: <SendsLogTab /> },
+  {
+    id: 'onboarding',
+    header: 'مراحل شروع',
+    content: (
+      <Suspense fallback={<TabFallback />}>
+        <OnboardingTab />
+      </Suspense>
+    ),
+  },
+  {
+    id: 'dashboard',
+    header: 'داشبورد',
+    content: (
+      <Suspense fallback={<TabFallback />}>
+        <DashboardTab />
+      </Suspense>
+    ),
+  },
+  {
+    id: 'insights',
+    header: 'تحلیل‌ها',
+    content: (
+      <Suspense fallback={<TabFallback />}>
+        <InsightsTab />
+      </Suspense>
+    ),
+  },
+  {
+    id: 'suggestions',
+    header: 'پیشنهادها',
+    content: (
+      <Suspense fallback={<TabFallback />}>
+        <SuggestionsTab />
+      </Suspense>
+    ),
+  },
+  {
+    id: 'autopilot',
+    header: 'خودکارسازی',
+    content: (
+      <Suspense fallback={<TabFallback />}>
+        <AutopilotTab />
+      </Suspense>
+    ),
+  },
+  {
+    id: 'microsite',
+    header: 'سازنده وب‌سایت',
+    content: (
+      <Suspense fallback={<TabFallback />}>
+        <MicrositeBuilderTab />
+      </Suspense>
+    ),
+  },
+  {
+    id: 'settings',
+    header: 'تنظیمات',
+    content: (
+      <Suspense fallback={<TabFallback />}>
+        <SettingsTab />
+      </Suspense>
+    ),
+  },
+  {
+    id: 'sends-log',
+    header: 'لاگ ارسال‌ها',
+    content: (
+      <Suspense fallback={<TabFallback />}>
+        <SendsLogTab />
+      </Suspense>
+    ),
+  },
 ]
 
 export function BusinessOwnerHome() {
