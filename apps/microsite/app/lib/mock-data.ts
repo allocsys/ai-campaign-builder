@@ -111,12 +111,21 @@ export interface BusinessMicrosite {
   addon_status: "active" | "cancelled";
 }
 
+// Distributes BusinessMicrositeModule<K> over every K in WebsiteModuleKey,
+// producing a proper 8-variant discriminated union (module_key: K paired
+// with its matching content: ModuleContentByKey[K]) instead of one type with
+// two independently-typed unions. This is what lets a `switch (mod.module_key)`
+// narrow `mod.content` to the matching content type in each case.
+export type AnyBusinessMicrositeModule = {
+  [K in WebsiteModuleKey]: BusinessMicrositeModule<K>;
+}[WebsiteModuleKey];
+
 export interface MicrositeData {
   microsite: BusinessMicrosite;
   template: WebsiteTemplate;
   // Already filtered to enabled=true and sorted by display_order — a real D1
   // query would apply `WHERE enabled = 1 ORDER BY display_order` directly.
-  modules: BusinessMicrositeModule[];
+  modules: AnyBusinessMicrositeModule[];
   featuredCampaign: FeaturedCampaign | null;
 }
 
