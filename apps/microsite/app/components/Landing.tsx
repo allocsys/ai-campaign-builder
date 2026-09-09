@@ -12,6 +12,7 @@ const DEMO_LINKS = [
   { slug: "titan", label: "باشگاه تایتان", description: "قالب Energetic Gym" },
   { slug: "ava", label: "کلینیک زیبایی آوا", description: "قالب Serene Beauty" },
   { slug: "simorgh", label: "رستوران سیمرغ", description: "قالب Fine Dining" },
+  { slug: "novin", label: "فروشگاه اینترنتی نوین", description: "قالب Sleek Shop" },
 ];
 
 export function Landing() {
