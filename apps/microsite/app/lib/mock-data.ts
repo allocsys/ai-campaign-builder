@@ -519,6 +519,254 @@ const MOCK_DB: Record<string, MicrositeData> = {
       },
     ],
   },
+  ava: {
+    microsite: {
+      id: "ms_ava",
+      business_id: "b_ava",
+      website_template_id: "tmpl_serene_beauty",
+      subdomain_slug: "ava",
+      content: {
+        logo_url: null,
+        business_name: "کلینیک زیبایی آوا",
+        tagline: "پوستی درخشان، اعتمادبه‌نفسی تازه",
+      },
+      featured_campaign_id: null,
+      published: true,
+      addon_status: "active",
+    },
+    template: {
+      id: "tmpl_serene_beauty",
+      name: "کلینیک آرام (Serene Beauty)",
+      theme_identifier: "serene_beauty",
+    },
+    featuredCampaign: null,
+    modules: [
+      {
+        id: "bmm_ava_hero",
+        business_microsite_id: "ms_ava",
+        website_module_id: "wm_hero",
+        module_key: "hero",
+        enabled: true,
+        display_order: 0,
+        content: {
+          badge_label: "✨ کلینیک زیبایی آوا",
+          title: "پوستی درخشان، اعتمادبه‌نفسی تازه",
+          subtitle:
+            "خدمات تخصصی پوست و زیبایی با جدیدترین تجهیزات و متخصصان مجرب، در محیطی آرام و اختصاصی.",
+        },
+      },
+      {
+        id: "bmm_ava_about",
+        business_microsite_id: "ms_ava",
+        website_module_id: "wm_about",
+        module_key: "about",
+        enabled: true,
+        display_order: 1,
+        content: {
+          heading: "درباره کلینیک آوا",
+          description:
+            "کلینیک زیبایی آوا با هدف ارائه خدمات باکیفیت و ایمن پوست و زیبایی تأسیس شد. تیم متخصص ما با بهره‌گیری از دستگاه‌های روز دنیا، بهترین نتیجه را برای شما به ارمغان می‌آورد.",
+        },
+      },
+      {
+        id: "bmm_ava_menu",
+        business_microsite_id: "ms_ava",
+        website_module_id: "wm_product_menu",
+        module_key: "product_menu",
+        enabled: true,
+        display_order: 2,
+        content: {
+          heading: "خدمات محبوب",
+          items: [
+            { name: "لیزر موهای زائد (هر جلسه)", price_toman: 850000 },
+            { name: "میکرونیدلینگ صورت", price_toman: 1450000 },
+            { name: "پاکسازی پوست", price_toman: 650000 },
+            { name: "مزوتراپی مو", price_toman: 1200000 },
+          ],
+        },
+      },
+      {
+        id: "bmm_ava_gallery",
+        business_microsite_id: "ms_ava",
+        website_module_id: "wm_gallery",
+        module_key: "gallery",
+        enabled: true,
+        display_order: 3,
+        content: {
+          heading: "فضای کلینیک",
+          images: [
+            { alt: "عکس اتاق درمان" },
+            { alt: "عکس لابی کلینیک" },
+            { alt: "عکس دستگاه‌های لیزر" },
+            { alt: "عکس فضای استراحت" },
+          ],
+        },
+      },
+      {
+        id: "bmm_ava_testimonials",
+        business_microsite_id: "ms_ava",
+        website_module_id: "wm_testimonials",
+        module_key: "testimonials",
+        enabled: true,
+        display_order: 4,
+        content: {
+          heading: "نظرات مراجعین",
+          items: [
+            { quote: "نتیجه لیزر فوق‌العاده بود و کادر خیلی حرفه‌ای بودن.", author: "مینا ر." },
+          ],
+        },
+      },
+      {
+        id: "bmm_ava_contact",
+        business_microsite_id: "ms_ava",
+        website_module_id: "wm_contact",
+        module_key: "contact",
+        enabled: true,
+        display_order: 5,
+        content: {
+          address: "تهران، الهیه، خیابان فرشته، پلاک ۲۲",
+          phone: "۰۲۱-۲۲۹۹۹۹۹۹",
+          hours: "شنبه تا پنجشنبه، ۱۰:۰۰ تا ۲۰:۰۰",
+        },
+      },
+      {
+        id: "bmm_ava_booking",
+        business_microsite_id: "ms_ava",
+        website_module_id: "wm_booking_cta",
+        module_key: "booking_cta",
+        enabled: true,
+        display_order: 6,
+        content: {
+          heading: "وقت مشاوره رایگان رزرو کنید",
+          button_label: "رزرو وقت مشاوره",
+        },
+      },
+    ],
+  },
+  simorgh: {
+    microsite: {
+      id: "ms_simorgh",
+      business_id: "b_simorgh",
+      website_template_id: "tmpl_fine_dining",
+      subdomain_slug: "simorgh",
+      content: {
+        logo_url: null,
+        business_name: "رستوران سیمرغ",
+        tagline: "طعمی ماندگار از سنت ایرانی",
+      },
+      featured_campaign_id: null,
+      published: true,
+      addon_status: "active",
+    },
+    template: {
+      id: "tmpl_fine_dining",
+      name: "رستوران لوکس (Fine Dining)",
+      theme_identifier: "fine_dining",
+    },
+    featuredCampaign: null,
+    modules: [
+      {
+        id: "bmm_simorgh_hero",
+        business_microsite_id: "ms_simorgh",
+        website_module_id: "wm_hero",
+        module_key: "hero",
+        enabled: true,
+        display_order: 0,
+        content: {
+          badge_label: "🍽️ رستوران سیمرغ",
+          title: "طعمی ماندگار از سنت ایرانی",
+          subtitle:
+            "تجربه‌ای اصیل از غذاهای سنتی ایرانی با بهترین مواد اولیه، در فضایی گرم و خاطره‌انگیز.",
+        },
+      },
+      {
+        id: "bmm_simorgh_about",
+        business_microsite_id: "ms_simorgh",
+        website_module_id: "wm_about",
+        module_key: "about",
+        enabled: true,
+        display_order: 1,
+        content: {
+          heading: "درباره سیمرغ",
+          description:
+            "رستوران سیمرغ بیش از یک دهه است که طعم اصیل غذای ایرانی را با احترام به سنت و کیفیت بی‌نظیر به مهمانان خود ارائه می‌دهد.",
+        },
+      },
+      {
+        id: "bmm_simorgh_menu",
+        business_microsite_id: "ms_simorgh",
+        website_module_id: "wm_product_menu",
+        module_key: "product_menu",
+        enabled: true,
+        display_order: 2,
+        content: {
+          heading: "پیشنهاد سرآشپز",
+          items: [
+            { name: "چلوکباب سلطانی", price_toman: 1850000 },
+            { name: "خورش فسنجان", price_toman: 1250000 },
+            { name: "زرشک‌پلو با مرغ", price_toman: 980000 },
+            { name: "آش رشته", price_toman: 420000 },
+          ],
+        },
+      },
+      {
+        id: "bmm_simorgh_gallery",
+        business_microsite_id: "ms_simorgh",
+        website_module_id: "wm_gallery",
+        module_key: "gallery",
+        enabled: true,
+        display_order: 3,
+        content: {
+          heading: "فضای رستوران",
+          images: [
+            { alt: "عکس سالن اصلی" },
+            { alt: "عکس تراس رستوران" },
+            { alt: "عکس میز چیده‌شده" },
+            { alt: "عکس آشپزخانه باز" },
+          ],
+        },
+      },
+      {
+        id: "bmm_simorgh_testimonials",
+        business_microsite_id: "ms_simorgh",
+        website_module_id: "wm_testimonials",
+        module_key: "testimonials",
+        enabled: true,
+        display_order: 4,
+        content: {
+          heading: "نظرات مهمانان",
+          items: [
+            { quote: "طعم غذاها دقیقاً مثل غذای خونگی بود، عالی!", author: "حسین ت." },
+          ],
+        },
+      },
+      {
+        id: "bmm_simorgh_contact",
+        business_microsite_id: "ms_simorgh",
+        website_module_id: "wm_contact",
+        module_key: "contact",
+        enabled: true,
+        display_order: 5,
+        content: {
+          address: "تهران، ونک، خیابان ملاصدرا، پلاک ۶۳",
+          phone: "۰۲۱-۸۸۷۷۷۷۷۷",
+          hours: "همه‌روزه، ۱۲:۰۰ تا ۲۳:۳۰",
+        },
+      },
+      {
+        id: "bmm_simorgh_booking",
+        business_microsite_id: "ms_simorgh",
+        website_module_id: "wm_booking_cta",
+        module_key: "booking_cta",
+        enabled: true,
+        display_order: 6,
+        content: {
+          heading: "میز خود را رزرو کنید",
+          button_label: "رزرو میز",
+        },
+      },
+    ],
+  },
 };
 
 /**
