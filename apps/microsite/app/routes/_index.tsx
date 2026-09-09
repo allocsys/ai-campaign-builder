@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router";
 
 import { getMicrositeData } from "../lib/mock-data";
 import { Hero } from "../components/Hero";
+import { Landing } from "../components/Landing";
 import { CampaignHighlight } from "../components/CampaignHighlight";
 import { About } from "../components/About";
 import { ProductMenu } from "../components/ProductMenu";
@@ -35,15 +36,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const devSlug = url.searchParams.get("slug");
   const slug = devSlug ?? extractSubdomainSlug(request.headers.get("host"));
 
-  const data = slug ? await getMicrositeData(slug) : null;
+  // No slug at all (bare host — e.g. the platform's own workers.dev root, or
+  // a bare apex domain before any business has claimed a subdomain) is a
+  // different case from "slug given but unknown": there's no specific
+  // business someone was trying to reach, so this isn't a 404 — it's the
+  // platform's own landing page.
+  if (!slug) {
+    return { kind: "landing" as const };
+  }
+
+  const data = await getMicrositeData(slug);
   if (!data) {
     throw new Response("Microsite not found", { status: 404 });
   }
-  return data;
+  return { kind: "microsite" as const, ...data };
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  if (!data) return [{ title: "میکروسایت پیدا نشد" }];
+  if (!data || data.kind === "landing") {
+    return [{ title: "ai-campaign-builder — میکروسایت‌ها" }];
+  }
   return [
     {
       title: `${data.microsite.content.business_name} — ${data.microsite.content.tagline}`,
@@ -58,8 +70,12 @@ export function ErrorBoundary() {
 export default function MicrositeIndex() {
   const data = useLoaderData<typeof loader>();
 
+  if (data.kind === "landing") {
+    return <Landing />;
+  }
+
   return (
-    <main>
+    <main data-theme={data.template.theme_identifier}>
       {data.modules.map((mod) => {
         switch (mod.module_key) {
           case "hero":
@@ -112,7 +128,7 @@ export default function MicrositeIndex() {
             return null;
         }
       })}
-      <footer className="border-t border-stone-200 px-6 py-8 text-center text-sm text-stone-500">
+      <footer className="border-t border-[var(--border)] px-6 py-8 text-center text-sm text-[var(--text-subtle)]">
         © {data.microsite.content.business_name}
       </footer>
     </main>

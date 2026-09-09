@@ -5,7 +5,115 @@
 /* This app's visual identity is intentionally independent from the internal
    dashboard apps' dark/glass theme (packages/ui-kit) — it's a public-facing
    business microsite, not an authenticated persona app. Kept minimal here;
-   per-template visual variation (theme_identifier) is future work. */
+   per-template visual variation (theme_identifier) uses CSS variables configured below. */
+:root {
+  --surface: #ffffff;
+  --surface-alt: #fafaf9;
+  --surface-card: #ffffff;
+  --border: #e7e5e4;
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --text-subtle: #78716c;
+  --accent-bg: #1c1917;
+  --accent-text: #ffffff;
+  --accent-hover: #f5f5f4;
+  --gallery-tile: #e7e5e4;
+  --gallery-tile-text: #78716c;
+}
+
+[data-theme="bold_retail"] {
+  --surface: #ffffff;
+  --surface-alt: #fdf3ea;
+  --surface-card: #ffffff;
+  --border: #ecd9c4;
+  --text: #201510;
+  --text-muted: #6b5847;
+  --text-subtle: #8a7562;
+  --accent-bg: #c1440e;
+  --accent-text: #ffffff;
+  --accent-hover: #f2e2d2;
+  --gallery-tile: #f0ddc9;
+  --gallery-tile-text: #8a7562;
+}
+
+/* Dark theme, deliberately different in kind (not just hue) from the two
+   light themes above — a light neon accent on a dark surface, used for
+   high-energy/fitness-category businesses. Note --accent-text is DARK here
+   (not white like the other themes) since --accent-bg is a light neon
+   green in this theme, not a dark shade. */
+[data-theme="energetic_gym"] {
+  --surface: #0f1210;
+  --surface-alt: #171b18;
+  --surface-card: #1c211d;
+  --border: #2a322c;
+  --text: #f4f7f4;
+  --text-muted: #a9b3ac;
+  --text-subtle: #7c877f;
+  --accent-bg: #c8ff4d;
+  --accent-text: #10140f;
+  --accent-hover: #262b24;
+  --gallery-tile: #20251f;
+  --gallery-tile-text: #8b968d;
+}
+
+/* Light theme, soft blush/mauve palette — elegant, calm spa feel for the
+   beauty/skincare category. Deliberately a different light palette from
+   bold_retail (dusty rose vs terracotta) so the two don't read as the same
+   theme with a different accent swapped in. */
+[data-theme="serene_beauty"] {
+  --surface: #ffffff;
+  --surface-alt: #fdf6f5;
+  --surface-card: #ffffff;
+  --border: #f0dcdb;
+  --text: #2b2320;
+  --text-muted: #7a6a67;
+  --text-subtle: #a08f8b;
+  --accent-bg: #a9717c;
+  --accent-text: #ffffff;
+  --accent-hover: #f6e9ea;
+  --gallery-tile: #f3e3e2;
+  --gallery-tile-text: #a08f8b;
+}
+
+/* Dark theme, upscale/moody palette for the restaurant category —
+   deliberately different in feel from energetic_gym's dark theme: a muted
+   warm gold on near-black/burgundy-brown instead of a bright neon accent,
+   for a fine-dining rather than high-energy mood. --accent-text is dark
+   here too, since --accent-bg (the gold) is mid-light. */
+[data-theme="fine_dining"] {
+  --surface: #14100e;
+  --surface-alt: #1c1613;
+  --surface-card: #211a16;
+  --border: #3a2e27;
+  --text: #f2e9df;
+  --text-muted: #b8a998;
+  --text-subtle: #8f8175;
+  --accent-bg: #b8863b;
+  --accent-text: #14100e;
+  --accent-hover: #2b2119;
+  --gallery-tile: #241c17;
+  --gallery-tile-text: #9c8d7e;
+}
+
+/* Light theme, cool blue/indigo accent on crisp white/gray — clean,
+   tech-forward feel for the online_store category. Deliberately a cooler,
+   less warm palette than bold_retail (terracotta) or serene_beauty
+   (blush) so all three light themes stay visually distinct. */
+[data-theme="sleek_shop"] {
+  --surface: #ffffff;
+  --surface-alt: #f5f7fa;
+  --surface-card: #ffffff;
+  --border: #dde3ea;
+  --text: #171b21;
+  --text-muted: #5b6672;
+  --text-subtle: #8b95a1;
+  --accent-bg: #2f5fff;
+  --accent-text: #ffffff;
+  --accent-hover: #eaf0ff;
+  --gallery-tile: #e7ecf5;
+  --gallery-tile-text: #8b95a1;
+}
+
 @layer base {
   html {
     direction: rtl;

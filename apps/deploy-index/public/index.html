@@ -64,6 +64,33 @@
   .name { font-size: 0.92rem; font-weight: 500; transition: color .12s ease; }
   .url { display: block; font-size: 0.75rem; color: var(--dim); margin-top: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .go { color: var(--dim); font-size: 0.85rem; }
+  .template-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 0.25rem 1rem;
+  }
+  .template-picker label {
+    font-size: 0.75rem;
+    color: var(--dim);
+    white-space: nowrap;
+  }
+  .template-picker select {
+    flex: 1;
+    min-width: 0;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.45rem 0.6rem;
+    font: inherit;
+    font-size: 0.82rem;
+  }
+  .template-picker select:hover,
+  .template-picker select:focus {
+    border-color: var(--accent);
+    outline: none;
+  }
 </style>
 </head>
 <body>
@@ -132,6 +159,18 @@
         </span>
         <span class="go">→</span>
       </a>
+      <div class="template-picker">
+        <label for="microsite-slug">Template</label>
+        <select id="microsite-slug" onchange="if(this.value){window.open('https://ai-campaign-builder-microsite.pachoolai24.workers.dev/?slug=' + this.value, '_blank');this.selectedIndex=0;}">
+          <option value="" selected>Choose a demo business…</option>
+          <option value="narvan">Narvan Café — Minimal Cafe</option>
+          <option value="velora">Velora Boutique — Bold Retail</option>
+          <option value="titan">Titan Gym — Energetic Gym</option>
+          <option value="ava">Ava Beauty Clinic — Serene Beauty</option>
+          <option value="simorgh">Simorgh Restaurant — Fine Dining</option>
+          <option value="novin">Novin Online Store — Sleek Shop</option>
+        </select>
+      </div>
     </li>
   </ul>
 </main>
