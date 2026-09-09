@@ -128,7 +128,7 @@ export default function MicrositeIndex() {
             return null;
         }
       })}
-      <footer className="border-t border-stone-200 px-6 py-8 text-center text-sm text-stone-500">
+      <footer className="border-t border-[var(--border)] px-6 py-8 text-center text-sm text-[var(--text-subtle)]">
         © {data.microsite.content.business_name}
       </footer>
     </main>
