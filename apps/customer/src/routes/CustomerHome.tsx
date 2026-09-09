@@ -37,7 +37,7 @@ export function CustomerHome() {
   const { show } = useToast()
 
   const [pointsBalance, setPointsBalance] = useState(initialProfile.pointsBalance)
-  const [referralCount, setReferralCount] = useState(initialProfile.referralCount)
+  const [referralCount] = useState(initialProfile.referralCount)
   const [telegramOptedIn, setTelegramOptedIn] = useState(initialProfile.telegramOptedIn)
   const [notifications, setNotifications] = useState<NotificationEntry[]>(initialNotifications)
   const [submissions, setSubmissions] = useState<Record<string, SubmissionStatus>>({})
