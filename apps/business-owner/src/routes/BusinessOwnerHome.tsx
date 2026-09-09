@@ -27,7 +27,7 @@ const items: AccordionItem[] = [
 
 export function BusinessOwnerHome() {
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto" role="region" aria-label="پنل مدیریت کسب‌وکار">
       <Accordion items={items} defaultOpenId="dashboard" />
     </div>
   )
