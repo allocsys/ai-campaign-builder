@@ -395,6 +395,130 @@ const MOCK_DB: Record<string, MicrositeData> = {
       },
     ],
   },
+  titan: {
+    microsite: {
+      id: "ms_titan",
+      business_id: "b_titan",
+      website_template_id: "tmpl_energetic_gym",
+      subdomain_slug: "titan",
+      content: {
+        logo_url: null,
+        business_name: "باشگاه تایتان",
+        tagline: "قدرت واقعی از اینجا شروع می‌شود",
+      },
+      featured_campaign_id: null,
+      published: true,
+      addon_status: "active",
+    },
+    template: {
+      id: "tmpl_energetic_gym",
+      name: "باشگاه پرانرژی (Energetic Gym)",
+      theme_identifier: "energetic_gym",
+    },
+    featuredCampaign: null,
+    modules: [
+      {
+        id: "bmm_titan_hero",
+        business_microsite_id: "ms_titan",
+        website_module_id: "wm_hero",
+        module_key: "hero",
+        enabled: true,
+        display_order: 0,
+        content: {
+          badge_label: "🏋️ باشگاه تایتان",
+          title: "بدنی قوی‌تر، ذهنی متمرکزتر",
+          subtitle:
+            "برنامه‌های تمرینی اختصاصی، مربیان حرفه‌ای و فضایی مجهز برای رسیدن به بهترین نسخه خودتان.",
+        },
+      },
+      {
+        id: "bmm_titan_about",
+        business_microsite_id: "ms_titan",
+        website_module_id: "wm_about",
+        module_key: "about",
+        enabled: true,
+        display_order: 1,
+        content: {
+          heading: "درباره باشگاه تایتان",
+          description:
+            "باشگاه تایتان با تجهیزات مدرن و مربیان مجرب، مسیر رسیدن به اهداف تناسب اندام شما را کوتاه‌تر می‌کند. چه مبتدی باشید چه حرفه‌ای، برنامه‌ای متناسب شما داریم.",
+        },
+      },
+      {
+        id: "bmm_titan_menu",
+        business_microsite_id: "ms_titan",
+        website_module_id: "wm_product_menu",
+        module_key: "product_menu",
+        enabled: true,
+        display_order: 2,
+        content: {
+          heading: "بسته‌های عضویت",
+          items: [
+            { name: "عضویت ماهانه", price_toman: 1200000 },
+            { name: "عضویت سه‌ماهه", price_toman: 3200000 },
+            { name: "جلسه خصوصی با مربی", price_toman: 450000 },
+            { name: "کلاس گروهی (هر جلسه)", price_toman: 180000 },
+          ],
+        },
+      },
+      {
+        id: "bmm_titan_gallery",
+        business_microsite_id: "ms_titan",
+        website_module_id: "wm_gallery",
+        module_key: "gallery",
+        enabled: true,
+        display_order: 3,
+        content: {
+          heading: "فضای باشگاه",
+          images: [
+            { alt: "عکس سالن بدنسازی" },
+            { alt: "عکس سالن کلاس‌های گروهی" },
+            { alt: "عکس منطقه کاردیو" },
+            { alt: "عکس اتاق ریکاوری" },
+          ],
+        },
+      },
+      {
+        id: "bmm_titan_testimonials",
+        business_microsite_id: "ms_titan",
+        website_module_id: "wm_testimonials",
+        module_key: "testimonials",
+        enabled: true,
+        display_order: 4,
+        content: {
+          heading: "نظرات ورزشکاران",
+          items: [
+            { quote: "بعد از سه ماه تمرین اینجا واقعاً نتیجه رو دیدم.", author: "آرمان ک." },
+          ],
+        },
+      },
+      {
+        id: "bmm_titan_contact",
+        business_microsite_id: "ms_titan",
+        website_module_id: "wm_contact",
+        module_key: "contact",
+        enabled: true,
+        display_order: 5,
+        content: {
+          address: "تهران، سعادت‌آباد، بلوار دریا، پلاک ۸",
+          phone: "۰۲۱-۲۶۶۶۶۶۶۶",
+          hours: "همه‌روزه، ۶:۰۰ تا ۲۳:۰۰",
+        },
+      },
+      {
+        id: "bmm_titan_booking",
+        business_microsite_id: "ms_titan",
+        website_module_id: "wm_booking_cta",
+        module_key: "booking_cta",
+        enabled: true,
+        display_order: 6,
+        content: {
+          heading: "یک جلسه رایگان رزرو کنید",
+          button_label: "رزرو جلسه رایگان",
+        },
+      },
+    ],
+  },
 };
 
 /**
