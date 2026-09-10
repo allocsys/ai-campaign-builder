@@ -15,11 +15,13 @@ No separate MVP — going straight to the full/main version.
 | Persona | Backend routes | Frontend wired | Auth | Live-verified |
 |---|---|---|---|---|
 | Business Owner | `apps/backend/src/routes/business.ts` (PR #27) | PR #28 | phone+OTP | ✅ per user |
-| Customer | `routes/customer.ts` (PR #29) | PR #29 | phone+OTP (+referral code, not yet consumed server-side) | ✅ per user |
+| Customer | `routes/customer.ts` (PR #29) | PR #29, PR #35 | phone+OTP (+referral code, consumed server-side at signup since PR #35) | ✅ per user |
 | Staff POS | `routes/staff-pos.ts` (PR #30) | PR #30 | phone+OTP, `role: 'staff'` — **supersedes** the earlier shared-device-PIN decision (see Phase 0.5) | ✅ per user |
 | Review Console | `routes/review.ts` (PR #32) | PR #32 | phone+OTP per team member | ✅ confirmed 2026-09-11 (browser screenshot: login, empty review queue, referral-detection batch run) |
 
 Business Owner also gained a **Staff management tab** (PR #31) to register/toggle staff phone numbers against the staff-pos auth backend, and an **editable profile form** (PR #33 — name + SMS wallet monthly cap) replacing the old read-only Settings view.
+
+Referral code at signup (PR #35) is now fully wired end-to-end: the customer app's `verifyOtp` sends the entered referral code to the backend, which links `customer_campaign_codes.referred_by_code_id` via the existing `ensureCustomerCampaignCode` helper — closing the gap flagged in PR #29.
 
 Microsite (`apps/microsite`) is a separate SSR app, still mock-data-backed (not wired to `apps/backend` — no owner/customer auth applies to it). All 6 v1 business-category templates + platform landing page are live. `/join/:slug` is now a real route (PR #23) handing off to the customer app.
 
@@ -256,11 +258,10 @@ packages/
 1. **`ai_confidence_score`** on `task_submissions` is read by Review Console but nothing populates it — no real AI scoring/vision-review pipeline exists yet. Everything currently routes to the manual-hold queue.
 2. **Per-reviewer/resolver identity** not persisted in the audit trail — `task_submissions.reviewed_by` and `referral_flags.resolved_by` are fixed strings (`'central_team'`/`'business_owner'`/`'staff'` conventions), not tied to the authenticated individual, despite OTP login now giving each person a real identity. Needs a schema change or separate audit-log table.
 3. **`campaigns.goal`** isn't wired into the microsite's CTA copy yet (flagged in PR #23) — needs the campaign backend relationship the microsite doesn't have (microsite is still mock-data-backed).
-4. **Referral code at signup** — `verifyOtp` accepts and stores a `referralCode` client-side (customer app) but the backend `verify-otp` endpoint doesn't consume it yet (flagged in PR #29). `customer_campaign_codes.referred_by_code_id` linking is not yet wired end-to-end.
-5. **Business domain name** still undecided — `workers.dev` interim naming works fine, not blocking.
-6. **`CampaignReward` pattern-field gap** (flagged in PR #27) — still not blocking.
-7. Stale branch `step9-bundle-optimization` (superseded by PR #18) was never deleted — no branch-delete tool available in-session; flagged for manual cleanup.
-8. Auto-approve/auto-reject tiers of the 3-tier AI review system (Phase 0.5) aren't implemented — only manual-hold (Review Console) is live, since there's no real AI scoring pipeline (see item 1).
+4. **Business domain name** still undecided — `workers.dev` interim naming works fine, not blocking.
+5. **`CampaignReward` pattern-field gap** (flagged in PR #27) — still not blocking.
+6. Stale branch `step9-bundle-optimization` (superseded by PR #18) was never deleted — no branch-delete tool available in-session; flagged for manual cleanup.
+7. Auto-approve/auto-reject tiers of the 3-tier AI review system (Phase 0.5) aren't implemented — only manual-hold (Review Console) is live, since there's no real AI scoring pipeline (see item 1).
 
 ---
 
