@@ -6,7 +6,7 @@ import {
   fulfillRedemption as _fulfillRedemption,
   syncOfflineQueue as _syncOfflineQueue,
   getActivity as _getActivity,
-} from '@ai-campaign-builder/api-client/staff-pos'
+} from '@ai-campaign-builder/api-client'
 
 export const apiClient = new ApiClient({
   baseUrl: import.meta.env.VITE_API_BASE_URL || '',
