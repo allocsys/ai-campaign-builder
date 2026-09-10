@@ -113,6 +113,13 @@ jobs:
               - 'apps/deploy-index/**'
               - 'package.json'
               - '.github/workflows/deploy.yml'
+            backend:
+              - 'apps/backend/**'
+              - 'package.json'
+              - '.github/workflows/deploy.yml'
+            backend_migrations:
+              - 'apps/backend/migrations/**'
+              - '.github/workflows/deploy.yml'
 
   business-owner:
     needs: changes
