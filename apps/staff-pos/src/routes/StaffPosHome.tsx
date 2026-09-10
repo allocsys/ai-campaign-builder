@@ -316,12 +316,15 @@ export function StaffPosHome() {
     show(`در حال همگام‌سازی و راستی‌آزمایی ${offlineQueue.length} آیتم صف آفلاین با سرور مرکزی...`, 'info')
 
     try {
-      const res = await syncOfflineQueue({
-        items: offlineQueue,
-        syncedKeys: Array.from(syncedKeys),
-      })
+      const res = await syncOfflineQueue({ items: offlineQueue })
       const results: SyncResultData[] = res.results || []
-      const newlySynced: string[] = res.newlySyncedKeys || []
+      // The real backend dedups via the idempotency_key DB index and doesn't
+      // echo back a separate "newly synced" list -- derive it from results
+      // instead (both 'synced' and 'duplicate_skipped' mean the server
+      // already has this key recorded, so it's safe to stop tracking locally).
+      const newlySynced: string[] = results
+        .filter((r) => r.status === 'synced' || r.status === 'duplicate_skipped')
+        .map((r) => r.idempotencyKey)
 
       setSyncedKeys((prev) => {
         const next = new Set(prev)
