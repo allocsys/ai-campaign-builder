@@ -21,6 +21,7 @@ export interface CampaignTask {
 
 export interface CampaignReward {
   name: string;
+  pattern: string;
   threshold: number;
 }
 

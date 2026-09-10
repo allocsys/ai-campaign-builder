@@ -169,9 +169,11 @@ async function serializeCampaign(db: D1Database, campaignId: string) {
     [campaignId]
   );
 
-  const rewards = await queryAll<{ name: string; threshold_points: number }>(
+  const rewards = await queryAll<{ name: string; pattern_name: string; threshold_points: number }>(
     db,
-    "SELECT name, threshold_points FROM campaign_rewards WHERE campaign_id = ? ORDER BY threshold_points ASC",
+    `SELECT cr.name, rp.name AS pattern_name, cr.threshold_points
+     FROM campaign_rewards cr JOIN reward_patterns rp ON rp.id = cr.reward_pattern_id
+     WHERE cr.campaign_id = ? ORDER BY cr.threshold_points ASC`,
     [campaignId]
   );
 
@@ -182,7 +184,7 @@ async function serializeCampaign(db: D1Database, campaignId: string) {
     startDate: campaign.start_date ?? "",
     endDate: campaign.end_date ?? "",
     tasks: tasks.map((t) => ({ name: t.name, pattern: t.pattern_name, points: t.points_value })),
-    rewards: rewards.map((r) => ({ name: r.name, threshold: r.threshold_points })),
+    rewards: rewards.map((r) => ({ name: r.name, pattern: r.pattern_name, threshold: r.threshold_points })),
   };
 }
 
@@ -204,7 +206,7 @@ businessRouter.put("/campaign", async (c) => {
       startDate: string;
       endDate: string;
       tasks: { name: string; pattern: string; points: number }[];
-      rewards: { name: string; threshold: number }[];
+      rewards: { name: string; pattern: string; threshold: number }[];
     }>
   >();
 
@@ -248,26 +250,23 @@ businessRouter.put("/campaign", async (c) => {
   }
 
   if (body.rewards !== undefined) {
-    // NOTE (flagging, not blocking): CampaignReward on the frontend has no
-    // `pattern` field the way CampaignTask does, so there's no signal here
-    // for which reward_pattern_id a given reward should link to.
-    // Defaulting to the first seeded reward pattern (percentage_discount)
-    // until product defines a `pattern` field for rewards too, or a
-    // different resolution rule -- worth a decision like the task/reward
-    // `name` one, same shape as gap #1.
-    const defaultPattern = await queryFirst<{ id: string }>(
-      db,
-      "SELECT id FROM reward_patterns ORDER BY id ASC LIMIT 1"
-    );
-    if (!defaultPattern) return c.json({ error: "No reward_patterns seeded" }, 500);
-
+    // Resolves reward_pattern_id from the client-supplied `pattern` name,
+    // same as campaign_tasks does for task_pattern_id above. Previously this
+    // field didn't exist on the frontend shape and every reward was silently
+    // linked to the first seeded reward pattern regardless of what the
+    // owner actually picked -- see plan.md Open Items (CampaignReward
+    // pattern-field gap, flagged in PR #27).
+    const patternRows = await queryAll<{ id: string; name: string }>(db, "SELECT id, name FROM reward_patterns");
+    const patternIdByName = new Map(patternRows.map((p) => [p.name, p.id]));
     await execute(db, "DELETE FROM campaign_rewards WHERE campaign_id = ?", [campaignId]);
     for (const r of body.rewards) {
+      const patternId = patternIdByName.get(r.pattern);
+      if (!patternId) return c.json({ error: `Unknown reward pattern: ${r.pattern}` }, 400);
       await execute(
         db,
         `INSERT INTO campaign_rewards (id, campaign_id, reward_pattern_id, threshold_points, name)
          VALUES (?, ?, ?, ?, ?)`,
-        [generateId(), campaignId, defaultPattern.id, r.threshold, r.name]
+        [generateId(), campaignId, patternId, r.threshold, r.name]
       );
     }
   }
