@@ -1,18 +1,49 @@
+import { useEffect, useState } from 'react'
 import { Badge } from '@ai-campaign-builder/ui-kit'
-import { sendsLog } from '../../lib/mock-data'
+import { getSendsLog } from '@ai-campaign-builder/api-client'
+import type { SendLogEntry } from '@ai-campaign-builder/api-client'
+import apiClient from '../../lib/api-client'
 
 const statusTone = { sent: 'success', failed: 'danger', skipped: 'neutral' } as const
 const statusLabel = { sent: 'ارسال شد', failed: 'ناموفق', skipped: 'رد شد' } as const
 const channelLabel = { sms: 'پیامک', telegram: 'تلگرام' } as const
 
 /**
- * "لاگ ارسال‌ها" (Sends Log) — confirmation/audit view for notifications_log (plan.md
- * "Campaign invite dedup & confirmation", decided 2026-09-08). table-layout:fixed + explicit
- * column widths carried forward from the mobile-rendering bug fixed in the mockup (see
- * session history) — a plain table here would hit the same collapsing-column issue on mobile.
- * TODO: replace sendsLog with GET /notifications_log?business_id=.
+ * "لاگ ارسال‌ها" (Sends Log) — confirmation/audit view for notifications_log.
  */
 export function SendsLogTab() {
+  const [sendsLog, setSendsLog] = useState<SendLogEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    getSendsLog(apiClient)
+      .then((data) => {
+        if (mounted) {
+          setSendsLog(data)
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : String(err))
+          setLoading(false)
+        }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  if (loading) {
+    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-400">{error}</div>
+  }
+
   if (sendsLog.length === 0) {
     return <p className="text-sm text-slate-400">هنوز پیامی ارسال نشده است.</p>
   }

@@ -36,6 +36,8 @@ export function AuthScreen() {
     try {
       await requestOtp(phone)
       setStep('otp')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ارسال کد با خطا مواجه شد، دوباره تلاش کنید')
     } finally {
       setLoading(false)
     }

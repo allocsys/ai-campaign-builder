@@ -21,7 +21,7 @@ function TabFallback() {
  * Main authenticated screen — click-to-expand accordion nav, mirrors the mockup's
  * business-owner.html dashboard pattern (see plan.md/session notes: accordion, not
  * horizontal tabs; no auto-advance-to-next-panel — deliberate, per earlier mockup feedback).
- * Each section's content is a Phase-5-Step-4 stub screen backed by mock-data.ts.
+ * Each section's content is now wired to the real backend via packages/api-client (see lib/api-client.ts).
  *
  * Tabs are React.lazy-loaded (Step 9 bundle-size follow-up): each is its own chunk that
  * only loads when its accordion panel is first opened, since Accordion only mounts the

@@ -1,22 +1,62 @@
+import { useEffect, useState } from 'react'
 import { Badge, Card } from '@ai-campaign-builder/ui-kit'
-import { businessProfile, subscription } from '../../lib/mock-data'
+import { getBusinessProfile, getSubscription } from '@ai-campaign-builder/api-client'
+import type { BusinessProfile, Subscription } from '@ai-campaign-builder/api-client'
+import apiClient from '../../lib/api-client'
 
 /**
- * Business profile + SMS wallet + subscription/billing summary. Read-only display for now.
- * TODO: wire to GET/PATCH /businesses/:id, /business_ai_constraints, /business_subscriptions.
+ * Business profile + SMS wallet + subscription/billing summary.
  */
 export function SettingsTab() {
+  const [profile, setProfile] = useState<BusinessProfile | null>(null)
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    Promise.all([getBusinessProfile(apiClient), getSubscription(apiClient)])
+      .then(([profileData, subscriptionData]) => {
+        if (mounted) {
+          setProfile(profileData)
+          setSubscription(subscriptionData)
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : String(err))
+          setLoading(false)
+        }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  if (loading) {
+    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-400">{error}</div>
+  }
+
+  if (!profile || !subscription) {
+    return null
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-5">
         <h3 className="text-sm font-semibold mb-3 text-slate-300">اطلاعات کسب‌وکار</h3>
         <dl className="grid grid-cols-2 gap-y-2 text-sm">
           <dt className="text-slate-400">نام</dt>
-          <dd>{businessProfile.name}</dd>
+          <dd>{profile.name}</dd>
           <dt className="text-slate-400">دسته‌بندی</dt>
-          <dd>{businessProfile.categoryLabel}</dd>
+          <dd>{profile.categoryLabel}</dd>
           <dt className="text-slate-400">شماره موبایل</dt>
-          <dd dir="ltr" className="text-left">{businessProfile.phone}</dd>
+          <dd dir="ltr" className="text-left">{profile.phone}</dd>
         </dl>
       </Card>
 
@@ -24,11 +64,11 @@ export function SettingsTab() {
         <div>
           <p className="text-sm font-medium">کیف پول پیامک</p>
           <p className="text-xs text-slate-500 mt-0.5">
-            سقف ماهانه: {businessProfile.smsMonthlyCapToman ? `${businessProfile.smsMonthlyCapToman.toLocaleString('fa-IR')} تومان` : 'بدون سقف'}
+            سقف ماهانه: {profile.smsMonthlyCapToman ? `${profile.smsMonthlyCapToman.toLocaleString('fa-IR')} تومان` : 'بدون سقف'}
           </p>
         </div>
-        <span className="text-sm font-semibold" role="img" aria-label={`موجودی کیف پول: ${businessProfile.smsWalletBalanceToman.toLocaleString('fa-IR')} تومان`}>
-          {businessProfile.smsWalletBalanceToman.toLocaleString('fa-IR')} تومان
+        <span className="text-sm font-semibold" role="img" aria-label={`موجودی کیف پول: ${profile.smsWalletBalanceToman.toLocaleString('fa-IR')} تومان`}>
+          {profile.smsWalletBalanceToman.toLocaleString('fa-IR')} تومان
         </span>
       </Card>
 

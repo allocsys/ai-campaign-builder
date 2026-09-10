@@ -1,13 +1,46 @@
+import { useEffect, useState } from 'react'
 import { Badge, Card } from '@ai-campaign-builder/ui-kit'
-import { checklistItems } from '../../lib/mock-data'
+import { getChecklist } from '@ai-campaign-builder/api-client'
+import type { ChecklistItem } from '@ai-campaign-builder/api-client'
+import apiClient from '../../lib/api-client'
 
 /**
  * "Next Steps" checklist (plan.md "Post-launch guidance", decided 2026-09-08) — auto-hides
- * once every item is complete. TODO: replace checklistItems with a fetch against
- * business_checklist_progress once that endpoint exists; completion here is stubbed, not
- * auto-detected.
+ * once every item is complete.
  */
 export function OnboardingTab() {
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    getChecklist(apiClient)
+      .then((data) => {
+        if (mounted) {
+          setChecklistItems(data)
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : String(err))
+          setLoading(false)
+        }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  if (loading) {
+    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-400">{error}</div>
+  }
+
   const allDone = checklistItems.every((i) => i.completed)
   if (allDone) {
     return <p className="text-sm text-slate-400">همه مراحل تکمیل شده‌اند <span aria-hidden="true">✅</span></p>
