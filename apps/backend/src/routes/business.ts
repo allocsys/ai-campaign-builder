@@ -467,6 +467,45 @@ businessRouter.put("/autopilot", async (c) => {
 // Microsite
 // ============================================================================
 
+// Default per-module content, written the first time a business_microsite_modules
+// row is created (see loop below). Was previously left NULL entirely -- see
+// plan.md Phase 0.75 "Backend-wiring scope decision" (2026-09-11): the public
+// microsite endpoint (routes/public-microsite.ts) reads this column directly,
+// so a brand-new business with no owner-authored content yet would otherwise
+// render with holes. Businesses seeded with real content (migration 0008)
+// already have non-null rows and are unaffected by this function (it only
+// INSERTs on first-ever creation of a microsite for a given business).
+// Keyed by website_modules.key -- matches WebsiteModuleKey in
+// apps/microsite/app/lib/mock-data.ts.
+function defaultModuleContent(moduleKey: string, businessName: string): Record<string, unknown> | null {
+  switch (moduleKey) {
+    case "hero":
+      return { badge_label: businessName, title: businessName, subtitle: "" };
+    case "about":
+      return { heading: `درباره ${businessName}`, description: "" };
+    case "gallery":
+      return { heading: "گالری تصاویر", images: [] };
+    case "product_menu":
+      return { heading: "منو / محصولات", items: [] };
+    case "testimonials":
+      return { heading: "نظرات مشتریان", items: [] };
+    case "booking_cta":
+      return { heading: "رزرو / تماس", button_label: "تماس بگیرید" };
+    case "contact":
+      return { address: "", phone: "", hours: "" };
+    case "campaign_highlight":
+      return {
+        title: "",
+        description: "",
+        cta_label: "",
+        no_campaign_title: "کمپین بعدی به‌زودی می‌آید",
+        no_campaign_description: "در حال حاضر کمپین فعالی نداریم.",
+      };
+    default:
+      return null;
+  }
+}
+
 async function ensureMicrosite(db: D1Database, businessId: string): Promise<string> {
   const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM business_microsites WHERE business_id = ?", [
     businessId,
@@ -476,26 +515,29 @@ async function ensureMicrosite(db: D1Database, businessId: string): Promise<stri
   const template = await queryFirst<{ id: string }>(db, "SELECT id FROM website_templates LIMIT 1");
   if (!template) throw new Error("No website_templates seeded -- run migration 0005");
 
+  const biz = await queryFirst<{ name: string }>(db, "SELECT name FROM businesses WHERE id = ?", [businessId]);
+  const businessName = biz?.name ?? "";
+
   const id = generateId();
   const slug = `biz-${businessId.slice(0, 8)}`;
   await execute(
     db,
-    `INSERT INTO business_microsites (id, business_id, website_template_id, subdomain_slug, published, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 0, ?, ?)`,
-    [id, businessId, template.id, slug, nowIso(), nowIso()]
+    `INSERT INTO business_microsites (id, business_id, website_template_id, subdomain_slug, content, published, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+    [id, businessId, template.id, slug, JSON.stringify({ logo_url: null, business_name: businessName, tagline: "" }), nowIso(), nowIso()]
   );
 
   // category_module_defaults is deliberately unseeded (see 0002's header
   // comment), so there's no per-category default to read yet -- every
   // module starts enabled and the owner toggles off what they don't want.
-  const modules = await queryAll<{ id: string }>(db, "SELECT id FROM website_modules");
+  const modules = await queryAll<{ id: string; key: string }>(db, "SELECT id, key FROM website_modules");
   let order = 0;
   for (const m of modules) {
     await execute(
       db,
-      `INSERT INTO business_microsite_modules (id, business_microsite_id, website_module_id, enabled, display_order)
-       VALUES (?, ?, ?, 1, ?)`,
-      [generateId(), id, m.id, order++]
+      `INSERT INTO business_microsite_modules (id, business_microsite_id, website_module_id, enabled, display_order, content)
+       VALUES (?, ?, ?, 1, ?, ?)`,
+      [generateId(), id, m.id, order++, JSON.stringify(defaultModuleContent(m.key, businessName))]
     );
   }
   return id;
