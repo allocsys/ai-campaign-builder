@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Badge, Card } from '@ai-campaign-builder/ui-kit'
-import { getBusinessProfile, getSubscription, updateBusinessProfile } from '@ai-campaign-builder/api-client'
+import { getBusinessProfile, getSubscription } from '@ai-campaign-builder/api-client'
 import type { BusinessProfile, Subscription } from '@ai-campaign-builder/api-client'
 import apiClient from '../../lib/api-client'
 
