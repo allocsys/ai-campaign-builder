@@ -31,5 +31,5 @@ npm run typecheck
 
 ## Infrastructure & Secrets Note
 
-- **Database ID:** The `database_id` in `wrangler.json` / configuration is set to a placeholder (`REPLACE_WITH_REAL_D1_DATABASE_ID`) pending real D1 database provisioning on Cloudflare.
+- **Database ID:** The `database_id` in `wrangler.toml` is set to a placeholder (`REPLACE_WITH_REAL_D1_DATABASE_ID`) pending real D1 database provisioning on Cloudflare.
 - **Secrets:** Sensitive environment variables such as `JWT_SECRET` and SMS/OTP provider credentials are not committed to source control and must be provisioned via `wrangler secret put` prior to production deployment.
