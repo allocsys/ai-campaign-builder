@@ -38,6 +38,22 @@
 #     NOTE: BACKEND_JWT_SECRET is a new repo secret this job depends on — not
 #     yet added to this repo's Actions secrets as of this commit.
 #
+# STATUS (2026-09-10, later same day): the D1 database itself is now
+# auto-provisioned rather than requiring a one-time manual
+# `wrangler d1 create` before first deploy. Both `backend-migrate` and
+# `backend` now run the `./.github/actions/ensure-d1-database` composite
+# action (right after their secret-presence check, before touching D1):
+# it looks the database up by name via `wrangler d1 list` and only creates
+# it if that lookup finds nothing — the guard against recreating it on every
+# redeploy — then patches THAT JOB'S OWN local checkout of
+# apps/backend/wrangler.toml with the real id. This patch is never committed
+# back to the repo: apps/backend/wrangler.toml's committed database_id stays
+# a placeholder forever, and every job run resolves the real id fresh via
+# the same idempotent lookup. See the action's own file for the full
+# rationale and a note on its defensive --json parsing (untested against a
+# real Cloudflare account as of this commit — verify the parsing holds on
+# the first actual run and adjust if wrangler's JSON shape differs).
+#
 # Per-app path filtering: each job only runs (typecheck + test + deploy) if
 # its own apps/<name>/** folder changed, OR packages/**  changed (shared code
 # affects every app that depends on it), or this workflow file itself changed.
