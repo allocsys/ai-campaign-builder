@@ -7,10 +7,10 @@ const STORAGE_KEY = 'aicb_customer_auth'
 interface StoredAuth {
   phone: string
   token: string
-  /** Referral code entered at signup, if any — captured client-side only. The
-   * backend's verify-otp does not currently accept/consume a referral code, so
-   * this is not sent to the API; it's kept here for potential future use and to
-   * preserve the existing AuthScreen.tsx signature. See plan.md Phase 0.5. */
+  /** Referral code entered at signup, if any. Sent to the backend verify-otp
+   * endpoint, which consumes it server-side (customer_campaign_codes.referred_by_code_id)
+   * the first time this customer's campaign code is created; kept here too for
+   * local display purposes. */
   referralCodeUsed?: string
 }
 
@@ -20,9 +20,9 @@ interface AuthContextValue {
   referralCodeUsed: string | null
   /** Requests an OTP code from the backend. */
   requestOtp: (phone: string) => Promise<void>
-  /** Verifies the OTP code with the backend. referralCode is accepted for
-   * interface compatibility but is NOT sent to the backend (see StoredAuth
-   * comment above) -- it's stored locally only. */
+  /** Verifies the OTP code with the backend, passing referralCode through so
+   * the backend can link it server-side at signup time (see StoredAuth comment
+   * above). */
   verifyOtp: (phone: string, code: string, referralCode?: string) => Promise<boolean>
   logout: () => void
 }
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyOtp = async (phone: string, code: string, referralCode?: string) => {
     // Verify OTP via backend API
     try {
-      const res = await apiVerifyOtp(client, phone, 'customer', code)
+      const res = await apiVerifyOtp(client, phone, 'customer', code, referralCode?.trim() || undefined)
       if (res.ok && res.token) {
         const next: StoredAuth = {
           phone,
