@@ -87,6 +87,8 @@ export interface AuthUserProfile {
   id: string;
   phone: string;
   role: string;
+  /** Present on staff-role verify-otp responses; scopes the staff member to a business. */
+  businessId?: string;
 }
 
 // ============================================================================
