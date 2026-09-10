@@ -109,7 +109,7 @@ export function StaffPosHome() {
 
     // Initial customer lookup for default code '48291'
     getCustomerByCode('48291')
-      .then((cust) => {
+      .then((cust: CustomerLookupData) => {
         if (cust) setFoundCustomer(cust)
       })
       .catch(() => {
