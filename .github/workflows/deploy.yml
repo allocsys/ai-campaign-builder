@@ -63,6 +63,42 @@
 # On pull_request: typecheck + test only, as a CI gate — no deploy.
 # On push to main: typecheck + test, then deploy — only for apps whose files
 # (or a shared package they depend on) were touched by that push.
+#
+# STATUS (2026-09-10): the separate sync-lockfile.yml workflow has been
+# folded into this file as the `sync-lockfile` job below, which now runs
+# FIRST on every trigger, before `changes` or anything else. Rationale for
+# folding it in rather than keeping it standalone: it needs to gate the same
+# `changes`/build/deploy pipeline rather than run as a fully independent
+# workflow.
+#
+# Trigger shape already gives us what we want with no changes needed there:
+# `push` is scoped to `branches: [main]` only, so a plain push to a feature
+# branch never runs this workflow at all (no wasted lockfile-check runs on
+# every commit) — it only runs once a PR against main exists, via the
+# `pull_request` trigger (opened/synchronize/reopened, GitHub's defaults).
+# Once on main, every push re-runs the full pipeline including the lockfile
+# check, since push IS scoped to main.
+#
+# sync-lockfile job behavior by event:
+#   - pull_request: checks out the PR's own head branch, runs `npm install`,
+#     and if package-lock.json comes out different, commits and pushes that
+#     fix DIRECTLY onto the PR branch (no separate PR needed — it's already
+#     on one). That push triggers a fresh `pull_request: synchronize` run;
+#     THIS run's `changes` job (and therefore every downstream job) is
+#     skipped via the `committed` output, since the new run supersedes it.
+#   - push (main) / workflow_dispatch: same rebase-onto-live-main +
+#     branch + PR + squash-merge dance the old standalone workflow used —
+#     preserved because a direct push to main is expected to be blocked by
+#     branch protection. That merge triggers a fresh `push` run on main;
+#     again this run's downstream jobs are skipped via `committed`.
+#   - Either way, if the lockfile was already in sync, `committed` is
+#     `false` and the pipeline proceeds normally in the SAME run — no extra
+#     round trip when there's nothing to fix.
+#
+# NOTE: pushing back to a PR branch with the default GITHUB_TOKEN only works
+# for branches in this same repo (not forks) — consistent with the
+# `gh pr create`/`gh pr merge` path already depending on this repo's own
+# Actions settings.
 
 name: Deploy
 
@@ -80,7 +116,93 @@ on:
 # mid-deploy. See raffle-app's deploy.yml for the incident this guards against.
 
 jobs:
+  sync-lockfile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      committed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - name: Checkout PR head branch
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Checkout main
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Workspaces-aware: resolves/hoists deps for every apps/* and
+      # packages/* workspace into one root package-lock.json. Deliberately
+      # `npm install`, not `npm ci` — there may be no lockfile yet at all,
+      # or it may be stale relative to a just-changed package.json.
+      - run: npm install
+
+      - name: Check for lockfile changes
+        id: diff
+        run: |
+          # git diff alone misses a brand-new (untracked) lockfile -- status
+          # --porcelain catches both "modified" and "never existed before".
+          if [ -z "$(git status --porcelain -- package-lock.json)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit lockfile directly onto the PR branch
+        if: steps.diff.outputs.changed == 'true' && github.event_name == 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: sync package-lock.json"
+          git push origin HEAD:${{ github.head_ref }}
+
+      # push-to-main / workflow_dispatch path: mirrors the old standalone
+      # sync-lockfile.yml exactly, including rebasing onto the LIVE tip of
+      # main right before regenerating (guards against a race with another
+      # push landing on main mid-run — see the incident note this same
+      # rationale used to carry in the standalone file) and going through a
+      # PR + squash-merge rather than a direct push, since main is expected
+      # to have branch protection that would reject a direct bot push.
+      - name: Rebase onto latest main, commit, open PR, and merge
+        if: steps.diff.outputs.changed == 'true' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin main
+          BRANCH="lockfile-sync-${{ github.run_id }}"
+          git checkout -B "$BRANCH" origin/main
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          npm install
+          git add package-lock.json
+          git commit -m "chore: sync package-lock.json"
+          git push origin "$BRANCH"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore: sync package-lock.json" \
+            --body "Auto-generated by the sync-lockfile job — a package.json changed, so the workspace-root package-lock.json was regenerated to match. Merging automatically since this is a machine-generated, additive lockfile update with no source changes."
+          gh pr merge "$BRANCH" --squash --delete-branch
+
   changes:
+    needs: sync-lockfile
+    # Skip this run's build/deploy pipeline entirely if sync-lockfile just
+    # committed a fix — that commit (whether pushed straight to the PR
+    # branch or merged to main) triggers its own fresh run that will see a
+    # lockfile already in sync and proceed normally. Running the full
+    # pipeline twice against a lockfile we know is about to be superseded
+    # would be wasted work at best and a stale-lockfile build at worst.
+    if: needs.sync-lockfile.outputs.committed != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
