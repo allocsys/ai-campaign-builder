@@ -1,17 +1,30 @@
 import { useEffect, useState } from 'react'
-import { Badge, Card } from '@ai-campaign-builder/ui-kit'
-import { getBusinessProfile, getSubscription } from '@ai-campaign-builder/api-client'
+import { Badge, Button, Card, Input, useToast } from '@ai-campaign-builder/ui-kit'
+import { getBusinessProfile, getSubscription, updateBusinessProfile } from '@ai-campaign-builder/api-client'
 import type { BusinessProfile, Subscription } from '@ai-campaign-builder/api-client'
 import apiClient from '../../lib/api-client'
 
 /**
  * Business profile + SMS wallet + subscription/billing summary.
+ * Profile editing covers `name` + `smsMonthlyCapToman` — the two fields the
+ * backend's PUT /api/business/profile already accepts that make sense as a
+ * self-serve edit. `phone` (auth identity) and `categoryLabel`/`sizeTier`
+ * (set at onboarding, no category-list endpoint exists yet to re-pick from)
+ * stay read-only for now.
  */
 export function SettingsTab() {
+  const { show: showToast } = useToast()
   const [profile, setProfile] = useState<BusinessProfile | null>(null)
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [nameInput, setNameInput] = useState('')
+  const [capInput, setCapInput] = useState('')
+  const [noCap, setNoCap] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -34,6 +47,46 @@ export function SettingsTab() {
     }
   }, [])
 
+  const startEditing = () => {
+    if (!profile) return
+    setNameInput(profile.name)
+    setNoCap(profile.smsMonthlyCapToman === null)
+    setCapInput(profile.smsMonthlyCapToman !== null ? String(profile.smsMonthlyCapToman) : '')
+    setSaveError(null)
+    setEditing(true)
+  }
+
+  const cancelEditing = () => {
+    setEditing(false)
+    setSaveError(null)
+  }
+
+  const save = async () => {
+    if (!nameInput.trim()) {
+      setSaveError('نام کسب‌وکار نمی‌تواند خالی باشد.')
+      return
+    }
+    if (!noCap && capInput.trim() !== '' && Number.isNaN(Number(capInput))) {
+      setSaveError('سقف ماهانه باید یک عدد باشد.')
+      return
+    }
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const updated = await updateBusinessProfile(apiClient, {
+        name: nameInput.trim(),
+        smsMonthlyCapToman: noCap ? null : capInput.trim() === '' ? null : Number(capInput),
+      })
+      setProfile(updated)
+      setEditing(false)
+      showToast('تغییرات ذخیره شد.', 'success')
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
   }
@@ -49,15 +102,74 @@ export function SettingsTab() {
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-5">
-        <h3 className="text-sm font-semibold mb-3 text-slate-300">اطلاعات کسب‌وکار</h3>
-        <dl className="grid grid-cols-2 gap-y-2 text-sm">
-          <dt className="text-slate-400">نام</dt>
-          <dd>{profile.name}</dd>
-          <dt className="text-slate-400">دسته‌بندی</dt>
-          <dd>{profile.categoryLabel}</dd>
-          <dt className="text-slate-400">شماره موبایل</dt>
-          <dd dir="ltr" className="text-left">{profile.phone}</dd>
-        </dl>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-slate-300">اطلاعات کسب‌وکار</h3>
+          {!editing && (
+            <Button variant="ghost" onClick={startEditing}>
+              ویرایش
+            </Button>
+          )}
+        </div>
+
+        {editing ? (
+          <div className="flex flex-col gap-3">
+            <Input
+              label="نام کسب‌وکار"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              disabled={saving}
+            />
+            <div className="flex flex-col gap-1.5">
+              <Input
+                label="سقف ماهانه کیف پول پیامک (تومان)"
+                type="number"
+                inputMode="numeric"
+                value={capInput}
+                onChange={(e) => setCapInput(e.target.value)}
+                disabled={saving || noCap}
+                placeholder="بدون سقف"
+              />
+              <label className="flex items-center gap-2 text-xs text-slate-400">
+                <input
+                  type="checkbox"
+                  checked={noCap}
+                  onChange={(e) => setNoCap(e.target.checked)}
+                  disabled={saving}
+                />
+                بدون سقف ماهانه
+              </label>
+            </div>
+
+            <dl className="grid grid-cols-2 gap-y-2 text-sm pt-1 border-t border-glass-border">
+              <dt className="text-slate-400">دسته‌بندی</dt>
+              <dd>{profile.categoryLabel}</dd>
+              <dt className="text-slate-400">شماره موبایل</dt>
+              <dd dir="ltr" className="text-left">{profile.phone}</dd>
+            </dl>
+
+            {saveError && (
+              <p role="alert" className="text-xs text-red-400">{saveError}</p>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button onClick={save} loading={saving}>
+                ذخیره
+              </Button>
+              <Button variant="ghost" onClick={cancelEditing} disabled={saving}>
+                انصراف
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <dl className="grid grid-cols-2 gap-y-2 text-sm">
+            <dt className="text-slate-400">نام</dt>
+            <dd>{profile.name}</dd>
+            <dt className="text-slate-400">دسته‌بندی</dt>
+            <dd>{profile.categoryLabel}</dd>
+            <dt className="text-slate-400">شماره موبایل</dt>
+            <dd dir="ltr" className="text-left">{profile.phone}</dd>
+          </dl>
+        )}
       </Card>
 
       <Card className="p-5 flex items-center justify-between">
