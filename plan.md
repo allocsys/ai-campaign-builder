@@ -19,13 +19,13 @@ No separate MVP — going straight to the full/main version.
 | Staff POS | `routes/staff-pos.ts` (PR #30) | PR #30 | phone+OTP, `role: 'staff'` — **supersedes** the earlier shared-device-PIN decision (see Phase 0.5) | ✅ per user |
 | Review Console | `routes/review.ts` (PR #32) | PR #32 | phone+OTP per team member | ✅ confirmed 2026-09-11 (browser screenshot: login, empty review queue, referral-detection batch run) |
 
-Business Owner also gained a **Staff management tab** (PR #31) to register/toggle staff phone numbers against the staff-pos auth backend.
+Business Owner also gained a **Staff management tab** (PR #31) to register/toggle staff phone numbers against the staff-pos auth backend, and an **editable profile form** (PR #33 — name + SMS wallet monthly cap) replacing the old read-only Settings view.
 
 Microsite (`apps/microsite`) is a separate SSR app, still mock-data-backed (not wired to `apps/backend` — no owner/customer auth applies to it). All 6 v1 business-category templates + platform landing page are live. `/join/:slug` is now a real route (PR #23) handing off to the customer app.
 
 `apps/deploy-index` is a temporary static directory page linking all deployed Workers, pending a real domain purchase.
 
-Dev-only auth-bypass buttons (PR #22) were added to all 4 dashboard apps during the mock-data phase; **review-console's has since been removed** (PR #32). The other three still have theirs — see Open Items.
+Dev-only auth-bypass buttons (PR #22) were added to all 4 dashboard apps during the mock-data phase; **all have since been removed** — review-console in PR #32, business-owner + customer in PR #34, and staff-pos never carried it forward (PR #30 replaced its whole auth flow). All 4 dashboard apps are now real-OTP-only with no shortcut login path in code.
 
 Full build history (mockup phase → monorepo restructure → per-persona scaffolds → a11y/perf pass → backend scaffold → per-persona backend wiring) is preserved in git history / PR descriptions (#2 through #32) rather than narrated here — this doc previously carried a long inline changelog that duplicated that history and had gone stale; trimmed 2026-09-11.
 
@@ -253,16 +253,14 @@ packages/
 
 ## Open Items
 
-1. **Dev-bypass login buttons** — still present in business-owner, customer, and staff-pos (`// === DEV BYPASS START/END ===` markers make them easy to find/remove). Review-console's was already removed (PR #32). Should be deleted once real-world users start hitting these apps.
-2. **`ai_confidence_score`** on `task_submissions` is read by Review Console but nothing populates it — no real AI scoring/vision-review pipeline exists yet. Everything currently routes to the manual-hold queue.
-3. **Per-reviewer/resolver identity** not persisted in the audit trail — `task_submissions.reviewed_by` and `referral_flags.resolved_by` are fixed strings (`'central_team'`/`'business_owner'`/`'staff'` conventions), not tied to the authenticated individual, despite OTP login now giving each person a real identity. Needs a schema change or separate audit-log table.
-4. **`campaigns.goal`** isn't wired into the microsite's CTA copy yet (flagged in PR #23) — needs the campaign backend relationship the microsite doesn't have (microsite is still mock-data-backed).
-5. **Referral code at signup** — `verifyOtp` accepts and stores a `referralCode` client-side (customer app) but the backend `verify-otp` endpoint doesn't consume it yet (flagged in PR #29). `customer_campaign_codes.referred_by_code_id` linking is not yet wired end-to-end.
-6. **Business domain name** still undecided — `workers.dev` interim naming works fine, not blocking.
-7. **`CampaignReward` pattern-field gap** (flagged in PR #27) — still not blocking.
-8. **`SettingsTab.tsx`** (business-owner) has no profile-edit form in the UI (read-only) — `updateBusinessProfile` exists in api-client but isn't wired anywhere. **Likely next build item.**
-9. Stale branch `step9-bundle-optimization` (superseded by PR #18) was never deleted — no branch-delete tool available in-session; flagged for manual cleanup.
-10. Auto-approve/auto-reject tiers of the 3-tier AI review system (Phase 0.5) aren't implemented — only manual-hold (Review Console) is live, since there's no real AI scoring pipeline (see item 2).
+1. **`ai_confidence_score`** on `task_submissions` is read by Review Console but nothing populates it — no real AI scoring/vision-review pipeline exists yet. Everything currently routes to the manual-hold queue.
+2. **Per-reviewer/resolver identity** not persisted in the audit trail — `task_submissions.reviewed_by` and `referral_flags.resolved_by` are fixed strings (`'central_team'`/`'business_owner'`/`'staff'` conventions), not tied to the authenticated individual, despite OTP login now giving each person a real identity. Needs a schema change or separate audit-log table.
+3. **`campaigns.goal`** isn't wired into the microsite's CTA copy yet (flagged in PR #23) — needs the campaign backend relationship the microsite doesn't have (microsite is still mock-data-backed).
+4. **Referral code at signup** — `verifyOtp` accepts and stores a `referralCode` client-side (customer app) but the backend `verify-otp` endpoint doesn't consume it yet (flagged in PR #29). `customer_campaign_codes.referred_by_code_id` linking is not yet wired end-to-end.
+5. **Business domain name** still undecided — `workers.dev` interim naming works fine, not blocking.
+6. **`CampaignReward` pattern-field gap** (flagged in PR #27) — still not blocking.
+7. Stale branch `step9-bundle-optimization` (superseded by PR #18) was never deleted — no branch-delete tool available in-session; flagged for manual cleanup.
+8. Auto-approve/auto-reject tiers of the 3-tier AI review system (Phase 0.5) aren't implemented — only manual-hold (Review Console) is live, since there's no real AI scoring pipeline (see item 1).
 
 ---
 
