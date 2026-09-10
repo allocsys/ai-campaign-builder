@@ -1,9 +1,12 @@
 import { createRequestHandler } from "react-router";
 
-// No D1/backend bindings yet (see wrangler.toml and app/lib/mock-data.ts) —
-// this stays an empty shape until real bindings are wired up.
+// BACKEND is a Cloudflare service binding to apps/backend (see wrangler.toml's
+// [[services]] entry) — app/lib/mock-data.ts's getMicrositeData() uses it to
+// call the real /api/public/microsites/:slug endpoint instead of returning
+// fixtures (see plan.md Phase 0.75 "Backend-wiring scope decision", 2026-09-11).
 interface Env {
   ASSETS: Fetcher;
+  BACKEND: Fetcher;
 }
 
 declare module "react-router" {

@@ -29,7 +29,7 @@ function extractSubdomainSlug(host: string | null): string | null {
   return parts[0];
 }
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   // Local-dev convenience only (mirrors mockup/microsite-preview.html's
   // ?business_id= param) — production resolution is Host-header-only, since
@@ -46,7 +46,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return { kind: "landing" as const };
   }
 
-  const data = await getMicrositeData(slug);
+  const data = await getMicrositeData(slug, context.cloudflare.env.BACKEND);
   if (!data) {
     throw new Response("Microsite not found", { status: 404 });
   }

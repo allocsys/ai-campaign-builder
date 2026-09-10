@@ -9,11 +9,14 @@
 # in framework/SSR mode, deployed as an actual Cloudflare Worker (`main` entry
 # point below), not [assets]-only static hosting like the SPA siblings.
 #
-# Data layer: mock-data-backed for now (see app/lib/mock-data.ts), matching
-# the same pattern the other 4 apps use — no real backend/D1 binding wired up
-# yet (apps/backend doesn't exist yet). Swapping getMicrositeData() in that
-# file for a real D1 query or backend fetch is the intended single-seam change
-# once that's ready.
+# Data layer: real backend-backed as of 2026-09-11 (plan.md Phase 0.75
+# "Backend-wiring scope decision") via the [[services]] binding below --
+# app/lib/mock-data.ts's getMicrositeData() now calls apps/backend's public
+# /api/public/microsites/:slug endpoint through this binding instead of
+# returning fixtures. A service binding (not a public HTTPS URL) is used
+# since both Workers already deploy to the same Cloudflare account -- avoids
+# the public-internet hop/CORS/extra auth a URL-based call would need for
+# what is otherwise an internal server-to-server call.
 #
 # Subdomain -> business resolution happens per-request in the root route's
 # loader by reading the Host header (see app/routes/_index.tsx) — this is
@@ -27,6 +30,13 @@ main = "./workers/app.ts"
 [assets]
 directory = "./dist/client"
 binding = "ASSETS"
+
+# Service binding to apps/backend (name must match that Worker's `name` in
+# apps/backend/wrangler.toml). Worker-to-worker call, not a public URL --
+# see comment above.
+[[services]]
+binding = "BACKEND"
+service = "ai-campaign-builder-backend"
 
 # TODO before first real deploy: set `routes` or a custom domain once business
 # domain/subdomain naming is decided (see plan.md Phase 5 "NEXT STEP" note —
