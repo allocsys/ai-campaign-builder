@@ -17,12 +17,26 @@
 # wired up below. `microsite` is a real SSR Cloudflare Worker (React Router
 # v7), not a static SPA like the other four — its job still fits the same
 # build/test/deploy shape since `npm run build`/`npm run deploy` in its
-# package.json abstract that difference away. Add a job block for backend
-# once that app is scaffolded — copy an existing job as the template (it
-# additionally needs the migration-gating + secret-presence checks; see
-# raffle-app's `backend`/`migrate` jobs for that shape, adapted for `wrangler
-# d1 migrations apply` instead of a direct Postgres/Hyperdrive connection,
-# per plan.md's D1 decision).
+# package.json abstract that difference away.
+#
+# STATUS (2026-09-10): `backend` (apps/backend, scaffolded on branch
+# backend-scaffold) is wired up as two jobs instead of one, per plan.md's D1
+# decision and the migration-gating/secret-presence requirement:
+#   - `backend-migrate`: runs `wrangler d1 migrations apply ... --remote`
+#     against the D1 binding, gated on its OWN narrower path filter
+#     (apps/backend/migrations/**) so a migration-only change doesn't wait on
+#     unrelated backend code changes, and vice versa. Skipped entirely on
+#     pull_request (migrations only run on an actual deploy trigger).
+#   - `backend`: typecheck+test (all triggers) then deploy (push/dispatch
+#     only), but only proceeds to deploy once `backend-migrate` has either
+#     succeeded or been skipped (`always()` + explicit result check) — never
+#     deploys code against a database that a pending migration failed against.
+#     Also fails fast with a clear message before attempting to deploy if
+#     CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / BACKEND_JWT_SECRET aren't
+#     set as repo secrets, then pushes BACKEND_JWT_SECRET to the Worker as its
+#     JWT_SECRET binding via `wrangler secret put` after a successful deploy.
+#     NOTE: BACKEND_JWT_SECRET is a new repo secret this job depends on — not
+#     yet added to this repo's Actions secrets as of this commit.
 #
 # Per-app path filtering: each job only runs (typecheck + test + deploy) if
 # its own apps/<name>/** folder changed, OR packages/**  changed (shared code
@@ -62,7 +76,8 @@ jobs:
       review_console: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.review_console == 'true' }}
       microsite: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.microsite == 'true' }}
       deploy_index: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.deploy_index == 'true' }}
-      # backend output goes here once that app's filter is added below.
+      backend: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.backend == 'true' }}
+      backend_migrations: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.backend_migrations == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -97,6 +112,13 @@ jobs:
             deploy_index:
               - 'apps/deploy-index/**'
               - 'package.json'
+              - '.github/workflows/deploy.yml'
+            backend:
+              - 'apps/backend/**'
+              - 'package.json'
+              - '.github/workflows/deploy.yml'
+            backend_migrations:
+              - 'apps/backend/migrations/**'
               - '.github/workflows/deploy.yml'
 
   business-owner:
@@ -236,3 +258,72 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npm run deploy --workspace=apps/deploy-index
+
+  backend-migrate:
+    needs: changes
+    # Migrations only ever run on an actual deploy trigger, never on a PR
+    # check, and only when apps/backend/migrations/** itself changed (a
+    # narrower filter than the backend job's, so backend code-only changes
+    # don't re-run migrations, and vice versa).
+    if: needs.changes.outputs.backend_migrations == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: migrate-backend-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Check required secrets present
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "::error::Missing CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID repo secret(s) -- cannot run D1 migrations. Aborting before touching the database."
+            exit 1
+          fi
+      - name: Apply D1 migrations (remote)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run db:migrate:remote --workspace=apps/backend
+
+  backend:
+    needs: [changes, backend-migrate]
+    # Proceed if this app's own files changed, AND (backend-migrate wasn't
+    # needed at all -> 'skipped', or it ran and passed -> 'success'). The
+    # always() is required here because a skipped dependency job would
+    # otherwise cause this job to be skipped too by GitHub Actions' default
+    # "needs" behavior.
+    if: always() && needs.changes.outputs.backend == 'true' && (needs.backend-migrate.result == 'success' || needs.backend-migrate.result == 'skipped')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-backend-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run typecheck --workspace=apps/backend
+      - run: npm test --workspace=apps/backend
+      - name: Check required secrets present
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ] || [ -z "${{ secrets.BACKEND_JWT_SECRET }}" ]; then
+            echo "::error::Missing CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and/or BACKEND_JWT_SECRET repo secret(s) -- aborting before deploying a backend that would be missing its JWT_SECRET binding."
+            exit 1
+          fi
+      - name: Deploy
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run deploy --workspace=apps/backend
+      - name: Set JWT_SECRET on the deployed Worker
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: cd apps/backend && echo "${{ secrets.BACKEND_JWT_SECRET }}" | npx wrangler secret put JWT_SECRET
