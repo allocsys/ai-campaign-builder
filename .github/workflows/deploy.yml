@@ -38,6 +38,22 @@
 #     NOTE: BACKEND_JWT_SECRET is a new repo secret this job depends on — not
 #     yet added to this repo's Actions secrets as of this commit.
 #
+# STATUS (2026-09-11): added an OPTIONAL step, right after the JWT_SECRET
+# one, that pushes REVIEW_ADMIN_USERNAME / REVIEW_ADMIN_PASSWORD_HASH (the
+# review-admin root-login credentials from migration 0009 / review-admin.ts)
+# to the Worker the same way -- but unlike JWT_SECRET this pair is NOT in the
+# job's required-secrets fail-fast check, and deliberately so: root-admin
+# login is an opt-in convenience on top of the DB-backed review_admins table
+# (review-admin.ts's own login handler treats REVIEW_ADMIN_USERNAME/HASH as
+# optional -- it just falls through to the DB lookup when either is unset),
+# so a deploy must keep succeeding for repos/environments that never
+# configure a root admin at all. The new step instead guards itself on both
+# secrets being non-empty and only then runs `wrangler secret put` for each
+# -- if only one of the pair is set, or neither, the step is skipped
+# entirely rather than failing or pushing a half-configured pair. Like the
+# existing JWT_SECRET step, `wrangler secret put` is idempotent against a
+# repeat run with the same value, so this is safe to run on every deploy.
+#
 # STATUS (2026-09-10, later same day): the D1 database itself is now
 # auto-provisioned rather than requiring a one-time manual
 # `wrangler d1 create` before first deploy. Both `backend-migrate` and
