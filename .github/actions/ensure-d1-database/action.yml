@@ -53,14 +53,22 @@ runs:
           DB_ID="$EXISTING_ID"
         else
           echo "D1 database '$DB_NAME' not found for this account -- creating it now. This should only happen once, on the very first deploy."
-          DB_ID=$(npx wrangler d1 create "$DB_NAME" --json | node -e "
+          # NOTE: 'wrangler d1 create' does NOT support --json on the wrangler
+          # version pinned in apps/backend/package.json (it errors with
+          # "Unknown argument: json" and prints usage text to stdout instead,
+          # which broke JSON parsing here previously). Only 'd1 list' supports
+          # --json on this version, so instead of parsing create's output
+          # directly, just re-run the same list-based lookup used above to
+          # resolve the id once the database exists.
+          npx wrangler d1 create "$DB_NAME"
+          DB_ID=$(npx wrangler d1 list --json | node -e "
             const raw = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-            const obj = raw.result || raw;
-            const fromNestedList = obj.d1_databases && obj.d1_databases[0];
-            process.stdout.write(obj.uuid || obj.id || obj.database_id || (fromNestedList && fromNestedList.database_id) || '');
-          ")
+            const list = Array.isArray(raw) ? raw : (raw.result || []);
+            const match = list.find(d => d.name === process.argv[1] || d.database_name === process.argv[1]);
+            process.stdout.write(match ? (match.uuid || match.id || match.database_id || '') : '');
+          " "$DB_NAME")
           if [ -z "$DB_ID" ]; then
-            echo "::error::Created the D1 database via 'wrangler d1 create' but couldn't parse its id out of the --json output. The database now exists in Cloudflare but this step's JSON parsing needs updating to match the actual output shape for the wrangler version pinned in apps/backend/package.json -- check the raw output in this step's log above. IMPORTANT: do not just re-run this blindly -- the lookup branch above should find it by name next time, but verify before retrying."
+            echo "::error::Created the D1 database via 'wrangler d1 create' but couldn't find it afterward via a 'wrangler d1 list --json' lookup by name '$DB_NAME'. The database now exists in Cloudflare -- check manually before retrying (the lookup branch above should find it and skip recreation on the next run)."
             exit 1
           fi
           echo "Created D1 database '$DB_NAME' (id: $DB_ID)."
