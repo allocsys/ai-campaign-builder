@@ -11,6 +11,7 @@ const authRouter = new Hono<{ Bindings: Env }>();
 // - business_owner: 7712
 // - customer: 5432
 // - review_team: 9911
+// - staff: 3321
 // NOTE: This is a dev-mode stub (no real SMS delivery/verification). To be replaced
 // when a real SMS/OTP provider is wired in via production configuration.
 // ============================================================================
@@ -19,6 +20,7 @@ const DEV_OTPS: Record<string, string> = {
   business_owner: "7712",
   customer: "5432",
   review_team: "9911",
+  staff: "3321",
 };
 
 authRouter.post("/request-otp", async (c) => {
@@ -30,7 +32,7 @@ authRouter.post("/request-otp", async (c) => {
       return c.json({ error: "Missing required fields: phone and role" }, 400);
     }
 
-    if (!["business_owner", "customer", "review_team"].includes(role)) {
+    if (!["business_owner", "customer", "review_team", "staff"].includes(role)) {
       return c.json({ error: "Invalid role specified" }, 400);
     }
 
@@ -53,7 +55,7 @@ authRouter.post("/verify-otp", async (c) => {
       return c.json({ error: "Missing required fields: phone, otp, role" }, 400);
     }
 
-    if (!["business_owner", "customer", "review_team"].includes(role)) {
+    if (!["business_owner", "customer", "review_team", "staff"].includes(role)) {
       return c.json({ error: "Invalid role specified" }, 400);
     }
 
@@ -64,6 +66,7 @@ authRouter.post("/verify-otp", async (c) => {
 
     const db = c.env.DB;
     let userId = "";
+    let staffBusinessId: string | undefined;
 
     if (role === "business_owner") {
       // Look up or create business by phone
@@ -123,13 +126,38 @@ authRouter.post("/verify-otp", async (c) => {
     } else if (role === "review_team") {
       // For review team, sub is phone or team member identifier
       userId = phone;
+    } else if (role === "staff") {
+      // Staff signup is invite-only: a business owner must have already
+      // registered this phone against their business (via
+      // POST /api/business/staff) before it can complete OTP verification.
+      // Unlike business_owner/customer, we do NOT auto-create a staff row
+      // here -- doing so would let anyone self-serve a staff identity for
+      // an unknown/unassigned business, defeating the accountability and
+      // least-privilege reasons this table exists.
+      const staff = await queryFirst<{ id: string; business_id: string; active: number }>(
+        db,
+        "SELECT id, business_id, active FROM staff WHERE phone = ?",
+        [phone]
+      );
+
+      if (!staff) {
+        return c.json({ error: "This phone has not been registered as staff by a business. Ask your business owner to add you first." }, 403);
+      }
+      if (!staff.active) {
+        return c.json({ error: "This staff account has been deactivated." }, 403);
+      }
+
+      userId = staff.id;
+      staffBusinessId = staff.business_id;
+      await execute(db, "UPDATE staff SET phone_verified = 1, phone_verified_at = ? WHERE id = ?", [new Date().toISOString(), userId]);
     }
 
     const secret = c.env.JWT_SECRET || "default-dev-secret-key-change-in-production";
     const token = await signJWT(
       {
         sub: userId,
-        role: role as "business_owner" | "customer" | "review_team",
+        role: role as "business_owner" | "customer" | "review_team" | "staff",
+        ...(staffBusinessId ? { businessId: staffBusinessId } : {}),
       },
       secret
     );
@@ -141,6 +169,7 @@ authRouter.post("/verify-otp", async (c) => {
         id: userId,
         phone,
         role,
+        ...(staffBusinessId ? { businessId: staffBusinessId } : {}),
       },
     });
   } catch (err) {

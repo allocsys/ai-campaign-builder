@@ -1,61 +1,113 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp } from '@ai-campaign-builder/api-client'
+import client from './api-client'
 
-const STORAGE_KEY = 'aicb_staff_pos_auth'
+const STORAGE_KEY = 'aicb_staff_auth'
 
-/**
- * Shared-device PIN auth (decided 2026-09-09, see plan.md POS-side UX addendum) —
- * NOT per-staff phone+OTP like Business Owner/Customer. One PIN unlocks the whole
- * device for the shift; whoever is at the counter uses the same PIN. Simpler for
- * a shop counter tablet than individual staff logins. Session persists in
- * localStorage until explicit logout (e.g. end of shift / device handoff).
- */
+interface StaffUser {
+  id: string
+  phone: string
+  role: string
+  businessId?: string
+}
+
+interface StoredAuth {
+  phone: string
+  token: string
+  businessId?: string
+  user?: StaffUser
+}
+
 interface AuthContextValue {
+  phone: string | null
+  businessId: string | null
+  user: StaffUser | null
   isAuthenticated: boolean
-  /** Mocked — no backend yet. Accepts the fixed dev PIN "2468" (device-level, not per-staff). */
-  login: (pin: string) => Promise<boolean>
+  loading: boolean
+  isLoading: boolean
+  /** Requests an OTP code from the backend. */
+  requestOtp: (phone: string) => Promise<void>
+  /** Verifies the OTP code with the backend. */
+  verifyOtp: (phone: string, code: string) => Promise<boolean>
+  /** Alias for verifyOtp */
+  login: (phone: string, code: string) => Promise<boolean>
   logout: () => void
-  // === DEV BYPASS START — delete this line + the matching block below (and the button in AuthScreen.tsx) to remove ===
-  /** Skips PIN entry entirely, for quickly viewing mock data. Dev/QA only. */
-  devBypass: () => void
-  // === DEV BYPASS END ===
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-const MOCK_PIN = '2468'
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [auth, setAuth] = useState<StoredAuth | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw === 'true') setIsAuthenticated(true)
+    if (raw) {
+      try {
+        setAuth(JSON.parse(raw))
+      } catch {
+        localStorage.removeItem(STORAGE_KEY)
+      }
+    }
+    setLoading(false)
   }, [])
 
-  const login = async (pin: string) => {
-    // TODO: replace with a real POST /pos/auth/pin once the backend exists
-    // (likely business-scoped, not a single global PIN across all businesses).
-    await new Promise((r) => setTimeout(r, 400))
-    if (pin !== MOCK_PIN) return false
-    localStorage.setItem(STORAGE_KEY, 'true')
-    setIsAuthenticated(true)
-    return true
+  const requestOtp = async (phone: string) => {
+    await apiRequestOtp(client, phone, 'staff')
+  }
+
+  const verifyOtp = async (phone: string, code: string) => {
+    try {
+      const res = await apiVerifyOtp(client, phone, 'staff', code)
+      if (res.ok && res.token) {
+        const businessId = res.user?.businessId
+        const user: StaffUser = res.user ? {
+          id: res.user.id,
+          phone: res.user.phone,
+          role: res.user.role,
+          businessId,
+        } : {
+          id: '',
+          phone,
+          role: 'staff',
+          businessId,
+        }
+        const next: StoredAuth = {
+          phone,
+          token: res.token,
+          businessId,
+          user,
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        setAuth(next)
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
   }
 
   const logout = () => {
     localStorage.removeItem(STORAGE_KEY)
-    setIsAuthenticated(false)
+    setAuth(null)
   }
-
-  // === DEV BYPASS START — delete this block + the matching interface line above (and the button in AuthScreen.tsx) to remove ===
-  const devBypass = () => {
-    localStorage.setItem(STORAGE_KEY, 'true')
-    setIsAuthenticated(true)
-  }
-  // === DEV BYPASS END ===
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout, devBypass }}>
+    <AuthContext.Provider
+      value={{
+        phone: auth?.phone ?? auth?.user?.phone ?? null,
+        businessId: auth?.businessId ?? auth?.user?.businessId ?? null,
+        user: auth?.user ?? null,
+        isAuthenticated: !!auth,
+        loading,
+        isLoading: loading,
+        requestOtp,
+        verifyOtp,
+        login: verifyOtp,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
