@@ -4,6 +4,7 @@ import type { Env } from "./types";
 import { healthRouter } from "./routes/health";
 import { authRouter } from "./routes/auth";
 import { businessRouter } from "./routes/business";
+import { customerRouter } from "./routes/customer";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -23,6 +24,7 @@ app.use(
 app.route("/health", healthRouter);
 app.route("/api/auth", authRouter);
 app.route("/api/business", businessRouter);
+app.route("/api/customer", customerRouter);
 
 // Root fallback
 app.get("/", (c) => {

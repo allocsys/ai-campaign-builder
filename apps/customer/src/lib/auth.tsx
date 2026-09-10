@@ -1,13 +1,16 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp } from '@ai-campaign-builder/api-client'
+import client from './api-client'
 
 const STORAGE_KEY = 'aicb_customer_auth'
 
 interface StoredAuth {
   phone: string
   token: string
-  /** Referral code entered at signup, if any — captured once here so mock-data can
-   * process the referral link (cap enforcement, pending-until-first-purchase payout)
-   * the first time the customer's profile is initialized. See plan.md Phase 0.5. */
+  /** Referral code entered at signup, if any — captured client-side only. The
+   * backend's verify-otp does not currently accept/consume a referral code, so
+   * this is not sent to the API; it's kept here for potential future use and to
+   * preserve the existing AuthScreen.tsx signature. See plan.md Phase 0.5. */
   referralCodeUsed?: string
 }
 
@@ -15,9 +18,11 @@ interface AuthContextValue {
   phone: string | null
   isAuthenticated: boolean
   referralCodeUsed: string | null
-  /** Mocked — no backend yet. Always "succeeds" after a short delay; see plan.md Phase 5 stub-until-backend-exists note. */
+  /** Requests an OTP code from the backend. */
   requestOtp: (phone: string) => Promise<void>
-  /** Mocked — accepts the fixed dev OTP "5432" (matches mockup/customer.html's convention), rejects anything else. */
+  /** Verifies the OTP code with the backend. referralCode is accepted for
+   * interface compatibility but is NOT sent to the backend (see StoredAuth
+   * comment above) -- it's stored locally only. */
   verifyOtp: (phone: string, code: string, referralCode?: string) => Promise<boolean>
   logout: () => void
   // === DEV BYPASS START — delete this line + the matching block below (and the button in AuthScreen.tsx) to remove ===
@@ -27,8 +32,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-
-const MOCK_OTP = '5432'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAuth | null>(null)
@@ -44,23 +47,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const requestOtp = async (_phone: string) => {
-    // TODO: replace with real POST /auth/otp/request once the backend exists.
-    await new Promise((r) => setTimeout(r, 600))
+  const requestOtp = async (phone: string) => {
+    // Request OTP via backend API
+    await apiRequestOtp(client, phone, 'customer')
   }
 
   const verifyOtp = async (phone: string, code: string, referralCode?: string) => {
-    // TODO: replace with real POST /auth/otp/verify once the backend exists.
-    await new Promise((r) => setTimeout(r, 600))
-    if (code !== MOCK_OTP) return false
-    const next: StoredAuth = {
-      phone,
-      token: `mock-token-${phone}`,
-      referralCodeUsed: referralCode?.trim() || undefined,
+    // Verify OTP via backend API
+    try {
+      const res = await apiVerifyOtp(client, phone, 'customer', code)
+      if (res.ok && res.token) {
+        const next: StoredAuth = {
+          phone,
+          token: res.token,
+          referralCodeUsed: referralCode?.trim() || undefined,
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        setAuth(next)
+        return true
+      }
+      return false
+    } catch {
+      return false
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    setAuth(next)
-    return true
   }
 
   const logout = () => {

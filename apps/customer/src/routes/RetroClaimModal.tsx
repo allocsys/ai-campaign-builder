@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Button, Input, Modal, useToast } from '@ai-campaign-builder/ui-kit'
-import { submitRetroactivePurchaseClaim, type RetroClaim } from '../lib/mock-data'
+import { submitRetroClaim } from '@ai-campaign-builder/api-client'
+import type { RetroClaim } from '@ai-campaign-builder/api-client'
+import apiClient from '../lib/api-client'
 
 const HOURS_OPTIONS = [
   { value: 12, label: 'امروز (۱۲ ساعت پیش)' },
@@ -12,7 +14,6 @@ const HOURS_OPTIONS = [
 
 interface RetroClaimModalProps {
   open: boolean
-  existingClaims: RetroClaim[]
   onClose: () => void
   onClaimed: (claim: RetroClaim) => void
 }
@@ -25,35 +26,43 @@ const REASON_MESSAGES: Record<string, string> = {
 
 /**
  * Retroactive purchase claim modal — fallback for a missed POS scan (plan.md
- * Phase 0.5). Mirrors mockup/customer.html's #retro-claim-modal + the 3 rejection
- * rules from shared/app.js's submitRetroactivePurchaseClaim (48-72hr window,
- * receipt-hash dedup, per-customer rate limit).
+ * Phase 0.5). Mirrors mockup/customer.html's #retro-claim-modal. The 3 rejection
+ * rules (72hr window, receipt-hash dedup, per-customer rate limit) are now
+ * enforced server-side (apps/backend/src/routes/customer.ts POST /retro-claims) --
+ * this modal just calls the real endpoint and surfaces whichever reason comes back.
  */
-export function RetroClaimModal({ open, existingClaims, onClose, onClaimed }: RetroClaimModalProps) {
+export function RetroClaimModal({ open, onClose, onClaimed }: RetroClaimModalProps) {
   const [receiptNumber, setReceiptNumber] = useState('')
   const [hoursAgo, setHoursAgo] = useState(12)
   const [receiptHash, setReceiptHash] = useState('')
   const [fileName, setFileName] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const { show } = useToast()
 
-  const handleSubmit = () => {
-    const result = submitRetroactivePurchaseClaim(
-      existingClaims,
-      receiptHash || fileName || '',
-      receiptNumber,
-      hoursAgo,
-    )
-    if (!result.success) {
-      show(REASON_MESSAGES[result.reason], 'danger')
-      return
+  const handleSubmit = async () => {
+    setSubmitting(true)
+    try {
+      const result = await submitRetroClaim(apiClient, {
+        receiptHash: receiptHash || fileName || undefined,
+        receiptNumber: receiptNumber || undefined,
+        hoursAgo,
+      })
+      if (!result.success) {
+        show(REASON_MESSAGES[result.reason], 'danger')
+        return
+      }
+      show('ادعای خرید بازگشتی با موفقیت ثبت شد و به صف بررسی دستی منتقل گردید.', 'success')
+      onClaimed(result.claim)
+      setReceiptNumber('')
+      setReceiptHash('')
+      setFileName(null)
+      setHoursAgo(12)
+      onClose()
+    } catch (err) {
+      show(err instanceof Error ? err.message : 'خطا در ثبت ادعا', 'danger')
+    } finally {
+      setSubmitting(false)
     }
-    show('ادعای خرید بازگشتی با موفقیت ثبت شد و به صف بررسی دستی منتقل گردید.', 'success')
-    onClaimed(result.claim)
-    setReceiptNumber('')
-    setReceiptHash('')
-    setFileName(null)
-    setHoursAgo(12)
-    onClose()
   }
 
   return (
@@ -102,7 +111,7 @@ export function RetroClaimModal({ open, existingClaims, onClose, onClaimed }: Re
           <Button variant="ghost" onClick={onClose}>
             انصراف
           </Button>
-          <Button onClick={handleSubmit}>ارسال ادعا به صف بررسی</Button>
+          <Button loading={submitting} onClick={handleSubmit}>ارسال ادعا به صف بررسی</Button>
         </div>
       </div>
     </Modal>

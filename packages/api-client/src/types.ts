@@ -88,3 +88,86 @@ export interface AuthUserProfile {
   phone: string;
   role: string;
 }
+
+// ============================================================================
+// Customer persona
+// Shapes match apps/backend/src/routes/customer.ts's JSON responses exactly.
+// ============================================================================
+
+export interface CustomerProfile {
+  businessName: string;
+  personalCode: string;
+  qrPayload: string;
+  pointsBalance: number;
+  referralCount: number;
+  maxReferralCap: number;
+  carryoverBonus: number;
+  telegramOptedIn: boolean;
+}
+
+export type CustomerTaskVerificationMethod =
+  | 'screenshot_ai'
+  | 'code_link_auto'
+  | 'pos_scan'
+  | 'receipt_claim';
+
+export type CustomerTaskStatus = 'pending' | 'approved' | null;
+
+export interface CustomerTask {
+  id: string;
+  title: string;
+  instruction: string;
+  verificationMethod: CustomerTaskVerificationMethod;
+  pointsValue: number;
+  status: CustomerTaskStatus;
+}
+
+export interface CustomerReward {
+  id: string;
+  title: string;
+  thresholdPoints: number;
+  unlocked: boolean;
+}
+
+export interface CustomerNotification {
+  id: string;
+  channel: 'sms' | 'telegram';
+  trigger: string;
+  text: string;
+  sentAt: string;
+}
+
+export interface SubmitTaskResponse {
+  submissionId: string;
+  status: 'pending';
+}
+
+export interface SimulateAiApproveResponse {
+  status: 'approved';
+  pointsAwarded: number;
+}
+
+export interface RedeemRewardResponse {
+  redemptionId: string;
+  redemptionCode: string;
+  expiresAt: string;
+}
+
+export interface TelegramOptInResponse {
+  telegramOptedIn: boolean;
+}
+
+export type RetroClaimFailureReason = 'outside_time_window' | 'duplicate_receipt' | 'rate_limited';
+
+export interface RetroClaim {
+  id: string;
+  receiptHash: string;
+  receiptNumber: string;
+  hoursAgo: number;
+  submittedAt: string;
+  status: 'pending';
+}
+
+export type RetroClaimResponse =
+  | { success: true; claim: RetroClaim }
+  | { success: false; reason: RetroClaimFailureReason };
