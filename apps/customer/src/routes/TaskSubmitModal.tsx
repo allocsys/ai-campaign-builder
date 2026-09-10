@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Button, Modal } from '@ai-campaign-builder/ui-kit'
-import type { CampaignTask } from '../lib/mock-data'
+import type { CustomerTask } from '@ai-campaign-builder/api-client'
 
 interface TaskSubmitModalProps {
-  task: CampaignTask | null
+  task: CustomerTask | null
   onClose: () => void
   onSubmit: () => void
 }
@@ -11,7 +11,7 @@ interface TaskSubmitModalProps {
 /**
  * Evidence upload modal for screenshot_ai-verified tasks (mirrors mockup/customer.html's
  * #task-submit-modal). No real file upload yet — just a filename placeholder, matching
- * the mockup's simulated-file convention. TODO: wire to real upload once the backend exists.
+ * the mockup's simulated-file convention. TODO: wire to real upload once file storage exists.
  */
 export function TaskSubmitModal({ task, onClose, onSubmit }: TaskSubmitModalProps) {
   const [fileName, setFileName] = useState<string | null>(null)
