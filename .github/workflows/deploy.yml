@@ -17,12 +17,26 @@
 # wired up below. `microsite` is a real SSR Cloudflare Worker (React Router
 # v7), not a static SPA like the other four — its job still fits the same
 # build/test/deploy shape since `npm run build`/`npm run deploy` in its
-# package.json abstract that difference away. Add a job block for backend
-# once that app is scaffolded — copy an existing job as the template (it
-# additionally needs the migration-gating + secret-presence checks; see
-# raffle-app's `backend`/`migrate` jobs for that shape, adapted for `wrangler
-# d1 migrations apply` instead of a direct Postgres/Hyperdrive connection,
-# per plan.md's D1 decision).
+# package.json abstract that difference away.
+#
+# STATUS (2026-09-10): `backend` (apps/backend, scaffolded on branch
+# backend-scaffold) is wired up as two jobs instead of one, per plan.md's D1
+# decision and the migration-gating/secret-presence requirement:
+#   - `backend-migrate`: runs `wrangler d1 migrations apply ... --remote`
+#     against the D1 binding, gated on its OWN narrower path filter
+#     (apps/backend/migrations/**) so a migration-only change doesn't wait on
+#     unrelated backend code changes, and vice versa. Skipped entirely on
+#     pull_request (migrations only run on an actual deploy trigger).
+#   - `backend`: typecheck+test (all triggers) then deploy (push/dispatch
+#     only), but only proceeds to deploy once `backend-migrate` has either
+#     succeeded or been skipped (`always()` + explicit result check) — never
+#     deploys code against a database that a pending migration failed against.
+#     Also fails fast with a clear message before attempting to deploy if
+#     CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / BACKEND_JWT_SECRET aren't
+#     set as repo secrets, then pushes BACKEND_JWT_SECRET to the Worker as its
+#     JWT_SECRET binding via `wrangler secret put` after a successful deploy.
+#     NOTE: BACKEND_JWT_SECRET is a new repo secret this job depends on — not
+#     yet added to this repo's Actions secrets as of this commit.
 #
 # Per-app path filtering: each job only runs (typecheck + test + deploy) if
 # its own apps/<name>/** folder changed, OR packages/**  changed (shared code
