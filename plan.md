@@ -272,6 +272,7 @@ packages/
 3. **Business domain name** still undecided — `workers.dev` interim naming works fine, not blocking.
 4. Stale branch `step9-bundle-optimization` (superseded by PR #18) was never deleted — no branch-delete tool available in-session; flagged for manual cleanup.
 5. Auto-approve/auto-reject tiers of the 3-tier AI review system (Phase 0.5) aren't implemented — only manual-hold (Review Console) is live, since there's no real AI scoring pipeline (see item 1).
+6. **`review_team` OTP verification has no roster/invite check** — unlike `staff`, any phone number can authenticate as `role: 'review_team'` (see Phase 0.5 "Security finding"). **Decided 2026-09-11:** fix via the same `review_team_members` roster table being added for Item 2, built invite-only like `staff`; not yet implemented.
 
 ---
 
