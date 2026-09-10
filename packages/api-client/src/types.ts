@@ -252,6 +252,68 @@ export interface StaffPosSyncResponse {
   results: StaffPosSyncResultItem[];
 }
 
+// ============================================================================
+// Review Console persona
+// Shapes match apps/backend/src/routes/review.ts's JSON responses exactly.
+// ============================================================================
+
+export type ReviewSubmissionType = 'screenshot' | 'receipt_claim';
+export type ReviewSubmissionStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ReviewSubmission {
+  id: string;
+  customerName: string;
+  taskTitle: string;
+  submissionType: ReviewSubmissionType;
+  evidenceUrl: string | null;
+  receiptNumber: string | null;
+  aiConfidenceScore: number | null;
+  status: ReviewSubmissionStatus;
+  reviewedBy: string | null;
+  pointsAwarded: number | null;
+  submittedAt: string;
+  taskPointsValue: number;
+}
+
+export interface ResolveSubmissionResponse {
+  id: string;
+  status: 'approved' | 'rejected';
+  pointsAwarded: number;
+}
+
+export interface ReferrerAggregate {
+  codeId: string;
+  referrerName: string;
+  personalCode: string;
+  referralCount24h: number;
+  deadReferralCount: number;
+}
+
+export type ReferralFlagRule = 'velocity' | 'dead_referral_ratio';
+export type ReferralFlagStatus = 'open' | 'reviewed' | 'dismissed';
+
+export interface ReferralFlag {
+  id: string;
+  referrerName: string;
+  ruleTriggered: ReferralFlagRule;
+  ruleNameFa: string;
+  description: string;
+  triggeredAt: string;
+  status: ReferralFlagStatus;
+  notes: string;
+}
+
+export interface RunDetectionResponse {
+  flags: ReferralFlag[];
+  addedCount: number;
+}
+
+export interface ResolveFlagResponse {
+  id: string;
+  status: 'reviewed' | 'dismissed';
+  notes: string;
+}
+
 export type StaffPosActivityEntry =
   | {
       id: string;
