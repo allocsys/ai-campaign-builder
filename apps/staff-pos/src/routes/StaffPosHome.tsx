@@ -38,7 +38,8 @@ interface ActivityEntryData {
 interface OfflineQueueItemData {
   id: string
   idempotencyKey: string
-  customerCampaignCodeId: string
+  personalCode?: string
+  redemptionCode?: string
   campaignId: string
   actionType: 'purchase' | 'fulfill_reward'
   amountToman: number
@@ -176,7 +177,7 @@ export function StaffPosHome() {
         {
           id: `q_${Date.now()}`,
           idempotencyKey,
-          customerCampaignCodeId: code,
+          personalCode: code,
           campaignId: ACTIVE_CAMPAIGN_ID,
           actionType: 'purchase',
           amountToman: amount,
@@ -195,9 +196,8 @@ export function StaffPosHome() {
       try {
         await logPurchase({
           idempotencyKey,
-          customerCode: code,
+          personalCode: code,
           amountToman: amount,
-          campaignId: ACTIVE_CAMPAIGN_ID,
         })
         setSyncedKeys((prev) => new Set(prev).add(idempotencyKey))
         addActivity({
@@ -214,7 +214,7 @@ export function StaffPosHome() {
           {
             id: `q_${Date.now()}`,
             idempotencyKey,
-            customerCampaignCodeId: code,
+            personalCode: code,
             campaignId: ACTIVE_CAMPAIGN_ID,
             actionType: 'purchase',
             amountToman: amount,
@@ -246,7 +246,7 @@ export function StaffPosHome() {
         {
           id: `q_${Date.now()}`,
           idempotencyKey,
-          customerCampaignCodeId: foundRedemption?.customerCode ?? 'unknown',
+          redemptionCode: code,
           campaignId: ACTIVE_CAMPAIGN_ID,
           actionType: 'fulfill_reward',
           amountToman: 0,
@@ -277,7 +277,7 @@ export function StaffPosHome() {
           {
             id: `q_${Date.now()}`,
             idempotencyKey,
-            customerCampaignCodeId: foundRedemption?.customerCode ?? 'unknown',
+            redemptionCode: code,
             campaignId: ACTIVE_CAMPAIGN_ID,
             actionType: 'fulfill_reward',
             amountToman: 0,
@@ -516,7 +516,7 @@ export function StaffPosHome() {
                       <Badge tone="warning">در صف انتظار</Badge>
                     </div>
                     {item.actionType === 'purchase' && (
-                      <div className="text-slate-400">مبلغ: {formatToman(item.amountToman)} • کد مشتری: {item.customerCampaignCodeId}</div>
+                      <div className="text-slate-400">مبلغ: {formatToman(item.amountToman)} • کد مشتری: {item.personalCode}</div>
                     )}
                     <div className="text-slate-500 mt-1 break-all">کلید یکتا: {item.idempotencyKey}</div>
                   </Card>
