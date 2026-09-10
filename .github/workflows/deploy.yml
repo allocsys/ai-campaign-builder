@@ -47,10 +47,13 @@
 # (review-admin.ts's own login handler treats REVIEW_ADMIN_USERNAME/HASH as
 # optional -- it just falls through to the DB lookup when either is unset),
 # so a deploy must keep succeeding for repos/environments that never
-# configure a root admin at all. The new step instead guards itself on both
-# secrets being non-empty and only then runs `wrangler secret put` for each
-# -- if only one of the pair is set, or neither, the step is skipped
-# entirely rather than failing or pushing a half-configured pair. Like the
+# configure a root admin at all. The new step's run script checks both
+# secrets are non-empty (bash -z check, same shape as the existing
+# required-secrets check above) before calling `wrangler secret put` for
+# each -- if only one of the pair is set, or neither, it exits 0 and skips
+# rather than failing or pushing a half-configured pair. (The guard can't
+# live in the step's own `if:` -- GitHub Actions doesn't permit the secrets
+# context there and rejects the whole workflow file if you try.) Like the
 # existing JWT_SECRET step, `wrangler secret put` is idempotent against a
 # repeat run with the same value, so this is safe to run on every deploy.
 #
