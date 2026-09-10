@@ -2,7 +2,10 @@ import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, Input, useToast } from '@ai-campaign-builder/ui-kit'
 import { useAuth } from '../lib/auth'
-import { businessName } from '../lib/mock-data'
+// No public/unauthenticated backend endpoint exists to fetch the business
+// name before login (single-tenant simplification). Hardcoded until the app
+// supports multiple tenants.
+const businessName = 'کافه نارون'
 
 const PHONE_PATTERN = /^09\d{9}$/
 
