@@ -21,8 +21,15 @@ function nowIso(): string {
 // ============================================================================
 
 reviewAdminRouter.post("/login", async (c) => {
-  const body = await c.req.json<{ username?: string; password?: string }>().catch(() => ({}));
-  const { username, password } = body;
+  let username: string | undefined;
+  let password: string | undefined;
+  try {
+    const body = await c.req.json<{ username?: string; password?: string }>();
+    username = body.username;
+    password = body.password;
+  } catch {
+    return c.json({ error: "Invalid request body" }, 400);
+  }
   if (!username || !password) {
     return c.json({ error: "Missing required fields: username and password" }, 400);
   }
@@ -81,8 +88,15 @@ reviewAdminRouter.patch("/password", async (c) => {
     return c.json({ error: "The root admin's password is fixed via environment configuration and cannot be changed here." }, 403);
   }
 
-  const body = await c.req.json<{ currentPassword?: string; newPassword?: string }>().catch(() => ({}));
-  const { currentPassword, newPassword } = body;
+  let currentPassword: string | undefined;
+  let newPassword: string | undefined;
+  try {
+    const body = await c.req.json<{ currentPassword?: string; newPassword?: string }>();
+    currentPassword = body.currentPassword;
+    newPassword = body.newPassword;
+  } catch {
+    return c.json({ error: "Invalid request body" }, 400);
+  }
   if (!currentPassword || !newPassword) {
     return c.json({ error: "Missing required fields: currentPassword and newPassword" }, 400);
   }
