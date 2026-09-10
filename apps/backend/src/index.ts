@@ -6,6 +6,7 @@ import { authRouter } from "./routes/auth";
 import { businessRouter } from "./routes/business";
 import { customerRouter } from "./routes/customer";
 import { staffPosRouter } from "./routes/staff-pos";
+import { reviewRouter } from "./routes/review";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -27,6 +28,7 @@ app.route("/api/auth", authRouter);
 app.route("/api/business", businessRouter);
 app.route("/api/customer", customerRouter);
 app.route("/api/staff", staffPosRouter);
+app.route("/api/review", reviewRouter);
 
 // Root fallback
 app.get("/", (c) => {
