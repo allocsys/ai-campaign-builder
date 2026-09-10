@@ -494,17 +494,27 @@ jobs:
         run: cd apps/backend && echo "${{ secrets.BACKEND_JWT_SECRET }}" | npx wrangler secret put JWT_SECRET
       - name: Set REVIEW_ADMIN root-login secrets on the deployed Worker (optional)
         # Optional feature, not a hard deploy requirement (see the STATUS
-        # note above): only runs when BOTH repo secrets are actually
+        # note above): only pushes when BOTH repo secrets are actually
         # configured, so a repo/environment that never sets up a root admin
-        # still deploys cleanly. Guarded via the secrets context directly in
-        # `if:` rather than a shell -z check, so an unset secret never needs
-        # to touch a runner shell at all. wrangler secret put is idempotent
-        # against a repeat run with the same value, same as JWT_SECRET above.
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && secrets.REVIEW_ADMIN_USERNAME != '' && secrets.REVIEW_ADMIN_PASSWORD_HASH != ''
+        # still deploys cleanly. NOTE: the secrets context is not permitted
+        # inside a step-level `if:` (GitHub Actions rejects the whole
+        # workflow file if you try), so the guard lives in the run script
+        # below instead -- same -z-check shape as "Check required secrets
+        # present" above, except it exits 0 (skip) rather than 1 (fail),
+        # since this pair is optional rather than required. wrangler secret
+        # put is idempotent against a repeat run with the same value, same
+        # as JWT_SECRET above.
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          REVIEW_ADMIN_USERNAME: ${{ secrets.REVIEW_ADMIN_USERNAME }}
+          REVIEW_ADMIN_PASSWORD_HASH: ${{ secrets.REVIEW_ADMIN_PASSWORD_HASH }}
         run: |
           cd apps/backend
-          echo "${{ secrets.REVIEW_ADMIN_USERNAME }}" | npx wrangler secret put REVIEW_ADMIN_USERNAME
-          echo "${{ secrets.REVIEW_ADMIN_PASSWORD_HASH }}" | npx wrangler secret put REVIEW_ADMIN_PASSWORD_HASH
+          if [ -z "$REVIEW_ADMIN_USERNAME" ] || [ -z "$REVIEW_ADMIN_PASSWORD_HASH" ]; then
+            echo "REVIEW_ADMIN_USERNAME and/or REVIEW_ADMIN_PASSWORD_HASH repo secret(s) not set -- skipping root-admin secret push (this is an optional feature, not a deploy requirement)."
+            exit 0
+          fi
+          echo "$REVIEW_ADMIN_USERNAME" | npx wrangler secret put REVIEW_ADMIN_USERNAME
+          echo "$REVIEW_ADMIN_PASSWORD_HASH" | npx wrangler secret put REVIEW_ADMIN_PASSWORD_HASH
