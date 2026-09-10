@@ -171,3 +171,93 @@ export interface RetroClaim {
 export type RetroClaimResponse =
   | { success: true; claim: RetroClaim }
   | { success: false; reason: RetroClaimFailureReason };
+
+// ============================================================================
+// Staff POS persona
+// Shapes match apps/backend/src/routes/staff-pos.ts's JSON responses exactly.
+// ============================================================================
+
+export interface StaffPosCustomerLookupResponse {
+  personalCode: string;
+  name: string;
+  pointsBalance: number;
+  campaignId: string;
+}
+
+export interface StaffPosLogPurchaseRequest {
+  personalCode: string;
+  amountToman?: number;
+  idempotencyKey?: string;
+}
+
+export interface StaffPosLogPurchaseResponse {
+  status: 'synced' | 'duplicate_skipped';
+  submissionId?: string;
+  pointsAwarded?: number;
+  loggedBy?: string;
+}
+
+export interface StaffPosRedemptionResponse {
+  code: string;
+  rewardTitle: string;
+  customerName: string;
+  customerCode: string;
+  pointsDeducted: number;
+  status: 'pending' | 'fulfilled' | 'cancelled';
+  expired: boolean;
+}
+
+export interface StaffPosFulfillRedemptionResponse {
+  code: string;
+  rewardTitle: string;
+  customerName: string;
+  customerCode: string;
+  pointsDeducted: number;
+  status: 'fulfilled';
+}
+
+export interface OfflineQueueItemIn {
+  id: string;
+  idempotencyKey: string;
+  personalCode: string;
+  actionType: 'purchase' | 'fulfill_reward';
+  amountToman?: number;
+  redemptionCode?: string;
+}
+
+export interface StaffPosSyncRequest {
+  items?: OfflineQueueItemIn[];
+}
+
+export interface StaffPosSyncResultItem {
+  itemId: string;
+  idempotencyKey: string;
+  actionType: 'purchase' | 'fulfill_reward';
+  status: 'synced' | 'duplicate_skipped' | 'invalid_skipped';
+  pointsAwarded?: number;
+  reason: string;
+}
+
+export interface StaffPosSyncResponse {
+  results: StaffPosSyncResultItem[];
+}
+
+export type StaffPosActivityEntry =
+  | {
+      id: string;
+      type: 'purchase';
+      customerCode: string;
+      amountToman: number | null;
+      pointsAwarded: number;
+      createdAt: string;
+      status: 'synced';
+    }
+  | {
+      id: string;
+      type: 'fulfill';
+      customerCode: string;
+      rewardTitle: string;
+      pointsDeducted: number;
+      createdAt: string;
+      status: 'synced';
+    };
