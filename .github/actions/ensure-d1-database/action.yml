@@ -1,0 +1,70 @@
+name: 'Ensure D1 database exists'
+description: >
+  Idempotently ensures a Cloudflare D1 database exists and patches this job's
+  own (uncommitted) checkout of apps/backend/wrangler.toml with the real
+  database_id, so wrangler commands in the SAME job run against the real
+  database instead of the placeholder id committed to the repo.
+
+  GUARD AGAINST RECREATION ON REDEPLOY: this looks the database up by name
+  via `wrangler d1 list` first and only calls `wrangler d1 create` if that
+  lookup finds nothing. On every run after the first, the lookup finds the
+  existing database and reuses its id -- `wrangler d1 create` is never
+  called again once the database exists.
+
+  NOT COMMITTED BACK TO THE REPO: the wrangler.toml edit only exists in this
+  job's own checkout. apps/backend/wrangler.toml on disk in the repo keeps
+  its placeholder value forever (it's documentation, not live config) -- every
+  job run (backend-migrate AND backend) resolves the real id fresh via this
+  same idempotent lookup, independently, since they run in separate checkouts.
+
+inputs:
+  database-name:
+    description: 'Name of the D1 database (must match apps/backend/wrangler.toml database_name)'
+    required: true
+    default: 'ai-campaign-builder-db'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Look up or create the D1 database, then patch this checkout's wrangler.toml
+      shell: bash
+      working-directory: apps/backend
+      run: |
+        set -euo pipefail
+        DB_NAME="${{ inputs.database-name }}"
+
+        # Defensive JSON parsing: wrangler's --json output shape has varied
+        # across versions/subcommands -- sometimes a bare array, sometimes
+        # wrapped in {"result": [...]}, and each entry's id key has been seen
+        # as "uuid", "id", or "database_id" depending on version. Check the
+        # known variants rather than assuming one exact shape. If wrangler's
+        # actual output on this repo's pinned version doesn't match any of
+        # these, this step fails loudly (see the explicit error below) rather
+        # than silently deploying against a wrong/missing id.
+        EXISTING_ID=$(npx wrangler d1 list --json | node -e "
+          const raw = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+          const list = Array.isArray(raw) ? raw : (raw.result || []);
+          const match = list.find(d => d.name === process.argv[1] || d.database_name === process.argv[1]);
+          process.stdout.write(match ? (match.uuid || match.id || match.database_id || '') : '');
+        " "$DB_NAME")
+
+        if [ -n "$EXISTING_ID" ]; then
+          echo "D1 database '$DB_NAME' already exists (id: $EXISTING_ID) -- skipping creation."
+          DB_ID="$EXISTING_ID"
+        else
+          echo "D1 database '$DB_NAME' not found for this account -- creating it now. This should only happen once, on the very first deploy."
+          DB_ID=$(npx wrangler d1 create "$DB_NAME" --json | node -e "
+            const raw = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+            const obj = raw.result || raw;
+            const fromNestedList = obj.d1_databases && obj.d1_databases[0];
+            process.stdout.write(obj.uuid || obj.id || obj.database_id || (fromNestedList && fromNestedList.database_id) || '');
+          ")
+          if [ -z "$DB_ID" ]; then
+            echo "::error::Created the D1 database via 'wrangler d1 create' but couldn't parse its id out of the --json output. The database now exists in Cloudflare but this step's JSON parsing needs updating to match the actual output shape for the wrangler version pinned in apps/backend/package.json -- check the raw output in this step's log above. IMPORTANT: do not just re-run this blindly -- the lookup branch above should find it by name next time, but verify before retrying."
+            exit 1
+          fi
+          echo "Created D1 database '$DB_NAME' (id: $DB_ID)."
+        fi
+
+        sed -i "s/database_id = \".*\"/database_id = \"$DB_ID\"/" wrangler.toml
+        echo "This job's local wrangler.toml now points at database_id = $DB_ID (not committed back to the repo -- see this action's description)."
