@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp } from '@ai-campaign-builder/api-client'
+import client from './api-client'
 
 const STORAGE_KEY = 'aicb_business_owner_auth'
 
@@ -10,9 +12,9 @@ interface StoredAuth {
 interface AuthContextValue {
   phone: string | null
   isAuthenticated: boolean
-  /** Mocked — no backend yet. Always "succeeds" after a short delay; see plan.md Phase 5 stub-until-backend-exists note. */
+  /** Requests an OTP code from the backend. */
   requestOtp: (phone: string) => Promise<void>
-  /** Mocked — accepts the fixed dev OTP "7712" (same convention used in mockup/, see Mockup.md), rejects anything else. */
+  /** Verifies the OTP code with the backend. */
   verifyOtp: (phone: string, code: string) => Promise<boolean>
   logout: () => void
   // === DEV BYPASS START — delete this line + the matching block below (and the button in AuthScreen.tsx) to remove ===
@@ -22,8 +24,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-
-const MOCK_OTP = '7712'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAuth | null>(null)
@@ -39,19 +39,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const requestOtp = async (_phone: string) => {
-    // TODO: replace with real POST /auth/otp/request once the backend exists.
-    await new Promise((r) => setTimeout(r, 600))
+  const requestOtp = async (phone: string) => {
+    // Request OTP via backend API
+    await apiRequestOtp(client, phone, 'business_owner')
   }
 
   const verifyOtp = async (phone: string, code: string) => {
-    // TODO: replace with real POST /auth/otp/verify once the backend exists.
-    await new Promise((r) => setTimeout(r, 600))
-    if (code !== MOCK_OTP) return false
-    const next: StoredAuth = { phone, token: `mock-token-${phone}` }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    setAuth(next)
-    return true
+    // Verify OTP via backend API
+    try {
+      const res = await apiVerifyOtp(client, phone, 'business_owner', code)
+      if (res.ok && res.token) {
+        const next: StoredAuth = { phone, token: res.token }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        setAuth(next)
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
   }
 
   const logout = () => {
