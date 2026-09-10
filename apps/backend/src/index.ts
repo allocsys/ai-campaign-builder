@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import type { Env } from "./types";
 import { healthRouter } from "./routes/health";
 import { authRouter } from "./routes/auth";
+import { businessRouter } from "./routes/business";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -21,6 +22,7 @@ app.use(
 // Mount routes
 app.route("/health", healthRouter);
 app.route("/api/auth", authRouter);
+app.route("/api/business", businessRouter);
 
 // Root fallback
 app.get("/", (c) => {
