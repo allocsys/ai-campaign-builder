@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp } from '@ai-campaign-builder/api-client'
+import client from './api-client'
 
 const STORAGE_KEY = 'aicb_review_console_auth'
 
@@ -13,20 +15,15 @@ interface AuthContextValue {
    *  'central_team' string. See plan.md "Review Console authentication". */
   phone: string | null
   isAuthenticated: boolean
-  /** Mocked — no backend yet. Always "succeeds" after a short delay; see plan.md Phase 5 stub-until-backend-exists note. */
+  /** Calls the real backend: POST /api/auth/request-otp with role='review_team'. */
   requestOtp: (phone: string) => Promise<void>
-  /** Mocked — accepts the fixed dev OTP "9911" (distinct per-app dev OTP, see README), rejects anything else. */
+  /** Calls the real backend: POST /api/auth/verify-otp with role='review_team'.
+   *  Dev-mode OTP is a fixed stub (9911) on the backend side, not here. */
   verifyOtp: (phone: string, code: string) => Promise<boolean>
   logout: () => void
-  // === DEV BYPASS START — delete this line + the matching block below (and the button in AuthScreen.tsx) to remove ===
-  /** Skips OTP entirely and logs in with a fixed mock phone number, for quickly viewing mock data. Dev/QA only. */
-  devBypass: () => void
-  // === DEV BYPASS END ===
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-
-const MOCK_OTP = '9911'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAuth | null>(null)
@@ -42,19 +39,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const requestOtp = async (_phone: string) => {
-    // TODO: replace with real POST /auth/otp/request once the backend exists.
-    await new Promise((r) => setTimeout(r, 600))
+  const requestOtp = async (phone: string) => {
+    await apiRequestOtp(client, phone, 'review_team')
   }
 
   const verifyOtp = async (phone: string, code: string) => {
-    // TODO: replace with real POST /auth/otp/verify once the backend exists.
-    await new Promise((r) => setTimeout(r, 600))
-    if (code !== MOCK_OTP) return false
-    const next: StoredAuth = { phone, token: `mock-token-${phone}` }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    setAuth(next)
-    return true
+    try {
+      const res = await apiVerifyOtp(client, phone, 'review_team', code)
+      if (res.ok && res.token) {
+        const next: StoredAuth = { phone, token: res.token }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        setAuth(next)
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
   }
 
   const logout = () => {
@@ -62,18 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuth(null)
   }
 
-  // === DEV BYPASS START — delete this block + the matching interface line above (and the button in AuthScreen.tsx) to remove ===
-  const devBypass = () => {
-    const next: StoredAuth = { phone: '09120000000', token: 'dev-bypass-token' }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    setAuth(next)
-  }
-  // === DEV BYPASS END ===
-
   return (
-    <AuthContext.Provider
-      value={{ phone: auth?.phone ?? null, isAuthenticated: !!auth, requestOtp, verifyOtp, logout, devBypass }}
-    >
+    <AuthContext.Provider value={{ phone: auth?.phone ?? null, isAuthenticated: !!auth, requestOtp, verifyOtp, logout }}>
       {children}
     </AuthContext.Provider>
   )
