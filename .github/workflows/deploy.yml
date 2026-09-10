@@ -492,3 +492,19 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: cd apps/backend && echo "${{ secrets.BACKEND_JWT_SECRET }}" | npx wrangler secret put JWT_SECRET
+      - name: Set REVIEW_ADMIN root-login secrets on the deployed Worker (optional)
+        # Optional feature, not a hard deploy requirement (see the STATUS
+        # note above): only runs when BOTH repo secrets are actually
+        # configured, so a repo/environment that never sets up a root admin
+        # still deploys cleanly. Guarded via the secrets context directly in
+        # `if:` rather than a shell -z check, so an unset secret never needs
+        # to touch a runner shell at all. wrangler secret put is idempotent
+        # against a repeat run with the same value, same as JWT_SECRET above.
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && secrets.REVIEW_ADMIN_USERNAME != '' && secrets.REVIEW_ADMIN_PASSWORD_HASH != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd apps/backend
+          echo "${{ secrets.REVIEW_ADMIN_USERNAME }}" | npx wrangler secret put REVIEW_ADMIN_USERNAME
+          echo "${{ secrets.REVIEW_ADMIN_PASSWORD_HASH }}" | npx wrangler secret put REVIEW_ADMIN_PASSWORD_HASH
