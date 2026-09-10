@@ -28,10 +28,11 @@ export async function verifyOtp(
   client: ApiClient,
   phone: string,
   role: string,
-  otp: string
+  otp: string,
+  referralCode?: string
 ): Promise<VerifyOtpResponse> {
   return client.request<VerifyOtpResponse>('/api/auth/verify-otp', {
     method: 'POST',
-    body: JSON.stringify({ phone, role, otp }),
+    body: JSON.stringify({ phone, role, otp, ...(referralCode ? { referralCode } : {}) }),
   });
 }
