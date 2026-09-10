@@ -1,1 +1,0 @@
-// mock-data.ts removed -- StaffPosHome is now fully wired to backend API client.
