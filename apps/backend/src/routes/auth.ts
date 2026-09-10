@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types";
 import { generateId, queryFirst, execute } from "../lib/db";
 import { signJWT } from "../middleware/auth";
+import { ensureCustomerCampaignCode } from "./customer";
 
 const authRouter = new Hono<{ Bindings: Env }>();
 
@@ -48,8 +49,8 @@ authRouter.post("/request-otp", async (c) => {
 
 authRouter.post("/verify-otp", async (c) => {
   try {
-    const body = await c.req.json<{ phone?: string; otp?: string; role?: string }>();
-    const { phone, otp, role } = body;
+    const body = await c.req.json<{ phone?: string; otp?: string; role?: string; referralCode?: string }>();
+    const { phone, otp, role, referralCode } = body;
 
     if (!phone || !otp || !role) {
       return c.json({ error: "Missing required fields: phone, otp, role" }, 400);
@@ -123,6 +124,16 @@ authRouter.post("/verify-otp", async (c) => {
         userId = customer.id;
         await execute(db, "UPDATE customers SET phone_verified = 1, phone_verified_at = ? WHERE id = ?", [new Date().toISOString(), userId]);
       }
+
+      // Fold referral-code-at-signup handling into the OTP flow: creates the
+      // customer's campaign code (if not already created) and links it to the
+      // referrer's code when a valid, uncapped referralCode was supplied. Safe
+      // to call on every login, not just first signup -- ensureCustomerCampaignCode
+      // is a no-op past the first call for a given customer+campaign (existing
+      // code short-circuits before the referral linking logic runs). No campaign
+      // existing yet is not an error here; it's retried lazily on first profile
+      // fetch (see ensureCustomerCampaignCode's docstring).
+      await ensureCustomerCampaignCode(db, userId, referralCode?.trim() || undefined);
     } else if (role === "review_team") {
       // For review team, sub is phone or team member identifier
       userId = phone;
