@@ -27,7 +27,7 @@ function extractSubdomainSlug(host: string | null): string | null {
   return parts[0];
 }
 
-export async function loader({ request, params }: LoaderFunctionArgs) {
+export async function loader({ request, params, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   // ?business= is this route's equivalent of _index.tsx's ?slug= dev
   // convenience — named differently so it doesn't collide if someone tests
@@ -39,7 +39,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Business not found", { status: 404 });
   }
 
-  const data = await getMicrositeData(businessSlug);
+  const data = await getMicrositeData(businessSlug, context.cloudflare.env.BACKEND);
   if (!data) {
     throw new Response("Business not found", { status: 404 });
   }
