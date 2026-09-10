@@ -1,4 +1,4 @@
-import type { ApiClient } from '../client';
+import { ApiClient, ApiError } from '../client';
 import type {
   CustomerProfile,
   CustomerTask,
@@ -63,14 +63,29 @@ export async function redeemReward(
   });
 }
 
+// The backend signals each rejection reason via a distinct HTTP status
+// (400 outside_time_window, 409 duplicate_receipt, 429 rate_limited) and
+// ApiClient.request throws on any non-2xx response, so the {success:false,
+// reason} body itself never reaches the caller as a resolved value -- it's
+// lost inside the thrown ApiError. Catch it here and translate the status
+// back into the reason the caller actually needs.
 export async function submitRetroClaim(
   client: ApiClient,
   data: { receiptHash?: string; receiptNumber?: string; hoursAgo?: number }
 ): Promise<RetroClaimResponse> {
-  return client.request<RetroClaimResponse>('/api/customer/retro-claims', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  try {
+    return await client.request<RetroClaimResponse>('/api/customer/retro-claims', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      if (err.status === 400) return { success: false, reason: 'outside_time_window' };
+      if (err.status === 409) return { success: false, reason: 'duplicate_receipt' };
+      if (err.status === 429) return { success: false, reason: 'rate_limited' };
+    }
+    throw err;
+  }
 }
 
 export async function getCustomerNotifications(client: ApiClient): Promise<CustomerNotification[]> {
