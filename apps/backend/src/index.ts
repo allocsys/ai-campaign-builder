@@ -7,6 +7,7 @@ import { businessRouter } from "./routes/business";
 import { customerRouter } from "./routes/customer";
 import { staffPosRouter } from "./routes/staff-pos";
 import { reviewRouter } from "./routes/review";
+import { publicMicrositeRouter } from "./routes/public-microsite";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -29,6 +30,10 @@ app.route("/api/business", businessRouter);
 app.route("/api/customer", customerRouter);
 app.route("/api/staff", staffPosRouter);
 app.route("/api/review", reviewRouter);
+// Unauthenticated by design -- see routes/public-microsite.ts's header
+// comment. Reached via a Cloudflare service binding from apps/microsite, not
+// a public URL browsers call directly.
+app.route("/api/public", publicMicrositeRouter);
 
 // Root fallback
 app.get("/", (c) => {
