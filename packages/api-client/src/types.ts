@@ -74,6 +74,14 @@ export interface Subscription {
   currentPeriodEnd: string;
 }
 
+export interface StaffMember {
+  id: string;
+  name: string;
+  phone: string;
+  phoneVerified: boolean;
+  active: boolean;
+}
+
 export interface SendLogEntry {
   id: string;
   contact: string;

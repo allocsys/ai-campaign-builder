@@ -9,6 +9,7 @@ import type {
   MicrositeState,
   Subscription,
   SendLogEntry,
+  StaffMember,
 } from '../types';
 
 export async function getBusinessProfile(client: ApiClient): Promise<BusinessProfile> {
@@ -105,4 +106,29 @@ export async function getSubscription(client: ApiClient): Promise<Subscription> 
 
 export async function getSendsLog(client: ApiClient): Promise<SendLogEntry[]> {
   return client.request<SendLogEntry[]>('/api/business/notifications-log');
+}
+
+export async function getStaff(client: ApiClient): Promise<StaffMember[]> {
+  return client.request<StaffMember[]>('/api/business/staff');
+}
+
+export async function addStaff(
+  client: ApiClient,
+  data: { name: string; phone: string }
+): Promise<StaffMember> {
+  return client.request<StaffMember>('/api/business/staff', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateStaff(
+  client: ApiClient,
+  id: string,
+  data: Partial<{ active: boolean; name: string }>
+): Promise<StaffMember> {
+  return client.request<StaffMember>(`/api/business/staff/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
 }
