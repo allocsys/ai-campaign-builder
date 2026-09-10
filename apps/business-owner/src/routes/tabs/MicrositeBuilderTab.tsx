@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Badge, Button, Card } from '@ai-campaign-builder/ui-kit'
-import { micrositeState } from '../../lib/mock-data'
+import { getMicrositeState, updateMicrositeState } from '@ai-campaign-builder/api-client'
+import type { MicrositeState } from '@ai-campaign-builder/api-client'
+import apiClient from '../../lib/api-client'
 
 /**
  * Business microsite module toggles (plan.md "Business microsite scope") — modular sections,
@@ -8,27 +10,79 @@ import { micrositeState } from '../../lib/mock-data'
  * TODO: wire to PATCH /business_microsite_modules once backend exists.
  */
 export function MicrositeBuilderTab() {
-  const [modules, setModules] = useState(micrositeState.modules)
+  const [state, setState] = useState<MicrositeState | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  const toggle = (key: string) =>
-    setModules((prev) => prev.map((m) => (m.key === key ? { ...m, enabled: !m.enabled } : m)))
+  useEffect(() => {
+    let mounted = true
+    getMicrositeState(apiClient)
+      .then((data) => {
+        if (mounted) {
+          setState(data)
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : String(err))
+          setLoading(false)
+        }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const toggle = async (key: string) => {
+    if (!state) return
+    setActionError(null)
+    const updatedModules = state.modules.map((m) =>
+      m.key === key ? { ...m, enabled: !m.enabled } : m
+    )
+    try {
+      const updated = await updateMicrositeState(apiClient, { modules: updatedModules })
+      setState(updated)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setActionError(msg)
+    }
+  }
+
+  if (loading) {
+    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-400">{error}</div>
+  }
+
+  if (!state) {
+    return null
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <Card className="p-4 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium">قالب: {micrositeState.templateName}</p>
-          <p className="text-xs text-slate-500 mt-0.5" dir="ltr">
-            {micrositeState.subdomainSlug}.ourdomain.com
-          </p>
+      <Card className="p-4 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">قالب: {state.templateName}</p>
+            <p className="text-xs text-slate-500 mt-0.5" dir="ltr">
+              {state.subdomainSlug}.ourdomain.com
+            </p>
+          </div>
+          <Badge tone={state.published ? 'success' : 'neutral'}>
+            {state.published ? 'منتشر شده' : 'پیش‌نویس'}
+          </Badge>
         </div>
-        <Badge tone={micrositeState.published ? 'success' : 'neutral'}>
-          {micrositeState.published ? 'منتشر شده' : 'پیش‌نویس'}
-        </Badge>
+        {actionError && (
+          <p className="text-xs text-red-400">{actionError}</p>
+        )}
       </Card>
 
       <div className="flex flex-col gap-2">
-        {modules.map((m) => (
+        {state.modules.map((m) => (
           <Card key={m.key} className="flex items-center justify-between p-3.5">
             <span className="text-sm">{m.labelFa}</span>
             <Button
