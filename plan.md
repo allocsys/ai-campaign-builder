@@ -128,7 +128,9 @@ Each central-team member authenticates with their own phone + SMS OTP, giving th
 
 **Root admin password mutability — decided 2026-09-11:** the root admin's password **stays permanently fixed to the env vars** — no self-service change, no persisted override row — over letting root use the same change-password endpoint (rejected: would need a persisted row just for that one identity, undermining the whole point of keeping root env-config-only and outside the DB; a stray override row would also create two competing sources of truth for "what is root's password" if the env var were ever updated separately). Rotating root's password is a deploy-time operation (update the env var/secret and redeploy), not an in-product one. The self-service change-password endpoint above therefore only applies to `review_admins` rows, never to the root identity.
 
-Still not yet decided: exact env var names for the root admin, plaintext vs. hashed comparison for the root admin's env-configured password specifically (non-root rows are assumed hashed, per the general hashing-as-default-noted-above), and whether admin login issues the same JWT shape (`signJWT`) as other personas or something admin-specific.
+**Root admin password storage — decided 2026-09-11:** the env var holds a **pre-computed hash** (e.g. `ADMIN_PASSWORD_HASH`), not a plaintext password — the login route hashes the incoming attempt and compares against it, over storing the plaintext password directly in the env var. Chosen for consistency with `review_admins.password_hash` (one comparison code path shared by root and non-root, not two), even though a Cloudflare Workers secret is already encrypted at rest and a plaintext value would have been an acceptable, simpler alternative for this single low-traffic identity. Tradeoff accepted: the hash must be generated once, out-of-band, before deploying (can't just type a password into the dashboard), and rotation means regenerating a hash rather than typing a new value.
+
+Still not yet decided: exact env var names for the root admin, and whether admin login issues the same JWT shape (`signJWT`) as other personas or something admin-specific.
 
 ---
 
