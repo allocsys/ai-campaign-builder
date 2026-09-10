@@ -262,9 +262,8 @@ packages/
 1. **`ai_confidence_score`** on `task_submissions` is read by Review Console but nothing populates it — no real AI scoring/vision-review pipeline exists yet. Everything currently routes to the manual-hold queue.
 2. **Per-reviewer/resolver identity** not persisted in the audit trail — `task_submissions.reviewed_by` and `referral_flags.resolved_by` are fixed strings (`'central_team'`/`'business_owner'`/`'staff'` conventions), not tied to the authenticated individual, despite OTP login now giving each person a real identity. Needs a schema change or separate audit-log table.
 3. **Business domain name** still undecided — `workers.dev` interim naming works fine, not blocking.
-4. **`CampaignReward` pattern-field gap** (flagged in PR #27) — still not blocking.
-5. Stale branch `step9-bundle-optimization` (superseded by PR #18) was never deleted — no branch-delete tool available in-session; flagged for manual cleanup.
-6. Auto-approve/auto-reject tiers of the 3-tier AI review system (Phase 0.5) aren't implemented — only manual-hold (Review Console) is live, since there's no real AI scoring pipeline (see item 1).
+4. Stale branch `step9-bundle-optimization` (superseded by PR #18) was never deleted — no branch-delete tool available in-session; flagged for manual cleanup.
+5. Auto-approve/auto-reject tiers of the 3-tier AI review system (Phase 0.5) aren't implemented — only manual-hold (Review Console) is live, since there's no real AI scoring pipeline (see item 1).
 
 ---
 
