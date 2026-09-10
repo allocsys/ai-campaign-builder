@@ -2,8 +2,13 @@ name = "ai-campaign-builder-backend"
 main = "src/index.ts"
 compatibility_date = "2024-09-09"
 
-# TODO: no D1 database has been provisioned yet — replace with the real
-# database_id once `wrangler d1 create ai-campaign-builder-db` has been run.
+# database_id below is a placeholder and is meant to stay one — CI's
+# .github/actions/ensure-d1-database action idempotently looks this database
+# up by name (creating it on first deploy only) and patches its OWN local
+# checkout of this file with the real id before running wrangler commands.
+# That patch is never committed back here. For local dev (`npm run dev` /
+# `db:migrate:local`), this placeholder is fine as-is since --local mode
+# uses a local sqlite file keyed by binding name, not this id.
 [[d1_databases]]
 binding = "DB"
 database_name = "ai-campaign-builder-db"
