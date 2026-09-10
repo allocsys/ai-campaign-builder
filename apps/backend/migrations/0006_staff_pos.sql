@@ -28,4 +28,5 @@ CREATE TABLE staff (
 
 CREATE INDEX idx_staff_business_id ON staff(business_id);
 
-ALTER TABLE task_submissions ADD COLUMN idempotency_key TEXT UNIQUE;
+ALTER TABLE task_submissions ADD COLUMN idempotency_key TEXT;
+CREATE UNIQUE INDEX idx_task_submissions_idempotency_key ON task_submissions(idempotency_key);
