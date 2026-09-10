@@ -691,4 +691,91 @@ businessRouter.get("/notifications-log", async (c) => {
   );
 });
 
+// ============================================================================
+// Staff (staff-pos persona). Staff signup is invite-only -- a business owner
+// must register a staff phone here BEFORE that phone can complete OTP
+// verification with role='staff' (see routes/auth.ts). Deactivating (rather
+// than deleting) a staff row is how a business owner revokes access without
+// losing the historical record of who did what.
+// ============================================================================
+
+function serializeStaff(row: { id: string; name: string; phone: string; phone_verified: number; active: number }) {
+  return {
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    phoneVerified: !!row.phone_verified,
+    active: !!row.active,
+  };
+}
+
+businessRouter.get("/staff", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const rows = await queryAll<{ id: string; name: string; phone: string; phone_verified: number; active: number }>(
+    db,
+    "SELECT id, name, phone, phone_verified, active FROM staff WHERE business_id = ? ORDER BY created_at ASC",
+    [businessId]
+  );
+  return c.json(rows.map(serializeStaff));
+});
+
+businessRouter.post("/staff", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const body = await c.req.json<Partial<{ name: string; phone: string }>>();
+
+  if (!body.name || !body.phone) {
+    return c.json({ error: "Missing required fields: name and phone" }, 400);
+  }
+
+  const clash = await queryFirst<{ id: string }>(db, "SELECT id FROM staff WHERE phone = ?", [body.phone]);
+  if (clash) {
+    return c.json({ error: "This phone number is already registered as staff (at this or another business)" }, 409);
+  }
+
+  const id = generateId();
+  await execute(
+    db,
+    "INSERT INTO staff (id, business_id, name, phone, phone_verified, active, created_at) VALUES (?, ?, ?, ?, 0, 1, ?)",
+    [id, businessId, body.name, body.phone, nowIso()]
+  );
+
+  const row = await queryFirst<{ id: string; name: string; phone: string; phone_verified: number; active: number }>(
+    db,
+    "SELECT id, name, phone, phone_verified, active FROM staff WHERE id = ?",
+    [id]
+  );
+  if (!row) return c.json({ error: "Staff row vanished mid-request" }, 500);
+  return c.json(serializeStaff(row), 201);
+});
+
+businessRouter.patch("/staff/:id", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const id = c.req.param("id");
+  const body = await c.req.json<Partial<{ active: boolean; name: string }>>();
+
+  const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM staff WHERE id = ? AND business_id = ?", [
+    id,
+    businessId,
+  ]);
+  if (!existing) return c.json({ error: "Staff member not found" }, 404);
+
+  if (body.active !== undefined) {
+    await execute(db, "UPDATE staff SET active = ? WHERE id = ?", [body.active ? 1 : 0, id]);
+  }
+  if (body.name !== undefined) {
+    await execute(db, "UPDATE staff SET name = ? WHERE id = ?", [body.name, id]);
+  }
+
+  const row = await queryFirst<{ id: string; name: string; phone: string; phone_verified: number; active: number }>(
+    db,
+    "SELECT id, name, phone, phone_verified, active FROM staff WHERE id = ?",
+    [id]
+  );
+  if (!row) return c.json({ error: "Staff member not found" }, 404);
+  return c.json(serializeStaff(row));
+});
+
 export { businessRouter };
