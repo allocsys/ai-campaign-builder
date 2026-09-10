@@ -10,6 +10,7 @@ const MicrositeBuilderTab = lazy(() =>
   import('./tabs/MicrositeBuilderTab').then((m) => ({ default: m.MicrositeBuilderTab })),
 )
 const SettingsTab = lazy(() => import('./tabs/SettingsTab').then((m) => ({ default: m.SettingsTab })))
+const StaffTab = lazy(() => import('./tabs/StaffTab').then((m) => ({ default: m.StaffTab })))
 const SendsLogTab = lazy(() => import('./tabs/SendsLogTab').then((m) => ({ default: m.SendsLogTab })))
 
 /** Lightweight per-panel fallback while a tab chunk loads — mirrors Card's glass surface so it doesn't flash unstyled. */
@@ -88,6 +89,15 @@ const items: AccordionItem[] = [
     content: (
       <Suspense fallback={<TabFallback />}>
         <SettingsTab />
+      </Suspense>
+    ),
+  },
+  {
+    id: 'staff',
+    header: 'کارکنان',
+    content: (
+      <Suspense fallback={<TabFallback />}>
+        <StaffTab />
       </Suspense>
     ),
   },
