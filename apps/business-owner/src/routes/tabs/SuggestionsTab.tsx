@@ -1,22 +1,75 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Badge, Button, Card, useToast } from '@ai-campaign-builder/ui-kit'
-import { suggestedChanges as initialChanges } from '../../lib/mock-data'
+import { getSuggestedChanges, applySuggestedChange, dismissSuggestedChange } from '@ai-campaign-builder/api-client'
+import type { SuggestedChange } from '@ai-campaign-builder/api-client'
+import apiClient from '../../lib/api-client'
 
 type Status = 'pending' | 'applied' | 'dismissed'
 
 /**
- * Phase 3 human-in-the-loop suggestions (plan.md). Apply/Dismiss here only updates local
- * state — TODO: wire to PATCH /suggested_changes/:id once the backend exists, and to
- * business_ai_constraints for the high-risk pre-filter (currently just shown, not enforced
- * client-side — enforcement is a backend concern per architecture.md).
+ * Phase 3 human-in-the-loop suggestions. Fetches suggested changes and handles Apply/Dismiss API calls.
  */
 export function SuggestionsTab() {
-  const [changes, setChanges] = useState(initialChanges.map((c) => ({ ...c, status: c.status as Status })))
+  const [changes, setChanges] = useState<(SuggestedChange & { status: Status })[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [itemErrors, setItemErrors] = useState<Record<string, string>>({})
   const { show } = useToast()
 
-  const setStatus = (id: string, status: Status) => {
-    setChanges((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
-    show(status === 'applied' ? 'تغییر اعمال شد' : 'تغییر رد شد', status === 'applied' ? 'success' : 'info')
+  useEffect(() => {
+    let mounted = true
+    getSuggestedChanges(apiClient)
+      .then((data) => {
+        if (mounted) {
+          setChanges(data.map((c) => ({ ...c, status: c.status as Status })))
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : String(err))
+          setLoading(false)
+        }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const handleApply = async (id: string) => {
+    setItemErrors((prev) => ({ ...prev, [id]: '' }))
+    try {
+      await applySuggestedChange(apiClient, id)
+      setChanges((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'applied' } : c)))
+      show('تغییر اعمال شد', 'success')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setItemErrors((prev) => ({ ...prev, [id]: msg }))
+    }
+  }
+
+  const handleDismiss = async (id: string) => {
+    setItemErrors((prev) => ({ ...prev, [id]: '' }))
+    try {
+      await dismissSuggestedChange(apiClient, id)
+      setChanges((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'dismissed' } : c)))
+      show('تغییر رد شد', 'info')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setItemErrors((prev) => ({ ...prev, [id]: msg }))
+    }
+  }
+
+  if (loading) {
+    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
+  }
+
+  if (error) {
+    return <div className="p-4 text-sm text-red-400">{error}</div>
+  }
+
+  if (changes.length === 0) {
+    return <p className="text-sm text-slate-400">پیشنهادی وجود ندارد.</p>
   }
 
   return (
@@ -29,12 +82,15 @@ export function SuggestionsTab() {
               {c.riskTier === 'high' ? 'ریسک بالا' : 'ریسک پایین'}
             </Badge>
           </div>
+          {itemErrors[c.id] && (
+            <p className="text-xs text-red-400">{itemErrors[c.id]}</p>
+          )}
           {c.status === 'pending' ? (
             <div className="flex gap-2">
-              <Button variant="primary" onClick={() => setStatus(c.id, 'applied')}>
+              <Button variant="primary" onClick={() => handleApply(c.id)}>
                 اعمال کن
               </Button>
-              <Button variant="ghost" onClick={() => setStatus(c.id, 'dismissed')}>
+              <Button variant="ghost" onClick={() => handleDismiss(c.id)}>
                 رد کن
               </Button>
             </div>
