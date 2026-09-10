@@ -76,7 +76,8 @@ jobs:
       review_console: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.review_console == 'true' }}
       microsite: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.microsite == 'true' }}
       deploy_index: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.deploy_index == 'true' }}
-      # backend output goes here once that app's filter is added below.
+      backend: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.backend == 'true' }}
+      backend_migrations: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.backend_migrations == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
