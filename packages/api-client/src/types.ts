@@ -83,6 +83,14 @@ export interface SendLogEntry {
   sentAt: string;
 }
 
+export interface StaffMember {
+  id: string;
+  name: string;
+  phone: string;
+  phoneVerified: boolean;
+  active: boolean;
+}
+
 export interface AuthUserProfile {
   id: string;
   phone: string;
