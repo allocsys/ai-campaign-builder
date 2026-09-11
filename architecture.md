@@ -29,6 +29,7 @@ The business owner account.
 | id | uuid | PK |
 | name | text | |
 | category_id | uuid | FK → business_categories (was a hardcoded enum, changed 2026-09-07 for migration-free category additions) |
+| address | text, nullable | added 2026-09-11 (plan.md Open Item 9, migration 0012) — collected in onboarding wizard Step 1 and/or Settings; auto-fills the microsite Contact module's `address` field on first microsite creation |
 | phone | text, unique | also the login identity — business owner authenticates via phone + SMS OTP only (plan.md "Business owner authentication"), no email/password |
 | phone_verified | boolean | default false — set true once owner confirms an SMS OTP |
 | phone_verified_at | timestamp, nullable | |
