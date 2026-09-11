@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Badge, Button, Card, Input, useToast } from '@ai-campaign-builder/ui-kit'
+import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
 import { generateCampaign, updateCampaign } from '@ai-campaign-builder/api-client'
 import type {
   BusinessCategorySlug,
@@ -20,10 +20,31 @@ import apiClient from '../../lib/api-client'
  *   - Step 1 also captures/corrects the business's real name (routes/auth.ts
  *     auto-creates a placeholder name on first OTP login; the wizard is
  *     realistically the first screen that can fix it).
- *   - Step 4 has an explicit reward-type dropdown (deterministic, owner-picked)
- *     alongside the free-text offer description, instead of asking the LLM to
- *     infer a reward_pattern from free text.
+ *   - Step 4 leads with the reward-type selection (deterministic, owner-picked,
+ *     drives actual reward-tier/threshold/discount math) instead of asking the
+ *     LLM to infer a reward_pattern from free text. The free-text offer
+ *     description is now a collapsed, optional "write it yourself" escape
+ *     hatch below the checkboxes -- it only ever feeds LLM copy generation,
+ *     never the deterministic math -- reflecting the product decision that
+ *     the wizard should let AI do the deciding/describing by default rather
+ *     than making every owner spell it out (plan.md, revisited 2026-09-12).
+ *   - Step 3's old single "followers or customers" field conflated two
+ *     independent signals (a business can have many walk-in customers and
+ *     zero Instagram followers, or the reverse). Now: daily-customer-count
+ *     and monthly-revenue are each a range slider (owners estimate in bands,
+ *     not exact figures -- the average of the selected range feeds the
+ *     deterministic size-tier math), and follower count is a separate,
+ *     optional field only shown once the owner checks "has an Instagram
+ *     page" (plan.md, "Signal model revised again", 2026-09-12).
  */
+
+function formatCustomerCount(v: number) {
+  return `${v.toLocaleString()} نفر`
+}
+
+function formatToman(v: number) {
+  return `${v.toLocaleString()} تومان`
+}
 
 const CATEGORY_OPTIONS: { slug: BusinessCategorySlug; labelFa: string; conditionalQuestion: string; conditionalOptions: string[] }[] = [
   {
@@ -91,9 +112,14 @@ export function CampaignWizardTab() {
   const [conditionalAnswer, setConditionalAnswer] = useState(CATEGORY_OPTIONS[0].conditionalOptions[0])
   const [goal, setGoal] = useState<'acquisition' | 'retention' | 'acquisition_retention'>('acquisition')
   const [audienceDescription, setAudienceDescription] = useState('')
+  const [dailyCustomerMin, setDailyCustomerMin] = useState(10)
+  const [dailyCustomerMax, setDailyCustomerMax] = useState(50)
+  const [monthlyRevenueMin, setMonthlyRevenueMin] = useState(20000000)
+  const [monthlyRevenueMax, setMonthlyRevenueMax] = useState(80000000)
+  const [hasInstagramPage, setHasInstagramPage] = useState(false)
   const [followerCount, setFollowerCount] = useState('')
-  const [monthlyRevenueToman, setMonthlyRevenueToman] = useState('')
   const [offerDescription, setOfferDescription] = useState('')
+  const [showOfferDetail, setShowOfferDetail] = useState(false)
   const [rewardPatternNames, setRewardPatternNames] = useState<RewardPatternName[]>(['percentage_discount'])
 
   const [generating, setGenerating] = useState(false)
@@ -134,10 +160,6 @@ export function CampaignWizardTab() {
   }
 
   async function handleGenerate() {
-    if (!offerDescription.trim()) {
-      showToast('لطفاً آفر یا پاداشی که می‌توانید ارائه دهید را بنویسید.', 'warning')
-      return
-    }
     setGenerating(true)
     setGenerateError(null)
     try {
@@ -147,8 +169,9 @@ export function CampaignWizardTab() {
         categorySlug,
         goal,
         audienceDescription: `${audienceDescription.trim()}${audienceDescription.trim() ? ' — ' : ''}${selectedCategory.conditionalQuestion} ${conditionalAnswer}`,
-        followerCount: Number(followerCount) || 0,
-        monthlyRevenueToman: Number(monthlyRevenueToman) || 0,
+        dailyCustomerCount: Math.round((dailyCustomerMin + dailyCustomerMax) / 2),
+        monthlyRevenueToman: Math.round((monthlyRevenueMin + monthlyRevenueMax) / 2),
+        followerCount: hasInstagramPage ? Number(followerCount) || 0 : null,
         offerDescription: offerDescription.trim(),
         rewardPatternNames,
       })
@@ -303,40 +326,63 @@ export function CampaignWizardTab() {
               onChange={(e) => setAudienceDescription(e.target.value)}
               placeholder="مثلاً دانشجویان محدوده مرکز شهر"
             />
-            <div className="rounded-xl2 border border-glass-border bg-glass-light p-3 flex flex-col gap-3">
+            <div className="rounded-xl2 border border-glass-border bg-glass-light p-3 flex flex-col gap-4">
               <p className="text-xs text-slate-400">
-                سیستم رده کسب‌وکار (میکرو/کوچک/متوسط/بزرگ) را از روی این دو سیگنال محاسبه می‌کند و ضریب امتیاز و مدت کمپین را تنظیم می‌کند.
+                سیستم رده کسب‌وکار (میکرو/کوچک/متوسط/بزرگ) را از روی این سیگنال‌ها محاسبه می‌کند و ضریب امتیاز و مدت کمپین را تنظیم می‌کند. کف و سقف تقریبی رو انتخاب کن، لازم نیست عدد دقیق باشه.
               </p>
-              <Input
-                label="تعداد فالوورها یا مشتریان موجود"
-                type="number"
-                inputMode="numeric"
-                value={followerCount}
-                onChange={(e) => setFollowerCount(e.target.value)}
-                placeholder="۰"
+              <RangeSlider
+                label="تعداد مشتری روزانه (تقریبی)"
+                min={0}
+                max={300}
+                step={5}
+                valueMin={dailyCustomerMin}
+                valueMax={dailyCustomerMax}
+                onChange={(min, max) => {
+                  setDailyCustomerMin(min)
+                  setDailyCustomerMax(max)
+                }}
+                formatValue={formatCustomerCount}
               />
-              <Input
+              <RangeSlider
                 label="درآمد ماهانه تقریبی (تومان)"
-                type="number"
-                inputMode="numeric"
-                value={monthlyRevenueToman}
-                onChange={(e) => setMonthlyRevenueToman(e.target.value)}
-                placeholder="۰"
+                min={0}
+                max={1500000000}
+                step={10000000}
+                valueMin={monthlyRevenueMin}
+                valueMax={monthlyRevenueMax}
+                onChange={(min, max) => {
+                  setMonthlyRevenueMin(min)
+                  setMonthlyRevenueMax(max)
+                }}
+                formatValue={formatToman}
               />
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={hasInstagramPage}
+                  onChange={(e) => setHasInstagramPage(e.target.checked)}
+                  className="rounded border-glass-border bg-glass-light accent-brand-500"
+                />
+                پیج اینستاگرام دارم
+              </label>
+              {hasInstagramPage && (
+                <Input
+                  label="تعداد فالوورهای پیج اینستاگرام"
+                  type="number"
+                  inputMode="numeric"
+                  value={followerCount}
+                  onChange={(e) => setFollowerCount(e.target.value)}
+                  placeholder="۰"
+                />
+              )}
             </div>
           </div>
         )}
 
         {step === 4 && (
           <div className="flex flex-col gap-3">
-            <Input
-              label="چه چیزی می‌تونی به مشتری هدیه بدی؟ (آفر / پاداش)"
-              value={offerDescription}
-              onChange={(e) => setOfferDescription(e.target.value)}
-              placeholder="مثلاً یک فنجان قهوه دمی، ۲۰٪ تخفیف روی سفارش دوم"
-            />
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-slate-300">نوع پاداش (می‌تونی چند مورد انتخاب کنی)</label>
+              <label className="text-xs font-medium text-slate-300">چه پاداشی می‌خوای به مشتری بدی؟ (می‌تونی چند مورد انتخاب کنی)</label>
               <div className="flex flex-wrap gap-2">
                 {REWARD_PATTERN_OPTIONS.map((r) => {
                   const selected = rewardPatternNames.includes(r.value)
@@ -357,7 +403,25 @@ export function CampaignWizardTab() {
                   )
                 })}
               </div>
+              <p className="text-xs text-slate-500">هوش مصنوعی بر اساس همین انتخاب، متن و جزئیات کمپین رو خودش می‌سازه.</p>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowOfferDetail((s) => !s)}
+              className="self-start text-xs text-slate-500 hover:text-brand-300 underline underline-offset-2"
+            >
+              {showOfferDetail ? 'بستن جزئیات دستی' : '+ می‌خوام خودم جزئیات آفر رو دقیق‌تر بنویسم (اختیاری)'}
+            </button>
+
+            {showOfferDetail && (
+              <Input
+                label="توضیح دقیق‌تر آفر (اختیاری — فقط برای متن تبلیغاتی، تاثیری روی امتیاز و آستانه‌ها نداره)"
+                value={offerDescription}
+                onChange={(e) => setOfferDescription(e.target.value)}
+                placeholder="مثلاً یک فنجان قهوه دمی، ۲۰٪ تخفیف روی سفارش دوم"
+              />
+            )}
           </div>
         )}
 
@@ -369,6 +433,9 @@ export function CampaignWizardTab() {
               <div><dt className="inline text-slate-400">📍 آدرس: </dt><dd className="inline">{businessAddress || '—'}</dd></div>
               <div><dt className="inline text-slate-400">🎯 هدف: </dt><dd className="inline">{goal === 'acquisition' ? 'جذب مشتری جدید' : goal === 'retention' ? 'حفظ و سفارش مجدد مشتریان' : 'جذب و نگه‌داشتن مشتری'}</dd></div>
               <div><dt className="inline text-slate-400">👥 مخاطب: </dt><dd className="inline">{audienceDescription || '—'}</dd></div>
+              <div><dt className="inline text-slate-400">🧍 مشتری روزانه: </dt><dd className="inline">{formatCustomerCount(dailyCustomerMin)} تا {formatCustomerCount(dailyCustomerMax)}</dd></div>
+              <div><dt className="inline text-slate-400">💰 درآمد ماهانه: </dt><dd className="inline">{formatToman(monthlyRevenueMin)} تا {formatToman(monthlyRevenueMax)}</dd></div>
+              {hasInstagramPage && <div><dt className="inline text-slate-400">📸 فالوور اینستاگرام: </dt><dd className="inline">{followerCount || '۰'}</dd></div>}
               <div><dt className="inline text-slate-400">🎁 آفر: </dt><dd className="inline">{offerDescription || '—'}</dd></div>
               <div><dt className="inline text-slate-400">🎟️ نوع پاداش: </dt><dd className="inline">{REWARD_PATTERN_OPTIONS.filter((r) => rewardPatternNames.includes(r.value)).map((r) => r.labelFa).join('، ')}</dd></div>
             </dl>

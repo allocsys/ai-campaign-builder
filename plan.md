@@ -237,6 +237,19 @@ Config-driven (JSON/table), not hardcoded logic.
 
 Multiplier scales each task pattern's base points; duration is an editable AI default. **Built 2026-09-12 -- see Open Item 11 for the full implementation/deploy detail.**
 
+**Signal model revised again -- decided 2026-09-12 (supersedes the single ambiguous "followers/customers" field above, fixes a real bug, not just a rename):** the Step 3 field labeled "تعداد فالوورها یا مشتریان موجود" forced an owner to report only ONE of two genuinely independent numbers -- a business can have many walk-in customers and zero Instagram followers, or the reverse -- so whichever one they picked, the other real signal was silently discarded. Replaced with three separate inputs:
+- **Daily customer count** (always asked): a **range slider** (owner drags a floor and ceiling, e.g. "10 to 50 customers/day") instead of a single exact number, since most owners think in rough bands, not exact daily figures. **The average of the selected range (floor+ceiling)/2 is what feeds the existing tier-threshold table** -- chosen over feeding the ceiling (rejected: needlessly bumps borderline businesses to a higher tier) or building a parallel range-bucket threshold table (rejected: unnecessary complexity when the existing single-number table already works once fed an average).
+- **Monthly revenue** (always asked): same treatment -- range slider, average fed to the threshold table. (Was a single exact-number input as of Item 11 above; now a range, for the same "owners estimate in bands" reason.)
+- **Follower count** (optional, hidden by default): a checkbox ("پیج اینستاگرام دارم") reveals a single exact-number follower-count input only once checked -- businesses with no Instagram presence never see a follower question at all, rather than a field they'd have to actively skip or zero out.
+
+All signals actually provided (customer count and revenue always; follower count only if the Instagram checkbox is checked) are checked independently against the threshold table, **highest tier wins** -- same disagreement rule as before, now extended from 2 signals to up to 3.
+
+**New threshold column needed:** daily-customer-count bounds don't exist yet in `SIZE_TIERS` (only follower-count and monthly-revenue bounds do). Initial estimates (micro ≤ 15/day, small ≤ 50/day, medium ≤ 150/day, large > 150/day) are a first guess, not benchmarked data -- flagged for revisiting once real businesses are on the platform, same caveat Phase 2's benchmark-data strategy already carries for other numbers.
+
+**UI component gap:** `packages/ui-kit` has no range-slider (dual-handle) component yet -- the same recurring gap pattern as Select (Item-8-era `selectClassName()` workaround) and the still-unbuilt Textarea (flagged in the 2026-09-12 session checkpoint, Task A). This is the third instance of the same "ui-kit is missing a basic form primitive" gap; may be worth a dedicated pass to fill in the missing primitives together rather than one-off as each is hit.
+
+**Not yet built as of this note** -- implementation follows on branch `feature/step4-ai-first-reward-order` (same branch as the Step 4 reward-checkbox reorder above, both being Step 3/4 wizard UX passes from the same session).
+
 ---
 
 ## Phase 2 — Post-Launch Insights (read-only, no autopilot)

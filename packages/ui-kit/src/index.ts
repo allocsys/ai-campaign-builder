@@ -4,6 +4,7 @@ export { Badge, type BadgeProps, type BadgeTone } from './Badge'
 export { Modal, type ModalProps } from './Modal'
 export { Accordion, type AccordionProps, type AccordionItem } from './Accordion'
 export { Input, type InputProps } from './Input'
+export { RangeSlider, type RangeSliderProps } from './RangeSlider'
 export { ToastProvider, useToast, type ToastTone } from './Toast'
 export {
   motionDuration,

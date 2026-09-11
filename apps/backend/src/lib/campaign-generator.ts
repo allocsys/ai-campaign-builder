@@ -36,6 +36,7 @@ export interface SizeTier {
 
 interface SizeTierBound extends SizeTier {
   maxFollowers: number;
+  maxDailyCustomers: number;
   maxMonthlyRevenueToman: number;
 }
 
@@ -47,17 +48,26 @@ interface SizeTierBound extends SizeTier {
 // business-size signal with no overlap with Step 4, but runs roughly 1000x
 // larger in scale than an individual offer's budget, so these thresholds are
 // NOT just the old ones relabeled -- they're a real recalibration.
+//
+// maxDailyCustomers added 2026-09-12 (plan.md "Signal model revised again"):
+// follower count and walk-in/existing-customer count are genuinely
+// independent signals (a business can have many customers and zero
+// Instagram followers, or the reverse) -- previously the wizard's single
+// ambiguous "followers or customers" field silently discarded whichever one
+// the owner didn't enter. These bounds are a first estimate, NOT benchmarked
+// data -- flag for revisiting once real businesses are on the platform, same
+// caveat Phase 2's benchmark-data strategy carries for other numbers.
 const SIZE_TIERS: SizeTierBound[] = [
-  { key: "micro", nameFa: "میکرو", maxFollowers: 500, maxMonthlyRevenueToman: 50000000, pointMultiplier: 0.7, suggestedDurationDays: 10 },
-  { key: "small", nameFa: "کوچک", maxFollowers: 2000, maxMonthlyRevenueToman: 200000000, pointMultiplier: 1, suggestedDurationDays: 14 },
-  { key: "medium", nameFa: "متوسط", maxFollowers: 20000, maxMonthlyRevenueToman: 1000000000, pointMultiplier: 1.5, suggestedDurationDays: 21 },
-  { key: "large", nameFa: "بزرگ", maxFollowers: Infinity, maxMonthlyRevenueToman: Infinity, pointMultiplier: 2, suggestedDurationDays: 30 },
+  { key: "micro", nameFa: "میکرو", maxFollowers: 500, maxDailyCustomers: 15, maxMonthlyRevenueToman: 50000000, pointMultiplier: 0.7, suggestedDurationDays: 10 },
+  { key: "small", nameFa: "کوچک", maxFollowers: 2000, maxDailyCustomers: 50, maxMonthlyRevenueToman: 200000000, pointMultiplier: 1, suggestedDurationDays: 14 },
+  { key: "medium", nameFa: "متوسط", maxFollowers: 20000, maxDailyCustomers: 150, maxMonthlyRevenueToman: 1000000000, pointMultiplier: 1.5, suggestedDurationDays: 21 },
+  { key: "large", nameFa: "بزرگ", maxFollowers: Infinity, maxDailyCustomers: Infinity, maxMonthlyRevenueToman: Infinity, pointMultiplier: 2, suggestedDurationDays: 30 },
 ];
 
-// Signal-conflict rule (mockup's resolveSizeTier, ported verbatim): if
-// follower-count and monthly-revenue point to different tiers, use the
-// HIGHER tier, not an average or the follower signal by default.
-function findTierIndex(value: number, key: "maxFollowers" | "maxMonthlyRevenueToman"): number {
+// Signal-conflict rule (mockup's resolveSizeTier, ported verbatim, now
+// extended from 2 to up to 3 signals): whichever provided signals point to
+// different tiers, use the HIGHEST tier, not an average.
+function findTierIndex(value: number, key: "maxFollowers" | "maxDailyCustomers" | "maxMonthlyRevenueToman"): number {
   for (let i = 0; i < SIZE_TIERS.length - 1; i++) {
     const bound = SIZE_TIERS[i][key];
     const isSecondToLast = i === SIZE_TIERS.length - 2;
@@ -66,11 +76,21 @@ function findTierIndex(value: number, key: "maxFollowers" | "maxMonthlyRevenueTo
   return SIZE_TIERS.length - 1;
 }
 
-export function resolveSizeTier(followerCount: number, monthlyRevenueToman: number): SizeTier {
-  const fCount = Number(followerCount) || 0;
+// followerCount is optional (null when the owner has no Instagram page, or
+// didn't check the "has a page" box in the wizard) -- when absent it simply
+// doesn't participate in the max-tier comparison below, rather than being
+// coerced to 0 and dragging the tier down. dailyCustomerCount and
+// monthlyRevenueToman are always provided (the wizard's range sliders feed
+// their average here, per plan.md's decision -- not the ceiling).
+export function resolveSizeTier(followerCount: number | null, dailyCustomerCount: number, monthlyRevenueToman: number): SizeTier {
+  const cCount = Number(dailyCustomerCount) || 0;
   const rToman = Number(monthlyRevenueToman) || 0;
-  const idx = Math.max(findTierIndex(fCount, "maxFollowers"), findTierIndex(rToman, "maxMonthlyRevenueToman"));
-  const { maxFollowers: _mf, maxMonthlyRevenueToman: _mr, ...tier } = SIZE_TIERS[idx];
+  let idx = Math.max(findTierIndex(cCount, "maxDailyCustomers"), findTierIndex(rToman, "maxMonthlyRevenueToman"));
+  if (followerCount != null) {
+    const fCount = Number(followerCount) || 0;
+    idx = Math.max(idx, findTierIndex(fCount, "maxFollowers"));
+  }
+  const { maxFollowers: _mf, maxDailyCustomers: _mc, maxMonthlyRevenueToman: _mr, ...tier } = SIZE_TIERS[idx];
   return tier;
 }
 
@@ -147,7 +167,11 @@ export interface GenerateCampaignInput {
   goal: "acquisition" | "retention" | "acquisition_retention";
   audienceDescription: string;
   offerDescription: string;
-  followerCount: number;
+  /** Optional -- null unless the owner checked "has an Instagram page" in the wizard and entered a count. */
+  followerCount: number | null;
+  /** Always provided -- average of the wizard's daily-customer-count range slider. */
+  dailyCustomerCount: number;
+  /** Always provided -- average of the wizard's monthly-revenue range slider. */
   monthlyRevenueToman: number;
   rewardPatternNames: string[]; // owner-selected from the Step 4 multi-select (at least 1)
   maxDiscountPercent: number | null; // business_ai_constraints.max_discount_percent, null if unset
@@ -429,7 +453,7 @@ async function generateCopyViaCascade(env: Env, prompt: string): Promise<CopyGen
 // ============================================================================
 
 export async function generateCampaignProposal(db: D1Database, env: Env, input: GenerateCampaignInput): Promise<GeneratedCampaignProposal> {
-  const tier = resolveSizeTier(input.followerCount, input.monthlyRevenueToman);
+  const tier = resolveSizeTier(input.followerCount, input.dailyCustomerCount, input.monthlyRevenueToman);
   const tasks = await selectTasks(db, input.categoryId, input.goal, tier);
   const { rewards, discountClamped } = buildRewards(input.rewardPatternNames, tasks, tier, input.maxDiscountPercent);
   const challenge = buildChallenge(tasks);
