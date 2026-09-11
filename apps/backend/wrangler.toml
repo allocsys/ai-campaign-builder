@@ -23,3 +23,17 @@ database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
 #                                                     # lib/password.ts's
 #                                                     # hashPassword() locally
 #                                                     # before deploying.
+#
+# Vision scoring adapter (lib/vision.ts, Open Item 1) -- all optional, same
+# as REVIEW_ADMIN_* above: unset means scoring is silently skipped, not a
+# deploy failure. VISION_PROVIDER picks openai/anthropic/google; each
+# provider's *_API_KEYS secret is a COMMA-SEPARATED LIST of keys (one is
+# picked at random per call for load/quota spreading across keys):
+#   wrangler secret put VISION_PROVIDER          # "openai" | "anthropic" | "google"
+#   wrangler secret put VISION_OPENAI_API_KEYS    # "sk-...,sk-..."
+#   wrangler secret put VISION_ANTHROPIC_API_KEYS # "sk-ant-...,sk-ant-..."
+#   wrangler secret put VISION_GOOGLE_API_KEYS    # "AIza...,AIza..."
+# *_MODEL vars (VISION_OPENAI_MODEL etc.) are optional overrides of the
+# built-in default model per provider -- not secrets, but fine to set via
+# `wrangler secret put` too since there's no separate vars mechanism wired
+# up in this file.
