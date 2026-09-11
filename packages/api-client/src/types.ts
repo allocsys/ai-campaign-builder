@@ -66,7 +66,8 @@ export interface GenerateCampaignRequest {
   followerCount: number;
   offerBudgetToman: number;
   offerDescription: string;
-  rewardPatternName: RewardPatternName;
+  /** At least one reward_pattern; one reward tier is generated per selected pattern (min 2 tiers). */
+  rewardPatternNames: RewardPatternName[];
 }
 
 export interface GeneratedSizeTier {

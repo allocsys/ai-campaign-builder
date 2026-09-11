@@ -299,7 +299,7 @@ businessRouter.post("/campaign/generate", async (c) => {
       followerCount: number;
       offerBudgetToman: number;
       offerDescription: string;
-      rewardPatternName: string;
+      rewardPatternNames: string[];
     }>
   >();
 
@@ -308,10 +308,13 @@ businessRouter.post("/campaign/generate", async (c) => {
     !body.categorySlug ||
     !body.goal ||
     !body.offerDescription?.trim() ||
-    !body.rewardPatternName
+    !body.rewardPatternNames?.length
   ) {
     return c.json(
-      { error: "Missing required fields: businessName, categorySlug, goal, offerDescription, rewardPatternName" },
+      {
+        error:
+          "Missing required fields: businessName, categorySlug, goal, offerDescription, rewardPatternNames (at least one)",
+      },
       400
     );
   }
@@ -326,12 +329,16 @@ businessRouter.post("/campaign/generate", async (c) => {
   );
   if (!category) return c.json({ error: `Unknown categorySlug: ${body.categorySlug}` }, 400);
 
-  const rewardPattern = await queryFirst<{ id: string }>(
-    db,
-    "SELECT id FROM reward_patterns WHERE name = ?",
-    [body.rewardPatternName]
-  );
-  if (!rewardPattern) return c.json({ error: `Unknown rewardPatternName: ${body.rewardPatternName}` }, 400);
+  // Multi-select reward types: validate every selected name up front and
+  // build a name->id map, since each generated reward tier can now carry a
+  // different pattern (previously every reward row shared one rewardPattern.id).
+  const rewardPatternRows = await queryAll<{ id: string; name: string }>(db, "SELECT id, name FROM reward_patterns");
+  const rewardPatternIdByName = new Map(rewardPatternRows.map((p) => [p.name, p.id]));
+  for (const name of body.rewardPatternNames) {
+    if (!rewardPatternIdByName.has(name)) {
+      return c.json({ error: `Unknown rewardPatternName: ${name}` }, 400);
+    }
+  }
 
   // Single-active-campaign guard (plan.md decision): ensureCampaign always
   // resolves to the one "current" campaign for this business -- generation
@@ -380,7 +387,7 @@ businessRouter.post("/campaign/generate", async (c) => {
     offerDescription: body.offerDescription.trim(),
     followerCount: Number(body.followerCount) || 0,
     offerBudgetToman: Number(body.offerBudgetToman) || 0,
-    rewardPatternName: body.rewardPatternName,
+    rewardPatternNames: body.rewardPatternNames,
     maxDiscountPercent: constraints?.max_discount_percent ?? null,
   });
 
@@ -417,11 +424,13 @@ businessRouter.post("/campaign/generate", async (c) => {
 
   await execute(db, "DELETE FROM campaign_rewards WHERE campaign_id = ?", [campaignId]);
   for (const r of proposal.rewards) {
+    const patternId = rewardPatternIdByName.get(r.patternName);
+    if (!patternId) continue; // shouldn't happen -- generator only returns patterns from the validated list above
     await execute(
       db,
       `INSERT INTO campaign_rewards (id, campaign_id, reward_pattern_id, threshold_points, name, description)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [generateId(), campaignId, rewardPattern.id, r.threshold, r.name, r.description]
+      [generateId(), campaignId, patternId, r.threshold, r.name, r.description]
     );
   }
 

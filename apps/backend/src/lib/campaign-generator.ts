@@ -141,7 +141,7 @@ export interface GenerateCampaignInput {
   offerDescription: string;
   followerCount: number;
   offerBudgetToman: number;
-  rewardPatternName: string; // owner-selected from the Step 4 dropdown
+  rewardPatternNames: string[]; // owner-selected from the Step 4 multi-select (at least 1)
   maxDiscountPercent: number | null; // business_ai_constraints.max_discount_percent, null if unset
 }
 
@@ -214,36 +214,56 @@ async function selectTasks(
   }));
 }
 
+// Multi-select reward types (plan.md decision, 2026-09-11 revision): one
+// reward tier is generated per owner-selected reward_pattern, in the order
+// selected, with monotonically increasing thresholds (totalPoints * 1.5,
+// totalPoints * 3, totalPoints * 4.5, ...). Always at least 2 tiers --
+// matching the original single-pattern design, which always produced 2
+// tiers -- so a single selection still yields tier 1 + tier 2 of that same
+// pattern (cycling back to index 0 for any tier beyond the selected list's
+// length). Selecting 3+ patterns produces 3+ tiers, one per pattern, rather
+// than capping at 2 and silently dropping the extra selections.
 function buildRewards(
-  rewardPatternName: string,
+  rewardPatternNames: string[],
   tasks: GeneratedTask[],
   tier: SizeTier,
   maxDiscountPercent: number | null
 ): { rewards: GeneratedRewardTier[]; discountClamped: boolean } {
   const totalPoints = tasks.reduce((sum, t) => sum + t.points, 0) || 1;
-  const tier1Threshold = Math.max(10, Math.round(totalPoints * 1.5));
-  const tier2Threshold = Math.max(tier1Threshold + 10, Math.round(totalPoints * 3));
+  const tierCount = Math.max(2, rewardPatternNames.length);
 
   let discountClamped = false;
-  let discountPercent: number | null = null;
-  if (rewardPatternName === "percentage_discount") {
-    const base = DEFAULT_DISCOUNT_PERCENT_BY_TIER[tier.key];
-    if (maxDiscountPercent != null && base > maxDiscountPercent) {
-      discountPercent = maxDiscountPercent;
-      discountClamped = true;
-    } else {
-      discountPercent = base;
+  let prevThreshold = 0;
+  const rewards: GeneratedRewardTier[] = [];
+
+  for (let i = 0; i < tierCount; i++) {
+    const rawThreshold = Math.round(totalPoints * 1.5 * (i + 1));
+    const threshold = Math.max(prevThreshold + 10, rawThreshold, 10);
+    prevThreshold = threshold;
+
+    const patternName = rewardPatternNames[i % rewardPatternNames.length];
+
+    let discountPercent: number | null = null;
+    if (patternName === "percentage_discount") {
+      const base = DEFAULT_DISCOUNT_PERCENT_BY_TIER[tier.key];
+      if (maxDiscountPercent != null && base > maxDiscountPercent) {
+        discountPercent = maxDiscountPercent;
+        discountClamped = true;
+      } else {
+        discountPercent = base;
+      }
     }
+
+    const fallbackLabel = REWARD_PATTERN_FALLBACK_NAMES[patternName] ?? patternName;
+    const description = discountPercent != null ? `${discountPercent}٪ ${fallbackLabel}` : fallbackLabel;
+
+    rewards.push({
+      patternName,
+      name: `سطح ${i + 1}: ${description}`,
+      description,
+      threshold,
+    });
   }
-
-  const fallbackLabel = REWARD_PATTERN_FALLBACK_NAMES[rewardPatternName] ?? rewardPatternName;
-  const describe = (): string =>
-    discountPercent != null ? `${discountPercent}٪ ${fallbackLabel}` : fallbackLabel;
-
-  const rewards: GeneratedRewardTier[] = [
-    { patternName: rewardPatternName, name: `سطح ۱: ${describe()}`, description: describe(), threshold: tier1Threshold },
-    { patternName: rewardPatternName, name: `سطح ۲: ${describe()}`, description: describe(), threshold: tier2Threshold },
-  ];
 
   return { rewards, discountClamped };
 }
@@ -292,7 +312,7 @@ interface CopyGenerationResult {
   proposalTitle: string;
   proposalNarrative: string;
   taskNames: Record<string, string>; // keyed by patternName
-  rewardNames: [string, string]; // tier 1, tier 2
+  rewardNames: string[]; // one per reward tier, in tier order (length varies -- see buildRewards)
   challengeDescription: string;
 }
 
@@ -313,12 +333,16 @@ function buildCopyPrompt(input: GenerateCampaignInput, tier: SizeTier, tasks: Ge
     `Tasks (behavioral patterns customers complete for points): ${tasks
       .map((t) => t.patternName)
       .join(", ")}. ` +
-    `Reward tiers: tier 1 at ${rewards[0].threshold} points, tier 2 at ${rewards[1].threshold} points, ` +
-    `reward type: ${rewards[0].patternName}${rewards[0].description ? ` (${rewards[0].description})` : ""}. ` +
+    `Reward tiers (in order): ${rewards
+      .map(
+        (r, i) =>
+          `tier ${i + 1} at ${r.threshold} points, type ${r.patternName}${r.description ? ` (${r.description})` : ""}`
+      )
+      .join("; ")}. ` +
     `Write everything in Persian. Respond with ONLY a JSON object and nothing else, in this exact shape: ` +
     `{"proposalTitle": "<short catchy campaign name>", "proposalNarrative": "<1-2 sentence pitch>", ` +
     `"taskNames": {${tasks.map((t) => `"${t.patternName}": "<short action name for this task>"`).join(", ")}}, ` +
-    `"rewardNames": ["<short name for reward tier 1>", "<short name for reward tier 2>"], ` +
+    `"rewardNames": [${rewards.map((_, i) => `"<short name for reward tier ${i + 1}>"`).join(", ")}], ` +
     `"challengeDescription": "<1 sentence describing a bonus challenge: complete 3 actions during the campaign for extra points>"}`
   );
 }
@@ -333,7 +357,7 @@ function parseCopyResponse(text: string): CopyGenerationResult {
     typeof parsed.taskNames !== "object" ||
     parsed.taskNames === null ||
     !Array.isArray(parsed.rewardNames) ||
-    parsed.rewardNames.length < 2 ||
+    parsed.rewardNames.length < 1 ||
     typeof parsed.challengeDescription !== "string"
   ) {
     throw new Error("model response missing required fields");
@@ -342,7 +366,7 @@ function parseCopyResponse(text: string): CopyGenerationResult {
     proposalTitle: parsed.proposalTitle,
     proposalNarrative: parsed.proposalNarrative,
     taskNames: parsed.taskNames as Record<string, string>,
-    rewardNames: [String(parsed.rewardNames[0]), String(parsed.rewardNames[1])],
+    rewardNames: parsed.rewardNames.map((n) => String(n)),
     challengeDescription: parsed.challengeDescription,
   };
 }
@@ -399,7 +423,7 @@ async function generateCopyViaCascade(env: Env, prompt: string): Promise<CopyGen
 export async function generateCampaignProposal(db: D1Database, env: Env, input: GenerateCampaignInput): Promise<GeneratedCampaignProposal> {
   const tier = resolveSizeTier(input.followerCount, input.offerBudgetToman);
   const tasks = await selectTasks(db, input.categoryId, input.goal, tier);
-  const { rewards, discountClamped } = buildRewards(input.rewardPatternName, tasks, tier, input.maxDiscountPercent);
+  const { rewards, discountClamped } = buildRewards(input.rewardPatternNames, tasks, tier, input.maxDiscountPercent);
   const challenge = buildChallenge(tasks);
 
   const prompt = buildCopyPrompt(input, tier, tasks, rewards);
@@ -409,8 +433,9 @@ export async function generateCampaignProposal(db: D1Database, env: Env, input: 
     for (const t of tasks) {
       if (copy.taskNames[t.patternName]) t.name = copy.taskNames[t.patternName];
     }
-    rewards[0].name = copy.rewardNames[0] || rewards[0].name;
-    rewards[1].name = copy.rewardNames[1] || rewards[1].name;
+    for (let i = 0; i < rewards.length; i++) {
+      if (copy.rewardNames[i]) rewards[i].name = copy.rewardNames[i];
+    }
     challenge.description = copy.challengeDescription || challenge.description;
   }
 
