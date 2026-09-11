@@ -522,27 +522,27 @@ jobs:
           echo "$REVIEW_ADMIN_USERNAME" | npx wrangler secret put REVIEW_ADMIN_USERNAME
           echo "$REVIEW_ADMIN_PASSWORD_HASH" | npx wrangler secret put REVIEW_ADMIN_PASSWORD_HASH
       - name: Set VISION_* scoring secrets on the deployed Worker (optional)
-        # Same optional shape as the REVIEW_ADMIN_* step above, generalized to
-        # a variable number of keys (provider + up to 3 provider key lists +
-        # 3 model overrides) rather than a fixed pair -- so each is pushed
-        # independently if set, instead of an all-or-nothing check. Vision
-        # scoring (lib/vision.ts, Open Item 1) already treats any of these
-        # being unset as "not configured, skip scoring" at runtime, so a
-        # partial set (e.g. only VISION_PROVIDER + VISION_OPENAI_API_KEYS) is
-        # a perfectly valid deploy, not a half-broken one. Guard stays inside
+        # STATUS (2026-09-11): cascade order + which models to try moved into
+        # src/lib/vision-cascade.config.ts (source code, not a secret) --
+        # Google's models first, then OpenAI's, per explicit user request.
+        # VISION_PROVIDER and the per-provider VISION_*_MODEL secrets are no
+        # longer read by vision.ts at all, so they're no longer pushed here;
+        # only the three *_API_KEYS credential secrets remain. Same optional
+        # shape as the REVIEW_ADMIN_* step above, generalized to a variable
+        # number of keys rather than a fixed pair -- each is pushed
+        # independently if set, instead of an all-or-nothing check. A
+        # provider with no keys set is simply skipped by the cascade at
+        # runtime, so a partial set (e.g. only VISION_GOOGLE_API_KEYS) is a
+        # perfectly valid deploy, not a half-broken one. Guard stays inside
         # `run:` for the same reason as REVIEW_ADMIN_* -- the `secrets`
         # context is rejected inside a step-level `if:`.
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          VISION_PROVIDER: ${{ secrets.VISION_PROVIDER }}
           VISION_OPENAI_API_KEYS: ${{ secrets.VISION_OPENAI_API_KEYS }}
-          VISION_OPENAI_MODEL: ${{ secrets.VISION_OPENAI_MODEL }}
           VISION_ANTHROPIC_API_KEYS: ${{ secrets.VISION_ANTHROPIC_API_KEYS }}
-          VISION_ANTHROPIC_MODEL: ${{ secrets.VISION_ANTHROPIC_MODEL }}
           VISION_GOOGLE_API_KEYS: ${{ secrets.VISION_GOOGLE_API_KEYS }}
-          VISION_GOOGLE_MODEL: ${{ secrets.VISION_GOOGLE_MODEL }}
         run: |
           cd apps/backend
           push_if_set() {
@@ -554,10 +554,6 @@ jobs:
               echo "$value" | npx wrangler secret put "$name"
             fi
           }
-          push_if_set VISION_PROVIDER "$VISION_PROVIDER"
-          push_if_set VISION_OPENAI_API_KEYS "$VISION_OPENAI_API_KEYS"
-          push_if_set VISION_OPENAI_MODEL "$VISION_OPENAI_MODEL"
-          push_if_set VISION_ANTHROPIC_API_KEYS "$VISION_ANTHROPIC_API_KEYS"
-          push_if_set VISION_ANTHROPIC_MODEL "$VISION_ANTHROPIC_MODEL"
           push_if_set VISION_GOOGLE_API_KEYS "$VISION_GOOGLE_API_KEYS"
-          push_if_set VISION_GOOGLE_MODEL "$VISION_GOOGLE_MODEL"
+          push_if_set VISION_OPENAI_API_KEYS "$VISION_OPENAI_API_KEYS"
+          push_if_set VISION_ANTHROPIC_API_KEYS "$VISION_ANTHROPIC_API_KEYS"

@@ -26,14 +26,14 @@ database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
 #
 # Vision scoring adapter (lib/vision.ts, Open Item 1) -- all optional, same
 # as REVIEW_ADMIN_* above: unset means scoring is silently skipped, not a
-# deploy failure. VISION_PROVIDER picks openai/anthropic/google; each
-# provider's *_API_KEYS secret is a COMMA-SEPARATED LIST of keys (one is
-# picked at random per call for load/quota spreading across keys):
-#   wrangler secret put VISION_PROVIDER          # "openai" | "anthropic" | "google"
-#   wrangler secret put VISION_OPENAI_API_KEYS    # "sk-...,sk-..."
-#   wrangler secret put VISION_ANTHROPIC_API_KEYS # "sk-ant-...,sk-ant-..."
+# deploy failure. Cascade order + which models to try live in
+# src/lib/vision-cascade.config.ts (Google's models first, then OpenAI's --
+# 2026-09-11 change), NOT in a secret -- these three just supply credentials
+# per provider. Each *_API_KEYS secret is a COMMA-SEPARATED LIST of keys (one
+# is picked at random per call for load/quota spreading across keys). A
+# provider with no keys set here is skipped by the cascade, not an error:
 #   wrangler secret put VISION_GOOGLE_API_KEYS    # "AIza...,AIza..."
-# *_MODEL vars (VISION_OPENAI_MODEL etc.) are optional overrides of the
-# built-in default model per provider -- not secrets, but fine to set via
-# `wrangler secret put` too since there's no separate vars mechanism wired
-# up in this file.
+#   wrangler secret put VISION_OPENAI_API_KEYS    # "sk-...,sk-..."
+#   wrangler secret put VISION_ANTHROPIC_API_KEYS # "sk-ant-...,sk-ant-..." (unused by the
+#                                                  # default cascade, but still supported by
+#                                                  # vision.ts if added to the config file)

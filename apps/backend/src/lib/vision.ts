@@ -10,19 +10,27 @@
 // Every submission still lands in the manual-hold queue regardless of score;
 // the score is purely an aid shown to Review Console.
 //
-// Two axes of configurability, per the 2026-09-11 "adapter" side note:
-//   1. PROVIDER SWAP -- VISION_PROVIDER env var picks openai / anthropic /
-//      google. Each implements the same VisionProvider interface, so callers
-//      never branch on provider.
-//   2. KEY ROTATION -- each provider's key env var is a comma-separated list
-//      (VISION_OPENAI_API_KEYS="key1,key2,key3"). One is picked at random per
-//      call. Workers are stateless per-request with no cheap shared counter
-//      (no KV/DO binding exists for this yet), so random selection is used
-//      instead of strict round-robin -- it still spreads load/quota evenly
-//      across keys over many requests, without needing new infra.
+// Two axes of configurability:
+//   1. CASCADE ORDER -- vision-cascade.config.ts lists an ordered sequence of
+//      (provider, model) steps, changed 2026-09-11 per explicit user request
+//      to try Google's models first (real free tier), then fall back through
+//      OpenAI's cheapest vision-capable models. Each step is tried in order;
+//      the first step whose provider has keys configured AND whose call
+//      succeeds wins. This replaces the old single VISION_PROVIDER env var
+//      swap -- editing the cascade config file is now how you reorder, add,
+//      or remove providers/models, no env var or secret redeploy needed for
+//      that part.
+//   2. KEY ROTATION -- each provider's key env var is still a comma-separated
+//      list (VISION_OPENAI_API_KEYS="key1,key2,key3"). One is picked at
+//      random per call. Workers are stateless per-request with no cheap
+//      shared counter (no KV/DO binding exists for this yet), so random
+//      selection is used instead of strict round-robin -- it still spreads
+//      load/quota evenly across keys over many requests, without needing new
+//      infra.
 // ============================================================================
 
 import type { Env } from "../types";
+import { VISION_CASCADE, type CascadeStep } from "./vision-cascade.config";
 
 export interface VisionScoreResult {
   confidenceScore: number; // 0..1, clamped
@@ -196,29 +204,28 @@ class GoogleVisionProvider implements VisionProvider {
 }
 
 // ============================================================================
-// Factory -- picks provider + rotates a key, returns null if unconfigured
-// (caller treats null as "vision scoring not set up", leaves score null
-// rather than failing the customer's submit request).
+// Cascade support -- for a given cascade step (provider + specific model,
+// from vision-cascade.config.ts), build a provider instance with a rotated
+// key, or null if that provider has no keys configured at all (caller skips
+// the step rather than treating it as a failure).
 // ============================================================================
 
-export function getVisionProvider(env: Env): VisionProvider | null {
-  const providerName = (env.VISION_PROVIDER || "openai").toLowerCase();
-
-  switch (providerName) {
+function buildProviderForStep(step: CascadeStep, env: Env): VisionProvider | null {
+  switch (step.provider) {
     case "openai": {
       const key = pickKey(env.VISION_OPENAI_API_KEYS);
       if (!key) return null;
-      return new OpenAIVisionProvider(key, env.VISION_OPENAI_MODEL || "gpt-4o-mini");
+      return new OpenAIVisionProvider(key, step.model);
     }
     case "anthropic": {
       const key = pickKey(env.VISION_ANTHROPIC_API_KEYS);
       if (!key) return null;
-      return new AnthropicVisionProvider(key, env.VISION_ANTHROPIC_MODEL || "claude-sonnet-4-6");
+      return new AnthropicVisionProvider(key, step.model);
     }
     case "google": {
       const key = pickKey(env.VISION_GOOGLE_API_KEYS);
       if (!key) return null;
-      return new GoogleVisionProvider(key, env.VISION_GOOGLE_MODEL || "gemini-2.0-flash");
+      return new GoogleVisionProvider(key, step.model);
     }
     default:
       return null;
@@ -256,10 +263,30 @@ export async function scoreTaskSubmission(
   imageUrl: string,
   taskName: string
 ): Promise<VisionScoreResult | null> {
-  const provider = getVisionProvider(env);
-  if (!provider) return null; // not configured -- caller leaves ai_confidence_score null
-
-  const image = await fetchImageAsBase64(imageUrl);
   const prompt = buildPrompt(taskName);
-  return provider.scoreImage(image, prompt);
+  // Fetched lazily on the first step that actually has a configured
+  // provider, then reused across any further cascade attempts -- the image
+  // itself doesn't change between providers/models, only the scoring call
+  // does. If fetching fails, `image` stays null and the next step retries
+  // the fetch; a bad/unreachable evidence URL will fail identically on
+  // every step either way, so the cascade is still allowed to exhaust
+  // itself rather than special-casing that failure mode.
+  let image: ImagePayload | null = null;
+
+  for (const step of VISION_CASCADE) {
+    const provider = buildProviderForStep(step, env);
+    if (!provider) continue; // this provider has no keys configured -- skip, not a failure
+
+    try {
+      if (!image) {
+        image = await fetchImageAsBase64(imageUrl);
+      }
+      return await provider.scoreImage(image, prompt);
+    } catch (err) {
+      console.error(`vision cascade step ${step.provider}/${step.model} failed:`, err);
+      // Fall through to the next step in the cascade.
+    }
+  }
+
+  return null; // no provider configured, or every configured step failed
 }
