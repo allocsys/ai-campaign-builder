@@ -36,20 +36,28 @@ export interface SizeTier {
 
 interface SizeTierBound extends SizeTier {
   maxFollowers: number;
-  maxBudgetToman: number;
+  maxMonthlyRevenueToman: number;
 }
 
+// Thresholds revised 2026-09-12 (plan.md Open Item 11): the second signal
+// changed from "offer/reward budget" to "approximate monthly revenue" --
+// the old offer-budget wording looked like the same question as the wizard's
+// Step 4 offer/reward description and confused owners into thinking they
+// were being asked about their offer twice. Monthly revenue is a standalone
+// business-size signal with no overlap with Step 4, but runs roughly 1000x
+// larger in scale than an individual offer's budget, so these thresholds are
+// NOT just the old ones relabeled -- they're a real recalibration.
 const SIZE_TIERS: SizeTierBound[] = [
-  { key: "micro", nameFa: "میکرو", maxFollowers: 500, maxBudgetToman: 30000, pointMultiplier: 0.7, suggestedDurationDays: 10 },
-  { key: "small", nameFa: "کوچک", maxFollowers: 2000, maxBudgetToman: 100000, pointMultiplier: 1, suggestedDurationDays: 14 },
-  { key: "medium", nameFa: "متوسط", maxFollowers: 20000, maxBudgetToman: 500000, pointMultiplier: 1.5, suggestedDurationDays: 21 },
-  { key: "large", nameFa: "بزرگ", maxFollowers: Infinity, maxBudgetToman: Infinity, pointMultiplier: 2, suggestedDurationDays: 30 },
+  { key: "micro", nameFa: "میکرو", maxFollowers: 500, maxMonthlyRevenueToman: 50000000, pointMultiplier: 0.7, suggestedDurationDays: 10 },
+  { key: "small", nameFa: "کوچک", maxFollowers: 2000, maxMonthlyRevenueToman: 200000000, pointMultiplier: 1, suggestedDurationDays: 14 },
+  { key: "medium", nameFa: "متوسط", maxFollowers: 20000, maxMonthlyRevenueToman: 1000000000, pointMultiplier: 1.5, suggestedDurationDays: 21 },
+  { key: "large", nameFa: "بزرگ", maxFollowers: Infinity, maxMonthlyRevenueToman: Infinity, pointMultiplier: 2, suggestedDurationDays: 30 },
 ];
 
 // Signal-conflict rule (mockup's resolveSizeTier, ported verbatim): if
-// follower-count and offer-budget point to different tiers, use the HIGHER
-// tier, not an average or the follower signal by default.
-function findTierIndex(value: number, key: "maxFollowers" | "maxBudgetToman"): number {
+// follower-count and monthly-revenue point to different tiers, use the
+// HIGHER tier, not an average or the follower signal by default.
+function findTierIndex(value: number, key: "maxFollowers" | "maxMonthlyRevenueToman"): number {
   for (let i = 0; i < SIZE_TIERS.length - 1; i++) {
     const bound = SIZE_TIERS[i][key];
     const isSecondToLast = i === SIZE_TIERS.length - 2;
@@ -58,11 +66,11 @@ function findTierIndex(value: number, key: "maxFollowers" | "maxBudgetToman"): n
   return SIZE_TIERS.length - 1;
 }
 
-export function resolveSizeTier(followerCount: number, offerBudgetToman: number): SizeTier {
+export function resolveSizeTier(followerCount: number, monthlyRevenueToman: number): SizeTier {
   const fCount = Number(followerCount) || 0;
-  const bToman = Number(offerBudgetToman) || 0;
-  const idx = Math.max(findTierIndex(fCount, "maxFollowers"), findTierIndex(bToman, "maxBudgetToman"));
-  const { maxFollowers: _mf, maxBudgetToman: _mb, ...tier } = SIZE_TIERS[idx];
+  const rToman = Number(monthlyRevenueToman) || 0;
+  const idx = Math.max(findTierIndex(fCount, "maxFollowers"), findTierIndex(rToman, "maxMonthlyRevenueToman"));
+  const { maxFollowers: _mf, maxMonthlyRevenueToman: _mr, ...tier } = SIZE_TIERS[idx];
   return tier;
 }
 
@@ -140,7 +148,7 @@ export interface GenerateCampaignInput {
   audienceDescription: string;
   offerDescription: string;
   followerCount: number;
-  offerBudgetToman: number;
+  monthlyRevenueToman: number;
   rewardPatternNames: string[]; // owner-selected from the Step 4 multi-select (at least 1)
   maxDiscountPercent: number | null; // business_ai_constraints.max_discount_percent, null if unset
 }
@@ -421,7 +429,7 @@ async function generateCopyViaCascade(env: Env, prompt: string): Promise<CopyGen
 // ============================================================================
 
 export async function generateCampaignProposal(db: D1Database, env: Env, input: GenerateCampaignInput): Promise<GeneratedCampaignProposal> {
-  const tier = resolveSizeTier(input.followerCount, input.offerBudgetToman);
+  const tier = resolveSizeTier(input.followerCount, input.monthlyRevenueToman);
   const tasks = await selectTasks(db, input.categoryId, input.goal, tier);
   const { rewards, discountClamped } = buildRewards(input.rewardPatternNames, tasks, tier, input.maxDiscountPercent);
   const challenge = buildChallenge(tasks);
