@@ -235,7 +235,7 @@ Config-driven (JSON/table), not hardcoded logic.
 | Medium | 2,000–20,000 | 200,000,000–1,000,000,000 | 1.5x | 21 days |
 | Large | > 20,000 | > 1,000,000,000 | 2x | 30 days |
 
-Multiplier scales each task pattern's base points; duration is an editable AI default. **Not yet built as of this note** -- see Open Items for the implementation entry. Touches `resolveSizeTier`'s threshold table and every place the old `offerBudgetToman` field is passed through: `apps/backend/src/lib/campaign-generator.ts`, `apps/backend/src/routes/business.ts`, `packages/api-client/src/types.ts`, and the wizard's Step 3 field/label in `apps/business-owner/src/routes/tabs/CampaignWizardTab.tsx`.
+Multiplier scales each task pattern's base points; duration is an editable AI default. **Built 2026-09-12 -- see Open Item 11 for the full implementation/deploy detail.**
 
 ---
 
