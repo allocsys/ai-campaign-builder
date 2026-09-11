@@ -35,6 +35,63 @@ export interface Campaign {
   rewards: CampaignReward[];
 }
 
+// ============================================================================
+// Onboarding wizard / AI campaign generation (plan.md Open Item 8)
+// Shapes match apps/backend/src/routes/business.ts's POST /campaign/generate.
+// ============================================================================
+
+/** The 6 v1 business category slugs (business_categories.slug in the DB). */
+export type BusinessCategorySlug =
+  | 'coffee_shop'
+  | 'clothing'
+  | 'restaurant'
+  | 'online_store'
+  | 'gym'
+  | 'beauty_clinic';
+
+/** The 6 reward_patterns.name values -- the wizard's Step 4 dropdown options. */
+export type RewardPatternName =
+  | 'percentage_discount'
+  | 'free_item'
+  | 'free_shipping'
+  | 'vip_tier'
+  | 'promo_item'
+  | 'early_access';
+
+export interface GenerateCampaignRequest {
+  businessName: string;
+  categorySlug: BusinessCategorySlug;
+  goal: 'acquisition' | 'retention';
+  audienceDescription: string;
+  followerCount: number;
+  offerBudgetToman: number;
+  offerDescription: string;
+  rewardPatternName: RewardPatternName;
+}
+
+export interface GeneratedSizeTier {
+  key: 'micro' | 'small' | 'medium' | 'large';
+  nameFa: string;
+  pointMultiplier: number;
+  suggestedDurationDays: number;
+}
+
+export interface GeneratedChallenge {
+  description: string;
+  requiredActions: number;
+  bonusPoints: number;
+}
+
+/** Campaign + the extra proposal-only fields the generate endpoint adds on top. */
+export interface GeneratedCampaignProposal extends Campaign {
+  sizeTier: GeneratedSizeTier;
+  proposalTitle: string;
+  proposalNarrative: string;
+  challenge: GeneratedChallenge;
+  discountClamped: boolean;
+  copyGeneratedByAi: boolean;
+}
+
 export interface Insight {
   id: string;
   cadence: 'daily' | 'weekly' | 'anomaly';
