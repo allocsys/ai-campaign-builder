@@ -37,3 +37,20 @@ database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
 #   wrangler secret put VISION_ANTHROPIC_API_KEYS # "sk-ant-...,sk-ant-..." (unused by the
 #                                                  # default cascade, but still supported by
 #                                                  # vision.ts if added to the config file)
+#
+# Evidence storage (lib/storage.ts) -- backs task_submissions.evidence_url
+# with a real uploaded file via Backblaze B2's native API (plan.md's
+# "Evidence storage provider" decision). All FOUR required together --
+# unlike VISION_*/REVIEW_ADMIN_* above, this isn't optional-and-silently-
+# skipped: POST /api/customer/evidence-upload returns a hard 503 if any is
+# missing, since an upload is a synchronous, user-initiated action expecting
+# a real answer, not a background best-effort call. B2_BUCKET_ID and
+# B2_BUCKET_NAME are both needed (the upload API takes the id; public
+# download URLs are built from the name) -- both come from the B2 dashboard
+# when the bucket is created, which must be configured for public-read
+# access so vision.ts and Review Console can fetch/display the resulting
+# URLs with no auth:
+#   wrangler secret put B2_KEY_ID
+#   wrangler secret put B2_APPLICATION_KEY
+#   wrangler secret put B2_BUCKET_ID
+#   wrangler secret put B2_BUCKET_NAME

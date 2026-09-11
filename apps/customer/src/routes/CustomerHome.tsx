@@ -122,11 +122,11 @@ export function CustomerHome() {
     }
   }
 
-  const handleTaskSubmit = async () => {
+  const handleTaskSubmit = async (evidenceUrl: string) => {
     if (!modalTask) return
     const taskId = modalTask.id
     try {
-      const res = await submitTask(apiClient, taskId)
+      const res = await submitTask(apiClient, taskId, evidenceUrl)
       setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: res.status } : t)))
       show('مدرک با موفقیت ارسال شد و در صف بررسی قرار گرفت.', 'info')
     } catch (err) {

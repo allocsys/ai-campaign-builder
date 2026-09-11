@@ -557,3 +557,34 @@ jobs:
           push_if_set VISION_GOOGLE_API_KEYS "$VISION_GOOGLE_API_KEYS"
           push_if_set VISION_OPENAI_API_KEYS "$VISION_OPENAI_API_KEYS"
           push_if_set VISION_ANTHROPIC_API_KEYS "$VISION_ANTHROPIC_API_KEYS"
+      - name: Set B2_* evidence storage secrets on the deployed Worker (optional)
+        # Evidence storage (lib/storage.ts) -- unlike VISION_*'s independent
+        # per-key push above, these four are all-or-nothing: the upload route
+        # itself (routes/customer.ts) already treats a partial B2 config as a
+        # hard failure (503) at request time, so pushing only some of the
+        # four here would just move that same broken state from "clearly
+        # unconfigured" to "silently half-configured", with no benefit.
+        # Optional at the deploy level for the same reason as REVIEW_ADMIN_*/
+        # VISION_*: a repo/environment that hasn't set up B2 yet must still
+        # deploy cleanly, so this only fails the push (not the deploy) when
+        # secrets are missing -- it exits 0 and skips. Guard stays inside
+        # `run:`, same reason as the other optional-secret steps -- the
+        # `secrets` context is rejected inside a step-level `if:`.
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_BUCKET_ID: ${{ secrets.B2_BUCKET_ID }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          cd apps/backend
+          if [ -z "$B2_KEY_ID" ] || [ -z "$B2_APPLICATION_KEY" ] || [ -z "$B2_BUCKET_ID" ] || [ -z "$B2_BUCKET_NAME" ]; then
+            echo "One or more B2_* repo secrets not set -- skipping evidence-storage secret push (this is an optional feature, not a deploy requirement). All four (B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET_ID, B2_BUCKET_NAME) must be set together."
+            exit 0
+          fi
+          echo "$B2_KEY_ID" | npx wrangler secret put B2_KEY_ID
+          echo "$B2_APPLICATION_KEY" | npx wrangler secret put B2_APPLICATION_KEY
+          echo "$B2_BUCKET_ID" | npx wrangler secret put B2_BUCKET_ID
+          echo "$B2_BUCKET_NAME" | npx wrangler secret put B2_BUCKET_NAME

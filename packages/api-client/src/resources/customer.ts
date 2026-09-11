@@ -5,6 +5,7 @@ import type {
   CustomerReward,
   CustomerNotification,
   SubmitTaskResponse,
+  UploadEvidenceResponse,
   SimulateAiApproveResponse,
   RedeemRewardResponse,
   TelegramOptInResponse,
@@ -27,6 +28,25 @@ export async function updateTelegramOptIn(
 
 export async function getCustomerTasks(client: ApiClient): Promise<CustomerTask[]> {
   return client.request<CustomerTask[]>('/api/customer/tasks');
+}
+
+// Uploads the raw file bytes to POST /api/customer/evidence-upload -- a
+// separate call from submitTask() itself (see routes/customer.ts's comment
+// on the endpoint for why: lets the UI show upload progress/failure before
+// the customer commits to submitting the task). Body is the raw File
+// object; ApiClient.request only auto-sets Content-Type when none is
+// present, so setting it here to the file's real mime type (rather than
+// letting the client default to application/json) is what makes this a
+// correct binary upload instead of a broken JSON one.
+export async function uploadEvidence(
+  client: ApiClient,
+  file: File
+): Promise<UploadEvidenceResponse> {
+  return client.request<UploadEvidenceResponse>('/api/customer/evidence-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  });
 }
 
 export async function submitTask(
