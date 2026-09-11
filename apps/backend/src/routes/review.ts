@@ -4,6 +4,7 @@ import type { Env } from "../types";
 import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
+import { downloadEvidenceImage } from "../lib/storage";
 
 const reviewRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -77,6 +78,37 @@ reviewRouter.get("/submissions", async (c) => {
       taskPointsValue: r.points_value,
     }))
   );
+});
+
+// ============================================================================
+// Private-bucket proxy endpoint for evidence images -- Review Console can't
+// hit B2 URLs directly anymore since the bucket is private, so it fetches
+// evidence images through this authenticated backend route instead (preparatory
+// plumbing for Review Console frontend).
+// ============================================================================
+
+reviewRouter.get("/submissions/:id/evidence", async (c) => {
+  const db = c.env.DB;
+  const id = c.req.param("id");
+
+  const row = await queryFirst<{ evidence_url: string | null }>(
+    db,
+    "SELECT evidence_url FROM task_submissions WHERE id = ?",
+    [id]
+  );
+  if (!row || !row.evidence_url) {
+    return c.json({ error: "Evidence not found" }, 404);
+  }
+
+  try {
+    const { bytes, contentType } = await downloadEvidenceImage(c.env, row.evidence_url);
+    return c.body(bytes, 200, { "Content-Type": contentType });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`evidence download failed for submission ${id}:`, message);
+    const status = message.includes("not configured") ? 503 : 502;
+    return c.json({ error: "Evidence download failed" }, status);
+  }
 });
 
 reviewRouter.post("/submissions/:id/resolve", async (c) => {
