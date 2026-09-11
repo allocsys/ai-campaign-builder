@@ -167,7 +167,11 @@ export interface GenerateCampaignInput {
   goal: "acquisition" | "retention" | "acquisition_retention";
   audienceDescription: string;
   offerDescription: string;
-  followerCount: number;
+  /** Optional -- null unless the owner checked "has an Instagram page" in the wizard and entered a count. */
+  followerCount: number | null;
+  /** Always provided -- average of the wizard's daily-customer-count range slider. */
+  dailyCustomerCount: number;
+  /** Always provided -- average of the wizard's monthly-revenue range slider. */
   monthlyRevenueToman: number;
   rewardPatternNames: string[]; // owner-selected from the Step 4 multi-select (at least 1)
   maxDiscountPercent: number | null; // business_ai_constraints.max_discount_percent, null if unset
@@ -449,7 +453,7 @@ async function generateCopyViaCascade(env: Env, prompt: string): Promise<CopyGen
 // ============================================================================
 
 export async function generateCampaignProposal(db: D1Database, env: Env, input: GenerateCampaignInput): Promise<GeneratedCampaignProposal> {
-  const tier = resolveSizeTier(input.followerCount, input.monthlyRevenueToman);
+  const tier = resolveSizeTier(input.followerCount, input.dailyCustomerCount, input.monthlyRevenueToman);
   const tasks = await selectTasks(db, input.categoryId, input.goal, tier);
   const { rewards, discountClamped } = buildRewards(input.rewardPatternNames, tasks, tier, input.maxDiscountPercent);
   const challenge = buildChallenge(tasks);
