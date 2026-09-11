@@ -45,7 +45,7 @@ One campaign belongs to one business.
 |---|---|---|
 | id | uuid | PK |
 | business_id | uuid | FK → businesses |
-| goal | enum | acquisition, retention (drives First Action pattern weight override — see plan.md) |
+| goal | enum | acquisition, retention, acquisition_retention (drives First Action / Repeat Purchase pattern weight overrides — see plan.md and campaign-generator.ts) |
 | audience_description | text | free text from onboarding Q3 |
 | offer_description | text | free text from onboarding Q4, also used for size-tier budget signal |
 | status | enum | draft, active, ended |
