@@ -263,10 +263,30 @@ export async function scoreTaskSubmission(
   imageUrl: string,
   taskName: string
 ): Promise<VisionScoreResult | null> {
-  const provider = getVisionProvider(env);
-  if (!provider) return null; // not configured -- caller leaves ai_confidence_score null
-
-  const image = await fetchImageAsBase64(imageUrl);
   const prompt = buildPrompt(taskName);
-  return provider.scoreImage(image, prompt);
+  // Fetched lazily on the first step that actually has a configured
+  // provider, then reused across any further cascade attempts -- the image
+  // itself doesn't change between providers/models, only the scoring call
+  // does. If fetching fails, `image` stays null and the next step retries
+  // the fetch; a bad/unreachable evidence URL will fail identically on
+  // every step either way, so the cascade is still allowed to exhaust
+  // itself rather than special-casing that failure mode.
+  let image: ImagePayload | null = null;
+
+  for (const step of VISION_CASCADE) {
+    const provider = buildProviderForStep(step, env);
+    if (!provider) continue; // this provider has no keys configured -- skip, not a failure
+
+    try {
+      if (!image) {
+        image = await fetchImageAsBase64(imageUrl);
+      }
+      return await provider.scoreImage(image, prompt);
+    } catch (err) {
+      console.error(`vision cascade step ${step.provider}/${step.model} failed:`, err);
+      // Fall through to the next step in the cascade.
+    }
+  }
+
+  return null; // no provider configured, or every configured step failed
 }
