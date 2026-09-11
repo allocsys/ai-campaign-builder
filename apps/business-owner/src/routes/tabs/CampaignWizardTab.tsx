@@ -93,7 +93,7 @@ export function CampaignWizardTab() {
   const [followerCount, setFollowerCount] = useState('')
   const [offerBudgetToman, setOfferBudgetToman] = useState('')
   const [offerDescription, setOfferDescription] = useState('')
-  const [rewardPatternName, setRewardPatternName] = useState<RewardPatternName>('percentage_discount')
+  const [rewardPatternNames, setRewardPatternNames] = useState<RewardPatternName[]>(['percentage_discount'])
 
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
@@ -106,6 +106,19 @@ export function CampaignWizardTab() {
     setCategorySlug(slug)
     const cat = CATEGORY_OPTIONS.find((c) => c.slug === slug)
     if (cat) setConditionalAnswer(cat.conditionalOptions[0])
+  }
+
+  function toggleRewardPattern(value: RewardPatternName) {
+    setRewardPatternNames((prev) => {
+      if (prev.includes(value)) {
+        if (prev.length === 1) {
+          showToast('حداقل باید یک نوع پاداش انتخاب شده باشد.', 'warning')
+          return prev
+        }
+        return prev.filter((v) => v !== value)
+      }
+      return [...prev, value]
+    })
   }
 
   function goNext() {
@@ -135,7 +148,7 @@ export function CampaignWizardTab() {
         followerCount: Number(followerCount) || 0,
         offerBudgetToman: Number(offerBudgetToman) || 0,
         offerDescription: offerDescription.trim(),
-        rewardPatternName,
+        rewardPatternNames,
       })
       setProposal(result)
       showToast('پیشنهاد کمپین با موفقیت تولید شد!', 'success')
@@ -314,12 +327,27 @@ export function CampaignWizardTab() {
               placeholder="مثلاً یک فنجان قهوه دمی، ۲۰٪ تخفیف روی سفارش دوم"
             />
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-slate-300">نوع پاداش</label>
-              <select className={selectClassName()} value={rewardPatternName} onChange={(e) => setRewardPatternName(e.target.value as RewardPatternName)}>
-                {REWARD_PATTERN_OPTIONS.map((r) => (
-                  <option key={r.value} value={r.value}>{r.labelFa}</option>
-                ))}
-              </select>
+              <label className="text-xs font-medium text-slate-300">نوع پاداش (می‌تونی چند مورد انتخاب کنی)</label>
+              <div className="flex flex-wrap gap-2">
+                {REWARD_PATTERN_OPTIONS.map((r) => {
+                  const selected = rewardPatternNames.includes(r.value)
+                  return (
+                    <button
+                      key={r.value}
+                      type="button"
+                      onClick={() => toggleRewardPattern(r.value)}
+                      aria-pressed={selected}
+                      className={`text-sm rounded-xl2 px-3.5 py-2 border transition-colors ${
+                        selected
+                          ? 'bg-brand-500/20 border-brand-500/60 text-brand-200'
+                          : 'bg-glass-light border-glass-border text-slate-300 hover:border-brand-500/30'
+                      }`}
+                    >
+                      {r.labelFa}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -332,7 +360,7 @@ export function CampaignWizardTab() {
               <div><dt className="inline text-slate-400">🎯 هدف: </dt><dd className="inline">{goal === 'acquisition' ? 'جذب مشتری جدید' : 'حفظ و سفارش مجدد مشتریان'}</dd></div>
               <div><dt className="inline text-slate-400">👥 مخاطب: </dt><dd className="inline">{audienceDescription || '—'}</dd></div>
               <div><dt className="inline text-slate-400">🎁 آفر: </dt><dd className="inline">{offerDescription || '—'}</dd></div>
-              <div><dt className="inline text-slate-400">🎟️ نوع پاداش: </dt><dd className="inline">{REWARD_PATTERN_OPTIONS.find((r) => r.value === rewardPatternName)?.labelFa}</dd></div>
+              <div><dt className="inline text-slate-400">🎟️ نوع پاداش: </dt><dd className="inline">{REWARD_PATTERN_OPTIONS.filter((r) => rewardPatternNames.includes(r.value)).map((r) => r.labelFa).join('، ')}</dd></div>
             </dl>
             {generateError && (
               <p role="alert" className="text-xs text-red-400">{generateError}</p>
