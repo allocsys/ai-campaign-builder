@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useState, type KeyboardEvent } from 'react'
 
 export interface RangeSliderProps {
   label?: string
@@ -90,7 +90,7 @@ export function RangeSlider({
     onChange(valueMin, clamped)
   }
 
-  function commitOnEnter(e: React.KeyboardEvent<HTMLInputElement>) {
+  function commitOnEnter(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') e.currentTarget.blur()
   }
 
