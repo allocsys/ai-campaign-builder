@@ -304,7 +304,7 @@ businessRouter.post("/campaign/generate", async (c) => {
       goal: string;
       audienceDescription: string;
       followerCount: number;
-      offerBudgetToman: number;
+      monthlyRevenueToman: number;
       offerDescription: string;
       rewardPatternNames: string[];
     }>
@@ -399,7 +399,7 @@ businessRouter.post("/campaign/generate", async (c) => {
     audienceDescription: body.audienceDescription?.trim() ?? "",
     offerDescription: body.offerDescription.trim(),
     followerCount: Number(body.followerCount) || 0,
-    offerBudgetToman: Number(body.offerBudgetToman) || 0,
+    monthlyRevenueToman: Number(body.monthlyRevenueToman) || 0,
     rewardPatternNames: body.rewardPatternNames,
     maxDiscountPercent: constraints?.max_discount_percent ?? null,
   });
