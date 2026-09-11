@@ -5,6 +5,7 @@ import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { scoreTaskSubmission } from "../lib/vision";
+import { ALLOWED_EVIDENCE_CONTENT_TYPES, MAX_EVIDENCE_BYTES, uploadEvidenceImage } from "../lib/storage";
 
 const customerRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -244,6 +245,57 @@ customerRouter.get("/tasks", async (c) => {
       status: (r.submission_status === "rejected" ? null : r.submission_status) as "pending" | "approved" | null,
     }))
   );
+});
+
+// ============================================================================
+// Evidence upload (lib/storage.ts, addresses the evidence_url gap flagged
+// alongside Open Item 1) -- takes the raw image bytes from
+// TaskSubmitModal.tsx's file input, uploads to B2, and returns a public URL
+// the customer app then passes as `evidenceUrl` on the actual /submit call
+// below. Deliberately a separate endpoint/round-trip rather than accepting
+// multipart on /submit itself: it lets the frontend show upload progress
+// and surface a clear "upload failed, try again" state before the customer
+// commits to submitting the task, and keeps /submit's body a plain JSON
+// shape (unchanged) rather than switching it to multipart.
+//
+// Body: raw binary (the file itself), Content-Type header set to the
+// file's real mime type -- validated against ALLOWED_EVIDENCE_CONTENT_TYPES
+// before anything is sent to B2. Unlike vision scoring (a background
+// best-effort call), this is a synchronous, user-initiated action: any
+// failure (missing B2 config, bad content type, oversized file, B2 API
+// error) is returned directly as an error response, not swallowed.
+customerRouter.post("/evidence-upload", async (c) => {
+  const customerId = c.get("auth").sub;
+  const contentType = c.req.header("Content-Type") ?? "";
+
+  if (!ALLOWED_EVIDENCE_CONTENT_TYPES[contentType]) {
+    return c.json(
+      { error: `Unsupported content type "${contentType}" -- allowed: ${Object.keys(ALLOWED_EVIDENCE_CONTENT_TYPES).join(", ")}` },
+      400
+    );
+  }
+
+  const bytes = await c.req.arrayBuffer();
+  if (bytes.byteLength === 0) {
+    return c.json({ error: "Empty file body" }, 400);
+  }
+  if (bytes.byteLength > MAX_EVIDENCE_BYTES) {
+    return c.json({ error: `File too large -- max ${MAX_EVIDENCE_BYTES} bytes` }, 413);
+  }
+
+  try {
+    const uploaded = await uploadEvidenceImage(c.env, customerId, contentType, bytes);
+    return c.json({ evidenceUrl: uploaded.url });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`evidence upload failed for customer ${customerId}:`, message);
+    // Not-configured is distinguished from a real B2-side failure so the
+    // frontend/ops can tell "nobody set up storage yet" apart from "storage
+    // is set up but something broke" -- same distinction VISION_* env vars
+    // draw, just surfaced synchronously here instead of logged silently.
+    const status = message.includes("not configured") ? 503 : 502;
+    return c.json({ error: "Evidence upload failed" }, status);
+  }
 });
 
 customerRouter.post("/tasks/:id/submit", async (c) => {
