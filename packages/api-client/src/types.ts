@@ -67,8 +67,12 @@ export interface GenerateCampaignRequest {
   categorySlug: BusinessCategorySlug;
   goal: 'acquisition' | 'retention' | 'acquisition_retention';
   audienceDescription: string;
-  followerCount: number;
+  /** Daily walk-in/existing-customer count -- always provided, average of the wizard's range-slider selection (plan.md "Signal model revised again", 2026-09-12). */
+  dailyCustomerCount: number;
   monthlyRevenueToman: number;
+  /** Optional -- null unless the owner checked "has an Instagram page" and entered a count. Not every business has a page. */
+  followerCount: number | null;
+  /** Optional -- may be empty; only ever feeds LLM copy generation, never the deterministic reward/points math. */
   offerDescription: string;
   /** At least one reward_pattern; one reward tier is generated per selected pattern (min 2 tiers). */
   rewardPatternNames: RewardPatternName[];
