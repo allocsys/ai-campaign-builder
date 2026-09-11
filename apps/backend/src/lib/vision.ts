@@ -204,29 +204,28 @@ class GoogleVisionProvider implements VisionProvider {
 }
 
 // ============================================================================
-// Factory -- picks provider + rotates a key, returns null if unconfigured
-// (caller treats null as "vision scoring not set up", leaves score null
-// rather than failing the customer's submit request).
+// Cascade support -- for a given cascade step (provider + specific model,
+// from vision-cascade.config.ts), build a provider instance with a rotated
+// key, or null if that provider has no keys configured at all (caller skips
+// the step rather than treating it as a failure).
 // ============================================================================
 
-export function getVisionProvider(env: Env): VisionProvider | null {
-  const providerName = (env.VISION_PROVIDER || "openai").toLowerCase();
-
-  switch (providerName) {
+function buildProviderForStep(step: CascadeStep, env: Env): VisionProvider | null {
+  switch (step.provider) {
     case "openai": {
       const key = pickKey(env.VISION_OPENAI_API_KEYS);
       if (!key) return null;
-      return new OpenAIVisionProvider(key, env.VISION_OPENAI_MODEL || "gpt-4o-mini");
+      return new OpenAIVisionProvider(key, step.model);
     }
     case "anthropic": {
       const key = pickKey(env.VISION_ANTHROPIC_API_KEYS);
       if (!key) return null;
-      return new AnthropicVisionProvider(key, env.VISION_ANTHROPIC_MODEL || "claude-sonnet-4-6");
+      return new AnthropicVisionProvider(key, step.model);
     }
     case "google": {
       const key = pickKey(env.VISION_GOOGLE_API_KEYS);
       if (!key) return null;
-      return new GoogleVisionProvider(key, env.VISION_GOOGLE_MODEL || "gemini-2.0-flash");
+      return new GoogleVisionProvider(key, step.model);
     }
     default:
       return null;
