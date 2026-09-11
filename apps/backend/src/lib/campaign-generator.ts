@@ -141,7 +141,7 @@ export interface GenerateCampaignInput {
   offerDescription: string;
   followerCount: number;
   offerBudgetToman: number;
-  rewardPatternName: string; // owner-selected from the Step 4 dropdown
+  rewardPatternNames: string[]; // owner-selected from the Step 4 multi-select (at least 1)
   maxDiscountPercent: number | null; // business_ai_constraints.max_discount_percent, null if unset
 }
 
@@ -199,36 +199,56 @@ async function selectTasks(
   }));
 }
 
+// Multi-select reward types (plan.md decision, 2026-09-11 revision): one
+// reward tier is generated per owner-selected reward_pattern, in the order
+// selected, with monotonically increasing thresholds (totalPoints * 1.5,
+// totalPoints * 3, totalPoints * 4.5, ...). Always at least 2 tiers --
+// matching the original single-pattern design, which always produced 2
+// tiers -- so a single selection still yields tier 1 + tier 2 of that same
+// pattern (cycling back to index 0 for any tier beyond the selected list's
+// length). Selecting 3+ patterns produces 3+ tiers, one per pattern, rather
+// than capping at 2 and silently dropping the extra selections.
 function buildRewards(
-  rewardPatternName: string,
+  rewardPatternNames: string[],
   tasks: GeneratedTask[],
   tier: SizeTier,
   maxDiscountPercent: number | null
 ): { rewards: GeneratedRewardTier[]; discountClamped: boolean } {
   const totalPoints = tasks.reduce((sum, t) => sum + t.points, 0) || 1;
-  const tier1Threshold = Math.max(10, Math.round(totalPoints * 1.5));
-  const tier2Threshold = Math.max(tier1Threshold + 10, Math.round(totalPoints * 3));
+  const tierCount = Math.max(2, rewardPatternNames.length);
 
   let discountClamped = false;
-  let discountPercent: number | null = null;
-  if (rewardPatternName === "percentage_discount") {
-    const base = DEFAULT_DISCOUNT_PERCENT_BY_TIER[tier.key];
-    if (maxDiscountPercent != null && base > maxDiscountPercent) {
-      discountPercent = maxDiscountPercent;
-      discountClamped = true;
-    } else {
-      discountPercent = base;
+  let prevThreshold = 0;
+  const rewards: GeneratedRewardTier[] = [];
+
+  for (let i = 0; i < tierCount; i++) {
+    const rawThreshold = Math.round(totalPoints * 1.5 * (i + 1));
+    const threshold = Math.max(prevThreshold + 10, rawThreshold, 10);
+    prevThreshold = threshold;
+
+    const patternName = rewardPatternNames[i % rewardPatternNames.length];
+
+    let discountPercent: number | null = null;
+    if (patternName === "percentage_discount") {
+      const base = DEFAULT_DISCOUNT_PERCENT_BY_TIER[tier.key];
+      if (maxDiscountPercent != null && base > maxDiscountPercent) {
+        discountPercent = maxDiscountPercent;
+        discountClamped = true;
+      } else {
+        discountPercent = base;
+      }
     }
+
+    const fallbackLabel = REWARD_PATTERN_FALLBACK_NAMES[patternName] ?? patternName;
+    const description = discountPercent != null ? `${discountPercent}٪ ${fallbackLabel}` : fallbackLabel;
+
+    rewards.push({
+      patternName,
+      name: `سطح ${i + 1}: ${description}`,
+      description,
+      threshold,
+    });
   }
-
-  const fallbackLabel = REWARD_PATTERN_FALLBACK_NAMES[rewardPatternName] ?? rewardPatternName;
-  const describe = (): string =>
-    discountPercent != null ? `${discountPercent}٪ ${fallbackLabel}` : fallbackLabel;
-
-  const rewards: GeneratedRewardTier[] = [
-    { patternName: rewardPatternName, name: `سطح ۱: ${describe()}`, description: describe(), threshold: tier1Threshold },
-    { patternName: rewardPatternName, name: `سطح ۲: ${describe()}`, description: describe(), threshold: tier2Threshold },
-  ];
 
   return { rewards, discountClamped };
 }
@@ -378,7 +398,7 @@ async function generateCopyViaCascade(env: Env, prompt: string): Promise<CopyGen
 export async function generateCampaignProposal(db: D1Database, env: Env, input: GenerateCampaignInput): Promise<GeneratedCampaignProposal> {
   const tier = resolveSizeTier(input.followerCount, input.offerBudgetToman);
   const tasks = await selectTasks(db, input.categoryId, input.goal, tier);
-  const { rewards, discountClamped } = buildRewards(input.rewardPatternName, tasks, tier, input.maxDiscountPercent);
+  const { rewards, discountClamped } = buildRewards(input.rewardPatternNames, tasks, tier, input.maxDiscountPercent);
   const challenge = buildChallenge(tasks);
 
   const prompt = buildCopyPrompt(input, tier, tasks, rewards);
