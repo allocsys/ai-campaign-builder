@@ -5,6 +5,8 @@ export interface BusinessProfile {
   sizeTier: 'micro' | 'small' | 'medium' | 'large';
   smsWalletBalanceToman: number;
   smsMonthlyCapToman: number | null;
+  /** plan.md Open Item 9 -- auto-fills the microsite Contact module when set. */
+  address: string;
 }
 
 export interface ChecklistItem {
@@ -60,6 +62,8 @@ export type RewardPatternName =
 
 export interface GenerateCampaignRequest {
   businessName: string;
+  /** plan.md Open Item 9 -- optional; omitted/empty leaves any existing businesses.address untouched. */
+  businessAddress?: string;
   categorySlug: BusinessCategorySlug;
   goal: 'acquisition' | 'retention' | 'acquisition_retention';
   audienceDescription: string;
