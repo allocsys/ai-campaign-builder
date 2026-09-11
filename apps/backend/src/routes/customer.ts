@@ -4,6 +4,7 @@ import type { Env } from "../types";
 import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
+import { scoreTaskSubmission } from "../lib/vision";
 
 const customerRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -252,7 +253,13 @@ customerRouter.post("/tasks/:id/submit", async (c) => {
   const code = await resolveCode(db, customerId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
-  const task = await queryFirst<{ id: string }>(db, "SELECT id FROM campaign_tasks WHERE id = ?", [taskId]);
+  const task = await queryFirst<{ id: string; name: string; verification_method: string }>(
+    db,
+    `SELECT ct.id, ct.name, tp.verification_method
+     FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
+     WHERE ct.id = ?`,
+    [taskId]
+  );
   if (!task) return c.json({ error: "Task not found" }, 404);
 
   let evidenceUrl: string | null = null;
@@ -273,6 +280,32 @@ customerRouter.post("/tasks/:id/submit", async (c) => {
      VALUES (?, ?, ?, 'screenshot', ?, 'pending', ?)`,
     [submissionId, code.id, taskId, evidenceUrl, nowIso()]
   );
+
+  // Vision scoring (Open Item 1, lib/vision.ts): only meaningful for
+  // screenshot_ai-verified tasks with real evidence to look at. Runs via
+  // waitUntil so it happens AFTER this response is sent -- the customer
+  // shouldn't wait on a multimodal API call just to see "submitted".
+  // Populates ai_confidence_score only; never changes `status` here (no
+  // auto-approve/reject tiers exist yet -- Item 5 is still blocked on this
+  // pipeline producing real score distributions first). Any failure
+  // (unconfigured provider, fetch error, malformed model response) is
+  // swallowed -- the submission still lands in Review Console's manual-hold
+  // queue with a null score either way, exactly as it does today.
+  if (evidenceUrl && task.verification_method === "screenshot_ai") {
+    c.executionCtx.waitUntil(
+      scoreTaskSubmission(c.env, evidenceUrl, task.name)
+        .then(async (result) => {
+          if (!result) return; // provider not configured -- leave score null
+          await execute(db, "UPDATE task_submissions SET ai_confidence_score = ? WHERE id = ?", [
+            result.confidenceScore,
+            submissionId,
+          ]);
+        })
+        .catch((err) => {
+          console.error(`vision scoring failed for submission ${submissionId}:`, err);
+        })
+    );
+  }
 
   return c.json({ submissionId, status: "pending" as const });
 });

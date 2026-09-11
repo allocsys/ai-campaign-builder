@@ -1,0 +1,265 @@
+// ============================================================================
+// Vision scoring adapter for task_submissions.ai_confidence_score
+// (plan.md Open Item 1 / Phase 0.5 "Scoring approach", decided 2026-09-11).
+//
+// Scope of this file, deliberately narrow: given an evidence image + a task
+// name, ask a multimodal model "how confident are you this screenshot shows
+// the task done?" and return a 0..1 score + one-line reasoning. It does NOT
+// decide auto-approve/auto-reject -- that threshold design is Open Item 5,
+// still blocked pending real-world score distributions from this pipeline.
+// Every submission still lands in the manual-hold queue regardless of score;
+// the score is purely an aid shown to Review Console.
+//
+// Two axes of configurability, per the 2026-09-11 "adapter" side note:
+//   1. PROVIDER SWAP -- VISION_PROVIDER env var picks openai / anthropic /
+//      google. Each implements the same VisionProvider interface, so callers
+//      never branch on provider.
+//   2. KEY ROTATION -- each provider's key env var is a comma-separated list
+//      (VISION_OPENAI_API_KEYS="key1,key2,key3"). One is picked at random per
+//      call. Workers are stateless per-request with no cheap shared counter
+//      (no KV/DO binding exists for this yet), so random selection is used
+//      instead of strict round-robin -- it still spreads load/quota evenly
+//      across keys over many requests, without needing new infra.
+// ============================================================================
+
+import type { Env } from "../types";
+
+export interface VisionScoreResult {
+  confidenceScore: number; // 0..1, clamped
+  reasoning: string;
+  provider: string;
+  model: string;
+}
+
+interface ImagePayload {
+  base64: string;
+  mimeType: string;
+}
+
+export interface VisionProvider {
+  readonly name: string;
+  scoreImage(image: ImagePayload, prompt: string): Promise<VisionScoreResult>;
+}
+
+// ============================================================================
+// Key rotation helper
+// ============================================================================
+
+function pickKey(csv: string | undefined): string | null {
+  if (!csv) return null;
+  const keys = csv
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+  if (keys.length === 0) return null;
+  return keys[Math.floor(Math.random() * keys.length)];
+}
+
+// ============================================================================
+// Shared prompt + response parsing
+// ============================================================================
+
+function buildPrompt(taskName: string): string {
+  return (
+    `You are reviewing evidence a customer submitted to prove they completed ` +
+    `a marketing task called "${taskName}" for a business loyalty campaign. ` +
+    `Look at the attached screenshot and judge, on a scale of 0 to 1, how ` +
+    `confident you are that it genuinely shows this task completed (not a ` +
+    `stock photo, not unrelated content, not an obviously reused or edited ` +
+    `screenshot). Respond with ONLY a JSON object and nothing else: ` +
+    `{"confidence": <number between 0 and 1>, "reasoning": "<one short sentence>"}`
+  );
+}
+
+function parseScoreResponse(text: string, provider: string, model: string): VisionScoreResult {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) {
+    throw new Error(`${provider}: no JSON object found in model response`);
+  }
+  const parsed = JSON.parse(match[0]) as { confidence?: unknown; reasoning?: unknown };
+  const raw = typeof parsed.confidence === "number" ? parsed.confidence : Number(parsed.confidence);
+  if (Number.isNaN(raw)) {
+    throw new Error(`${provider}: confidence value missing or not a number`);
+  }
+  const confidenceScore = Math.max(0, Math.min(1, raw));
+  const reasoning = typeof parsed.reasoning === "string" ? parsed.reasoning : "";
+  return { confidenceScore, reasoning, provider, model };
+}
+
+// ============================================================================
+// OpenAI (Chat Completions, image_url content part with a data: URI)
+// ============================================================================
+
+class OpenAIVisionProvider implements VisionProvider {
+  readonly name = "openai";
+  constructor(private apiKey: string, private model: string) {}
+
+  async scoreImage(image: ImagePayload, prompt: string): Promise<VisionScoreResult> {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        max_tokens: 200,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: `data:${image.mimeType};base64,${image.base64}` } },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`openai vision call failed: ${res.status} ${await res.text()}`);
+    }
+    const data = (await res.json()) as { choices: Array<{ message: { content: string } }> };
+    const text = data.choices?.[0]?.message?.content ?? "";
+    return parseScoreResponse(text, this.name, this.model);
+  }
+}
+
+// ============================================================================
+// Anthropic (Messages API, image content block, base64 source)
+// ============================================================================
+
+class AnthropicVisionProvider implements VisionProvider {
+  readonly name = "anthropic";
+  constructor(private apiKey: string, private model: string) {}
+
+  async scoreImage(image: ImagePayload, prompt: string): Promise<VisionScoreResult> {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": this.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: this.model,
+        max_tokens: 200,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: image.mimeType, data: image.base64 } },
+              { type: "text", text: prompt },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`anthropic vision call failed: ${res.status} ${await res.text()}`);
+    }
+    const data = (await res.json()) as { content: Array<{ type: string; text?: string }> };
+    const text = data.content?.find((b) => b.type === "text")?.text ?? "";
+    return parseScoreResponse(text, this.name, this.model);
+  }
+}
+
+// ============================================================================
+// Google (Gemini generateContent, inline_data base64 part)
+// ============================================================================
+
+class GoogleVisionProvider implements VisionProvider {
+  readonly name = "google";
+  constructor(private apiKey: string, private model: string) {}
+
+  async scoreImage(image: ImagePayload, prompt: string): Promise<VisionScoreResult> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }, { inline_data: { mime_type: image.mimeType, data: image.base64 } }],
+          },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`google vision call failed: ${res.status} ${await res.text()}`);
+    }
+    const data = (await res.json()) as {
+      candidates: Array<{ content: { parts: Array<{ text?: string }> } }>;
+    };
+    const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    return parseScoreResponse(text, this.name, this.model);
+  }
+}
+
+// ============================================================================
+// Factory -- picks provider + rotates a key, returns null if unconfigured
+// (caller treats null as "vision scoring not set up", leaves score null
+// rather than failing the customer's submit request).
+// ============================================================================
+
+export function getVisionProvider(env: Env): VisionProvider | null {
+  const providerName = (env.VISION_PROVIDER || "openai").toLowerCase();
+
+  switch (providerName) {
+    case "openai": {
+      const key = pickKey(env.VISION_OPENAI_API_KEYS);
+      if (!key) return null;
+      return new OpenAIVisionProvider(key, env.VISION_OPENAI_MODEL || "gpt-4o-mini");
+    }
+    case "anthropic": {
+      const key = pickKey(env.VISION_ANTHROPIC_API_KEYS);
+      if (!key) return null;
+      return new AnthropicVisionProvider(key, env.VISION_ANTHROPIC_MODEL || "claude-sonnet-4-6");
+    }
+    case "google": {
+      const key = pickKey(env.VISION_GOOGLE_API_KEYS);
+      if (!key) return null;
+      return new GoogleVisionProvider(key, env.VISION_GOOGLE_MODEL || "gemini-2.0-flash");
+    }
+    default:
+      return null;
+  }
+}
+
+// ============================================================================
+// Image fetch + base64 encode (shared across providers so the adapter
+// interface stays uniform -- all three APIs above take inline base64 rather
+// than mixing url-source and base64-source code paths).
+// ============================================================================
+
+async function fetchImageAsBase64(imageUrl: string): Promise<ImagePayload> {
+  const res = await fetch(imageUrl);
+  if (!res.ok) {
+    throw new Error(`failed to fetch evidence image: ${res.status}`);
+  }
+  const mimeType = res.headers.get("content-type") || "image/jpeg";
+  const buf = await res.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return { base64: btoa(binary), mimeType };
+}
+
+// ============================================================================
+// Public entry point used by routes/customer.ts
+// ============================================================================
+
+export async function scoreTaskSubmission(
+  env: Env,
+  imageUrl: string,
+  taskName: string
+): Promise<VisionScoreResult | null> {
+  const provider = getVisionProvider(env);
+  if (!provider) return null; // not configured -- caller leaves ai_confidence_score null
+
+  const image = await fetchImageAsBase64(imageUrl);
+  const prompt = buildPrompt(taskName);
+  return provider.scoreImage(image, prompt);
+}
