@@ -152,7 +152,7 @@ export function CampaignWizardTab() {
       await updateCampaign(apiClient, { status: 'active' })
       showToast('کمپین با موفقیت راه‌اندازی شد!', 'success')
     } catch (err) {
-      showToast(err instanceof Error ? err.message : String(err), 'error')
+      showToast(err instanceof Error ? err.message : String(err), 'danger')
     } finally {
       setLaunching(false)
     }
