@@ -104,7 +104,9 @@ export interface FeaturedCampaign {
   // Added 2026-09-11 (plan.md Open Item 3) -- lets CampaignHighlight render
   // goal-driven CTA copy (acquisition vs. retention messaging) without that
   // copy needing to be authored per-module in business_microsite_modules.content.
-  goal: "acquisition" | "retention";
+  // acquisition_retention added later the same day for the combined-goal
+  // campaign option.
+  goal: "acquisition" | "retention" | "acquisition_retention";
 }
 
 export interface BusinessMicrositeContent {
