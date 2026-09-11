@@ -37,7 +37,7 @@ Full build history (mockup phase → monorepo restructure → per-persona scaffo
 
 ### Core questions (universal)
 1. کسب‌وکارت چیه؟
-2. هدفت چیه؟ (acquisition / retention)
+2. هدفت چیه؟ (acquisition / retention / acquisition_retention — گزینه ترکیبی اضافه شد 2026-09-11، منطق وزن‌دهی جداگانه در campaign-generator.ts)
 3. مخاطبت کیه؟
 4. چه چیزی می‌تونی به مشتری بدی؟
 
