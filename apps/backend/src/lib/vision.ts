@@ -10,19 +10,27 @@
 // Every submission still lands in the manual-hold queue regardless of score;
 // the score is purely an aid shown to Review Console.
 //
-// Two axes of configurability, per the 2026-09-11 "adapter" side note:
-//   1. PROVIDER SWAP -- VISION_PROVIDER env var picks openai / anthropic /
-//      google. Each implements the same VisionProvider interface, so callers
-//      never branch on provider.
-//   2. KEY ROTATION -- each provider's key env var is a comma-separated list
-//      (VISION_OPENAI_API_KEYS="key1,key2,key3"). One is picked at random per
-//      call. Workers are stateless per-request with no cheap shared counter
-//      (no KV/DO binding exists for this yet), so random selection is used
-//      instead of strict round-robin -- it still spreads load/quota evenly
-//      across keys over many requests, without needing new infra.
+// Two axes of configurability:
+//   1. CASCADE ORDER -- vision-cascade.config.ts lists an ordered sequence of
+//      (provider, model) steps, changed 2026-09-11 per explicit user request
+//      to try Google's models first (real free tier), then fall back through
+//      OpenAI's cheapest vision-capable models. Each step is tried in order;
+//      the first step whose provider has keys configured AND whose call
+//      succeeds wins. This replaces the old single VISION_PROVIDER env var
+//      swap -- editing the cascade config file is now how you reorder, add,
+//      or remove providers/models, no env var or secret redeploy needed for
+//      that part.
+//   2. KEY ROTATION -- each provider's key env var is still a comma-separated
+//      list (VISION_OPENAI_API_KEYS="key1,key2,key3"). One is picked at
+//      random per call. Workers are stateless per-request with no cheap
+//      shared counter (no KV/DO binding exists for this yet), so random
+//      selection is used instead of strict round-robin -- it still spreads
+//      load/quota evenly across keys over many requests, without needing new
+//      infra.
 // ============================================================================
 
 import type { Env } from "../types";
+import { VISION_CASCADE, type CascadeStep } from "./vision-cascade.config";
 
 export interface VisionScoreResult {
   confidenceScore: number; // 0..1, clamped
