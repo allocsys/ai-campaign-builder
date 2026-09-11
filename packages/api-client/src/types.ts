@@ -68,7 +68,7 @@ export interface GenerateCampaignRequest {
   goal: 'acquisition' | 'retention' | 'acquisition_retention';
   audienceDescription: string;
   followerCount: number;
-  offerBudgetToman: number;
+  monthlyRevenueToman: number;
   offerDescription: string;
   /** At least one reward_pattern; one reward tier is generated per selected pattern (min 2 tiers). */
   rewardPatternNames: RewardPatternName[];
