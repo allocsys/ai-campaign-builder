@@ -297,7 +297,7 @@ interface CopyGenerationResult {
   proposalTitle: string;
   proposalNarrative: string;
   taskNames: Record<string, string>; // keyed by patternName
-  rewardNames: [string, string]; // tier 1, tier 2
+  rewardNames: string[]; // one per reward tier, in tier order (length varies -- see buildRewards)
   challengeDescription: string;
 }
 
@@ -312,12 +312,16 @@ function buildCopyPrompt(input: GenerateCampaignInput, tier: SizeTier, tasks: Ge
     `Tasks (behavioral patterns customers complete for points): ${tasks
       .map((t) => t.patternName)
       .join(", ")}. ` +
-    `Reward tiers: tier 1 at ${rewards[0].threshold} points, tier 2 at ${rewards[1].threshold} points, ` +
-    `reward type: ${rewards[0].patternName}${rewards[0].description ? ` (${rewards[0].description})` : ""}. ` +
+    `Reward tiers (in order): ${rewards
+      .map(
+        (r, i) =>
+          `tier ${i + 1} at ${r.threshold} points, type ${r.patternName}${r.description ? ` (${r.description})` : ""}`
+      )
+      .join("; ")}. ` +
     `Write everything in Persian. Respond with ONLY a JSON object and nothing else, in this exact shape: ` +
     `{"proposalTitle": "<short catchy campaign name>", "proposalNarrative": "<1-2 sentence pitch>", ` +
     `"taskNames": {${tasks.map((t) => `"${t.patternName}": "<short action name for this task>"`).join(", ")}}, ` +
-    `"rewardNames": ["<short name for reward tier 1>", "<short name for reward tier 2>"], ` +
+    `"rewardNames": [${rewards.map((_, i) => `"<short name for reward tier ${i + 1}>"`).join(", ")}], ` +
     `"challengeDescription": "<1 sentence describing a bonus challenge: complete 3 actions during the campaign for extra points>"}`
   );
 }
@@ -332,7 +336,7 @@ function parseCopyResponse(text: string): CopyGenerationResult {
     typeof parsed.taskNames !== "object" ||
     parsed.taskNames === null ||
     !Array.isArray(parsed.rewardNames) ||
-    parsed.rewardNames.length < 2 ||
+    parsed.rewardNames.length < 1 ||
     typeof parsed.challengeDescription !== "string"
   ) {
     throw new Error("model response missing required fields");
@@ -341,7 +345,7 @@ function parseCopyResponse(text: string): CopyGenerationResult {
     proposalTitle: parsed.proposalTitle,
     proposalNarrative: parsed.proposalNarrative,
     taskNames: parsed.taskNames as Record<string, string>,
-    rewardNames: [String(parsed.rewardNames[0]), String(parsed.rewardNames[1])],
+    rewardNames: parsed.rewardNames.map((n) => String(n)),
     challengeDescription: parsed.challengeDescription,
   };
 }
@@ -408,8 +412,9 @@ export async function generateCampaignProposal(db: D1Database, env: Env, input: 
     for (const t of tasks) {
       if (copy.taskNames[t.patternName]) t.name = copy.taskNames[t.patternName];
     }
-    rewards[0].name = copy.rewardNames[0] || rewards[0].name;
-    rewards[1].name = copy.rewardNames[1] || rewards[1].name;
+    for (let i = 0; i < rewards.length; i++) {
+      if (copy.rewardNames[i]) rewards[i].name = copy.rewardNames[i];
+    }
     challenge.description = copy.challengeDescription || challenge.description;
   }
 
