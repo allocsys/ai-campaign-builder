@@ -6,11 +6,12 @@ import apiClient from '../../lib/api-client'
 
 /**
  * Business profile + SMS wallet + subscription/billing summary.
- * Profile editing covers `name` + `smsMonthlyCapToman` — the two fields the
- * backend's PUT /api/business/profile already accepts that make sense as a
- * self-serve edit. `phone` (auth identity) and `categoryLabel`/`sizeTier`
- * (set at onboarding, no category-list endpoint exists yet to re-pick from)
- * stay read-only for now.
+ * Profile editing covers `name` + `smsMonthlyCapToman` + `address` (the
+ * latter added 2026-09-11, plan.md Open Item 9, since it's also collected
+ * in the onboarding wizard's Step 1 -- whichever place the owner reaches
+ * first, it auto-fills the microsite Contact module). `phone` (auth
+ * identity) and `categoryLabel`/`sizeTier` (set at onboarding, no
+ * category-list endpoint exists yet to re-pick from) stay read-only for now.
  */
 export function SettingsTab() {
   const { show: showToast } = useToast()
@@ -23,6 +24,7 @@ export function SettingsTab() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [nameInput, setNameInput] = useState('')
+  const [addressInput, setAddressInput] = useState('')
   const [capInput, setCapInput] = useState('')
   const [noCap, setNoCap] = useState(false)
 
@@ -50,6 +52,7 @@ export function SettingsTab() {
   const startEditing = () => {
     if (!profile) return
     setNameInput(profile.name)
+    setAddressInput(profile.address)
     setNoCap(profile.smsMonthlyCapToman === null)
     setCapInput(profile.smsMonthlyCapToman !== null ? String(profile.smsMonthlyCapToman) : '')
     setSaveError(null)
@@ -75,6 +78,7 @@ export function SettingsTab() {
     try {
       const updated = await updateBusinessProfile(apiClient, {
         name: nameInput.trim(),
+        address: addressInput.trim(),
         smsMonthlyCapToman: noCap ? null : capInput.trim() === '' ? null : Number(capInput),
       })
       setProfile(updated)
@@ -118,6 +122,13 @@ export function SettingsTab() {
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               disabled={saving}
+            />
+            <Input
+              label="آدرس کسب‌وکار"
+              value={addressInput}
+              onChange={(e) => setAddressInput(e.target.value)}
+              disabled={saving}
+              placeholder="مثلاً تهران، ولیعصر، خیابان توانیر، پلاک ۱۲"
             />
             <div className="flex flex-col gap-1.5">
               <Input
@@ -164,6 +175,8 @@ export function SettingsTab() {
           <dl className="grid grid-cols-2 gap-y-2 text-sm">
             <dt className="text-slate-400">نام</dt>
             <dd>{profile.name}</dd>
+            <dt className="text-slate-400">آدرس</dt>
+            <dd>{profile.address || '—'}</dd>
             <dt className="text-slate-400">دسته‌بندی</dt>
             <dd>{profile.categoryLabel}</dd>
             <dt className="text-slate-400">شماره موبایل</dt>
