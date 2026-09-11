@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useEffect, useId, useState, type KeyboardEvent } from 'react'
 
 export interface RangeSliderProps {
   label?: string
@@ -53,6 +53,50 @@ export function RangeSlider({
   const minLabelId = `${id}-min`
   const maxLabelId = `${id}-max`
 
+  // Local string state for the manual-entry inputs below the track, kept
+  // separate from valueMin/valueMax so the field isn't clamped/reformatted
+  // on every keystroke -- it only syncs back to the numeric prop (a) when
+  // the slider itself changes valueMin/valueMax externally, or (b) when the
+  // user commits their edit (blur / Enter), see commitMin/commitMax below.
+  const [minInput, setMinInput] = useState(String(valueMin))
+  const [maxInput, setMaxInput] = useState(String(valueMax))
+
+  useEffect(() => {
+    setMinInput(String(valueMin))
+  }, [valueMin])
+  useEffect(() => {
+    setMaxInput(String(valueMax))
+  }, [valueMax])
+
+  function commitMin(raw: string) {
+    const parsed = Number(raw)
+    if (Number.isNaN(parsed)) {
+      setMinInput(String(valueMin))
+      return
+    }
+    const clamped = Math.min(Math.max(parsed, min), valueMax - step)
+    setMinInput(String(clamped))
+    onChange(clamped, valueMax)
+  }
+
+  function commitMax(raw: string) {
+    const parsed = Number(raw)
+    if (Number.isNaN(parsed)) {
+      setMaxInput(String(valueMax))
+      return
+    }
+    const clamped = Math.max(Math.min(parsed, max), valueMin + step)
+    setMaxInput(String(clamped))
+    onChange(valueMin, clamped)
+  }
+
+  function commitOnEnter(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') e.currentTarget.blur()
+  }
+
+  const manualInputClassName =
+    'w-24 bg-glass-light backdrop-blur-md border border-glass-border rounded-xl2 px-2 py-1 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-brand-500/60 transition-shadow'
+
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
@@ -97,6 +141,40 @@ export function RangeSlider({
           }}
           className="ui-kit-range-thumb absolute inset-x-0 w-full appearance-none bg-transparent"
         />
+      </div>
+      <div className="flex items-center gap-3" dir="ltr">
+        <label className="flex items-center gap-1.5 text-xs text-slate-400">
+          <span className="whitespace-nowrap">کف</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={minInput}
+            min={min}
+            max={valueMax - step}
+            step={step}
+            onChange={(e) => setMinInput(e.target.value)}
+            onBlur={(e) => commitMin(e.target.value)}
+            onKeyDown={commitOnEnter}
+            className={manualInputClassName}
+            aria-label={label ? `${label} — کف (ورود دستی)` : 'کف بازه (ورود دستی)'}
+          />
+        </label>
+        <label className="flex items-center gap-1.5 text-xs text-slate-400">
+          <span className="whitespace-nowrap">سقف</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={maxInput}
+            min={valueMin + step}
+            max={max}
+            step={step}
+            onChange={(e) => setMaxInput(e.target.value)}
+            onBlur={(e) => commitMax(e.target.value)}
+            onKeyDown={commitOnEnter}
+            className={manualInputClassName}
+            aria-label={label ? `${label} — سقف (ورود دستی)` : 'سقف بازه (ورود دستی)'}
+          />
+        </label>
       </div>
       {helpText && <p className="text-xs text-slate-500">{helpText}</p>}
       <style>{`
