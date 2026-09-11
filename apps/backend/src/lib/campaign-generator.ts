@@ -136,7 +136,7 @@ export interface GenerateCampaignInput {
   categorySlug: string;
   categoryNameFa: string;
   businessName: string;
-  goal: "acquisition" | "retention";
+  goal: "acquisition" | "retention" | "acquisition_retention";
   audienceDescription: string;
   offerDescription: string;
   followerCount: number;
@@ -164,7 +164,7 @@ export interface GeneratedCampaignProposal {
 async function selectTasks(
   db: D1Database,
   categoryId: string,
-  goal: "acquisition" | "retention",
+  goal: "acquisition" | "retention" | "acquisition_retention",
   tier: SizeTier
 ): Promise<GeneratedTask[]> {
   const rows = await queryAll<{ pattern_name: string; base_points: number; verification_method: string; weight: number }>(
@@ -180,10 +180,25 @@ async function selectTasks(
   // is forced to 3 (acquisition) or 1 (retention) at generation time only --
   // never written back to category_pattern_weights, since it's goal-specific
   // per campaign, not a category-level constant.
-  const withOverride = rows.map((r) => ({
-    ...r,
-    weight: r.pattern_name === "first_action" ? (goal === "acquisition" ? 3 : 1) : r.weight,
-  }));
+  //
+  // acquisition_retention is deliberately NOT a midpoint interpolation of
+  // the two overrides above (that would just land first_action on ~2 and
+  // call it a day). It's a separate rule that boosts *two* patterns instead
+  // of one -- first_action (the acquisition signal) AND repeat_purchase
+  // (the retention signal) both get pushed up, so a combined-goal campaign
+  // visibly rewards both new-customer and repeat-customer behavior rather
+  // than averaging out to something that isn't strongly either.
+  const withOverride = rows.map((r) => {
+    if (r.pattern_name === "first_action") {
+      if (goal === "acquisition") return { ...r, weight: 3 };
+      if (goal === "retention") return { ...r, weight: 1 };
+      return { ...r, weight: 2 }; // acquisition_retention
+    }
+    if (r.pattern_name === "repeat_purchase" && goal === "acquisition_retention") {
+      return { ...r, weight: Math.min(3, r.weight + 1) };
+    }
+    return r;
+  });
 
   // Top 4 by weight (mirrors the mockup's generateCampaignTasksForCategory,
   // which also takes slice(0, 4) after a descending weight sort). Array.sort
@@ -285,7 +300,13 @@ function buildCopyPrompt(input: GenerateCampaignInput, tier: SizeTier, tasks: Ge
   return (
     `You are writing Persian (Farsi) marketing copy for a small business loyalty ` +
     `campaign generator. Business: "${input.businessName}" (category: ${input.categoryNameFa}). ` +
-    `Campaign goal: ${input.goal === "acquisition" ? "acquiring new customers" : "retaining/re-engaging existing customers"}. ` +
+    `Campaign goal: ${
+      input.goal === "acquisition"
+        ? "acquiring new customers"
+        : input.goal === "retention"
+          ? "retaining/re-engaging existing customers"
+          : "both acquiring new customers AND retaining/re-engaging existing customers together"
+    }. ` +
     `Target audience: ${input.audienceDescription || "عمومی"}. ` +
     `Offer/reward the owner can give: ${input.offerDescription || "نامشخص"}. ` +
     `Business size tier: ${tier.nameFa}. ` +
@@ -396,7 +417,15 @@ export async function generateCampaignProposal(db: D1Database, env: Env, input: 
   return {
     sizeTier: tier,
     durationDays: tier.suggestedDurationDays,
-    proposalTitle: copy?.proposalTitle ?? `کمپین ${input.goal === "acquisition" ? "جذب مشتری جدید" : "حفظ و بازگشت مشتریان"} ${input.businessName}`,
+    proposalTitle:
+      copy?.proposalTitle ??
+      `کمپین ${
+        input.goal === "acquisition"
+          ? "جذب مشتری جدید"
+          : input.goal === "retention"
+            ? "حفظ و بازگشت مشتریان"
+            : "جذب و نگه‌داشتن مشتری"
+      } ${input.businessName}`,
     proposalNarrative:
       copy?.proposalNarrative ??
       `یک کمپین ${tier.nameFa} برای ${input.categoryNameFa} با ${tasks.length} تسک وزن‌دهی‌شده و ${rewards.length} سطح پاداش، متناسب با هدف انتخابی شما.`,

@@ -88,7 +88,7 @@ export function CampaignWizardTab() {
   const [businessName, setBusinessName] = useState('')
   const [categorySlug, setCategorySlug] = useState<BusinessCategorySlug>('coffee_shop')
   const [conditionalAnswer, setConditionalAnswer] = useState(CATEGORY_OPTIONS[0].conditionalOptions[0])
-  const [goal, setGoal] = useState<'acquisition' | 'retention'>('acquisition')
+  const [goal, setGoal] = useState<'acquisition' | 'retention' | 'acquisition_retention'>('acquisition')
   const [audienceDescription, setAudienceDescription] = useState('')
   const [followerCount, setFollowerCount] = useState('')
   const [offerBudgetToman, setOfferBudgetToman] = useState('')
@@ -266,9 +266,10 @@ export function CampaignWizardTab() {
         {step === 2 && (
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-slate-300">هدف اصلی این کمپین چیه؟</label>
-            <select className={selectClassName()} value={goal} onChange={(e) => setGoal(e.target.value as 'acquisition' | 'retention')}>
+            <select className={selectClassName()} value={goal} onChange={(e) => setGoal(e.target.value as 'acquisition' | 'retention' | 'acquisition_retention')}>
               <option value="acquisition">جذب مشتری جدید (Acquisition)</option>
               <option value="retention">نگه‌داشتن و سفارش مجدد مشتریان قبلی (Retention)</option>
+              <option value="acquisition_retention">جذب و نگه‌داشتن مشتری (Acquisition + Retention)</option>
             </select>
           </div>
         )}
@@ -329,7 +330,7 @@ export function CampaignWizardTab() {
             <p className="text-xs text-slate-400">قبل از ساخت کمپین، پاسخ‌هایت رو مرور کن:</p>
             <dl className="grid grid-cols-1 gap-y-2 text-sm rounded-xl2 border border-glass-border bg-glass-light p-4">
               <div><dt className="inline text-slate-400">🏷️ کسب‌وکار: </dt><dd className="inline">{businessName || '—'} ({selectedCategory.labelFa})</dd></div>
-              <div><dt className="inline text-slate-400">🎯 هدف: </dt><dd className="inline">{goal === 'acquisition' ? 'جذب مشتری جدید' : 'حفظ و سفارش مجدد مشتریان'}</dd></div>
+              <div><dt className="inline text-slate-400">🎯 هدف: </dt><dd className="inline">{goal === 'acquisition' ? 'جذب مشتری جدید' : goal === 'retention' ? 'حفظ و سفارش مجدد مشتریان' : 'جذب و نگه‌داشتن مشتری'}</dd></div>
               <div><dt className="inline text-slate-400">👥 مخاطب: </dt><dd className="inline">{audienceDescription || '—'}</dd></div>
               <div><dt className="inline text-slate-400">🎁 آفر: </dt><dd className="inline">{offerDescription || '—'}</dd></div>
               <div><dt className="inline text-slate-400">🎟️ نوع پاداش: </dt><dd className="inline">{REWARD_PATTERN_OPTIONS.find((r) => r.value === rewardPatternName)?.labelFa}</dd></div>

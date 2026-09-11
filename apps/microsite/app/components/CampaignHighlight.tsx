@@ -15,6 +15,7 @@ import type { CampaignHighlightContent, FeaturedCampaign } from "../lib/mock-dat
 const GOAL_BADGE: Record<FeaturedCampaign["goal"], string> = {
   acquisition: "🎉 ویژه اعضای جدید",
   retention: "💚 ویژه مشتریان همیشگی",
+  acquisition_retention: "✨ برای همه؛ اعضای جدید و همیشگی",
 };
 
 export function CampaignHighlight({

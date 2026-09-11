@@ -180,7 +180,7 @@ async function serializeCampaign(db: D1Database, campaignId: string) {
 
   return {
     status: campaign.status as "active" | "draft" | "ended",
-    goal: campaign.goal as "acquisition" | "retention",
+    goal: campaign.goal as "acquisition" | "retention" | "acquisition_retention",
     pointMultiplier: campaign.point_multiplier,
     startDate: campaign.start_date ?? "",
     endDate: campaign.end_date ?? "",
@@ -218,7 +218,7 @@ businessRouter.put("/campaign", async (c) => {
     await execute(db, "UPDATE campaigns SET status = ? WHERE id = ?", [body.status, campaignId]);
   }
   if (body.goal !== undefined) {
-    if (!["acquisition", "retention"].includes(body.goal)) {
+    if (!["acquisition", "retention", "acquisition_retention"].includes(body.goal)) {
       return c.json({ error: "Invalid goal" }, 400);
     }
     await execute(db, "UPDATE campaigns SET goal = ? WHERE id = ?", [body.goal, campaignId]);
@@ -315,7 +315,7 @@ businessRouter.post("/campaign/generate", async (c) => {
       400
     );
   }
-  if (!["acquisition", "retention"].includes(body.goal)) {
+  if (!["acquisition", "retention", "acquisition_retention"].includes(body.goal)) {
     return c.json({ error: "Invalid goal" }, 400);
   }
 
@@ -375,7 +375,7 @@ businessRouter.post("/campaign/generate", async (c) => {
     categorySlug: body.categorySlug,
     categoryNameFa: category.name_fa,
     businessName: body.businessName.trim(),
-    goal: body.goal as "acquisition" | "retention",
+    goal: body.goal as "acquisition" | "retention" | "acquisition_retention",
     audienceDescription: body.audienceDescription?.trim() ?? "",
     offerDescription: body.offerDescription.trim(),
     followerCount: Number(body.followerCount) || 0,

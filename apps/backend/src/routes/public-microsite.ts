@@ -70,7 +70,7 @@ publicMicrositeRouter.get("/microsites/:slug", async (c) => {
     [microsite.id]
   );
 
-  let featuredCampaign: { id: string; public_join_slug: string; goal: "acquisition" | "retention" } | null = null;
+  let featuredCampaign: { id: string; public_join_slug: string; goal: "acquisition" | "retention" | "acquisition_retention" } | null = null;
   if (microsite.featured_campaign_id) {
     const campaign = await queryFirst<{ id: string; public_join_slug: string | null; goal: string; status: string }>(
       db,
@@ -84,7 +84,7 @@ publicMicrositeRouter.get("/microsites/:slug", async (c) => {
       featuredCampaign = {
         id: campaign.id,
         public_join_slug: campaign.public_join_slug,
-        goal: campaign.goal as "acquisition" | "retention",
+        goal: campaign.goal as "acquisition" | "retention" | "acquisition_retention",
       };
     }
   }
