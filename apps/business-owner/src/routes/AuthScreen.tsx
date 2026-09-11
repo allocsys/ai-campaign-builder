@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { Button, Card, Input, useToast } from '@ai-campaign-builder/ui-kit'
 import { useAuth } from '../lib/auth'
 
@@ -21,9 +21,11 @@ export function AuthScreen() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const { requestOtp, verifyOtp } = useAuth()
+  const { isAuthenticated, requestOtp, verifyOtp } = useAuth()
   const { show } = useToast()
   const navigate = useNavigate()
+
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />
 
   const handlePhoneSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -54,7 +56,7 @@ export function AuthScreen() {
         return
       }
       show('ورود با موفقیت انجام شد', 'success')
-      navigate('/', { replace: true })
+      navigate('/dashboard', { replace: true })
     } finally {
       setLoading(false)
     }
