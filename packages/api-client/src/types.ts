@@ -27,7 +27,7 @@ export interface CampaignReward {
 
 export interface Campaign {
   status: 'active' | 'draft' | 'ended';
-  goal: 'acquisition' | 'retention';
+  goal: 'acquisition' | 'retention' | 'acquisition_retention';
   pointMultiplier: number;
   startDate: string;
   endDate: string;
@@ -61,7 +61,7 @@ export type RewardPatternName =
 export interface GenerateCampaignRequest {
   businessName: string;
   categorySlug: BusinessCategorySlug;
-  goal: 'acquisition' | 'retention';
+  goal: 'acquisition' | 'retention' | 'acquisition_retention';
   audienceDescription: string;
   followerCount: number;
   offerBudgetToman: number;
