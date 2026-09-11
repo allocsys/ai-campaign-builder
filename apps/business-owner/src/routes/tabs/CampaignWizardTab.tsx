@@ -86,6 +86,7 @@ export function CampaignWizardTab() {
   const [step, setStep] = useState(1)
 
   const [businessName, setBusinessName] = useState('')
+  const [businessAddress, setBusinessAddress] = useState('')
   const [categorySlug, setCategorySlug] = useState<BusinessCategorySlug>('coffee_shop')
   const [conditionalAnswer, setConditionalAnswer] = useState(CATEGORY_OPTIONS[0].conditionalOptions[0])
   const [goal, setGoal] = useState<'acquisition' | 'retention' | 'acquisition_retention'>('acquisition')
@@ -142,6 +143,7 @@ export function CampaignWizardTab() {
     try {
       const result = await generateCampaign(apiClient, {
         businessName: businessName.trim(),
+        businessAddress: businessAddress.trim(),
         categorySlug,
         goal,
         audienceDescription: `${audienceDescription.trim()}${audienceDescription.trim() ? ' — ' : ''}${selectedCategory.conditionalQuestion} ${conditionalAnswer}`,
@@ -257,6 +259,12 @@ export function CampaignWizardTab() {
               onChange={(e) => setBusinessName(e.target.value)}
               placeholder="مثلاً کافه نارون"
             />
+            <Input
+              label="آدرس کسب‌وکار"
+              value={businessAddress}
+              onChange={(e) => setBusinessAddress(e.target.value)}
+              placeholder="مثلاً تهران، ولیعصر، خیابان توانیر، پلاک ۱۲"
+            />
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-slate-300">صنف و نوع کسب‌وکار</label>
               <select className={selectClassName()} value={categorySlug} onChange={(e) => handleCategoryChange(e.target.value as BusinessCategorySlug)}>
@@ -358,6 +366,7 @@ export function CampaignWizardTab() {
             <p className="text-xs text-slate-400">قبل از ساخت کمپین، پاسخ‌هایت رو مرور کن:</p>
             <dl className="grid grid-cols-1 gap-y-2 text-sm rounded-xl2 border border-glass-border bg-glass-light p-4">
               <div><dt className="inline text-slate-400">🏷️ کسب‌وکار: </dt><dd className="inline">{businessName || '—'} ({selectedCategory.labelFa})</dd></div>
+              <div><dt className="inline text-slate-400">📍 آدرس: </dt><dd className="inline">{businessAddress || '—'}</dd></div>
               <div><dt className="inline text-slate-400">🎯 هدف: </dt><dd className="inline">{goal === 'acquisition' ? 'جذب مشتری جدید' : goal === 'retention' ? 'حفظ و سفارش مجدد مشتریان' : 'جذب و نگه‌داشتن مشتری'}</dd></div>
               <div><dt className="inline text-slate-400">👥 مخاطب: </dt><dd className="inline">{audienceDescription || '—'}</dd></div>
               <div><dt className="inline text-slate-400">🎁 آفر: </dt><dd className="inline">{offerDescription || '—'}</dd></div>

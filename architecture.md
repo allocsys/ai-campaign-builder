@@ -29,6 +29,7 @@ The business owner account.
 | id | uuid | PK |
 | name | text | |
 | category_id | uuid | FK → business_categories (was a hardcoded enum, changed 2026-09-07 for migration-free category additions) |
+| address | text, nullable | added 2026-09-11 (plan.md Open Item 9, migration 0012) — collected in onboarding wizard Step 1 and/or Settings; auto-fills the microsite Contact module's `address` field on first microsite creation |
 | phone | text, unique | also the login identity — business owner authenticates via phone + SMS OTP only (plan.md "Business owner authentication"), no email/password |
 | phone_verified | boolean | default false — set true once owner confirms an SMS OTP |
 | phone_verified_at | timestamp, nullable | |
@@ -325,7 +326,7 @@ Config-driven, like `category_pattern_weights` — adding a trigger or channel l
 | id | uuid | PK |
 | trigger_type | enum | campaign_invite, ending_soon, reward_unlocked, submission_reviewed, mid_campaign_reminder, referral_joined, autopilot_change_applied (7 triggers; last three added 2026-09-08). `autopilot_change_applied` (plan.md Phase 4) goes to the business owner, not customers — tells them what autopilot just changed and links to the Undo action |
 | channel | enum | sms, telegram |
-| body_template | text | supports placeholders, e.g. {{business_name}}, {{reward_description}} |
+| body_template | text | supports placeholders, e.g. {{business_name}}, {{reward_description}}, {{business_address}} (added 2026-09-11, plan.md Open Item 9 -- reads businesses.address). Note: no code in the repo actually renders `body_template` into a sent message yet (`notifications_log` has no writer) -- this documents the placeholder as available for whenever that rendering logic is built, not as something wired up today |
 
 ### `notifications_log`
 One row per actual send attempt — audit trail + delivery status.

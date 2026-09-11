@@ -35,9 +35,10 @@ async function loadProfile(db: D1Database, businessId: string) {
     sms_wallet_balance_toman: number;
     sms_monthly_cap_toman: number | null;
     name_fa: string;
+    address: string | null;
   }>(
     db,
-    `SELECT b.name, b.phone, b.size_tier, b.sms_wallet_balance_toman, b.sms_monthly_cap_toman, bc.name_fa
+    `SELECT b.name, b.phone, b.size_tier, b.sms_wallet_balance_toman, b.sms_monthly_cap_toman, bc.name_fa, b.address
      FROM businesses b JOIN business_categories bc ON bc.id = b.category_id
      WHERE b.id = ?`,
     [businessId]
@@ -52,6 +53,7 @@ function serializeProfile(row: NonNullable<Awaited<ReturnType<typeof loadProfile
     sizeTier: (row.size_tier ?? "small") as "micro" | "small" | "medium" | "large",
     smsWalletBalanceToman: row.sms_wallet_balance_toman,
     smsMonthlyCapToman: row.sms_monthly_cap_toman,
+    address: row.address ?? "",
   };
 }
 
@@ -71,11 +73,15 @@ businessRouter.put("/profile", async (c) => {
       categoryLabel: string;
       sizeTier: string;
       smsMonthlyCapToman: number | null;
+      address: string;
     }>
   >();
 
   if (body.name !== undefined) {
     await execute(db, "UPDATE businesses SET name = ? WHERE id = ?", [body.name, businessId]);
+  }
+  if (body.address !== undefined) {
+    await execute(db, "UPDATE businesses SET address = ? WHERE id = ?", [body.address, businessId]);
   }
   if (body.sizeTier !== undefined) {
     if (!["micro", "small", "medium", "large"].includes(body.sizeTier)) {
@@ -293,6 +299,7 @@ businessRouter.post("/campaign/generate", async (c) => {
   const body = await c.req.json<
     Partial<{
       businessName: string;
+      businessAddress: string;
       categorySlug: string;
       goal: string;
       audienceDescription: string;
@@ -366,6 +373,12 @@ businessRouter.post("/campaign/generate", async (c) => {
     category.id,
     businessId,
   ]);
+  // Address (plan.md Open Item 9): optional here too -- an owner who already
+  // set it via Settings shouldn't be forced to re-type it in the wizard, so
+  // an empty/omitted value leaves the existing column untouched.
+  if (body.businessAddress?.trim()) {
+    await execute(db, "UPDATE businesses SET address = ? WHERE id = ?", [body.businessAddress.trim(), businessId]);
+  }
 
   // AI constraints interaction (plan.md decision): clamp percentage_discount
   // rewards to the owner's saved max_discount_percent, if already set via
@@ -648,7 +661,7 @@ businessRouter.put("/autopilot", async (c) => {
 // INSERTs on first-ever creation of a microsite for a given business).
 // Keyed by website_modules.key -- matches WebsiteModuleKey in
 // apps/microsite/app/lib/mock-data.ts.
-function defaultModuleContent(moduleKey: string, businessName: string): Record<string, unknown> | null {
+function defaultModuleContent(moduleKey: string, businessName: string, businessAddress: string): Record<string, unknown> | null {
   switch (moduleKey) {
     case "hero":
       return { badge_label: businessName, title: businessName, subtitle: "" };
@@ -663,7 +676,11 @@ function defaultModuleContent(moduleKey: string, businessName: string): Record<s
     case "booking_cta":
       return { heading: "رزرو / تماس", button_label: "تماس بگیرید" };
     case "contact":
-      return { address: "", phone: "", hours: "" };
+      // Pre-fills from businesses.address (plan.md Open Item 9) instead of
+      // always starting blank -- the owner can still edit/clear it from
+      // Microsite settings same as before, this just removes what was
+      // previously a mandatory manual re-entry of something already on file.
+      return { address: businessAddress, phone: "", hours: "" };
     case "campaign_highlight":
       return {
         title: "",
@@ -686,8 +703,13 @@ async function ensureMicrosite(db: D1Database, businessId: string): Promise<stri
   const template = await queryFirst<{ id: string }>(db, "SELECT id FROM website_templates LIMIT 1");
   if (!template) throw new Error("No website_templates seeded -- run migration 0005");
 
-  const biz = await queryFirst<{ name: string }>(db, "SELECT name FROM businesses WHERE id = ?", [businessId]);
+  const biz = await queryFirst<{ name: string; address: string | null }>(
+    db,
+    "SELECT name, address FROM businesses WHERE id = ?",
+    [businessId]
+  );
   const businessName = biz?.name ?? "";
+  const businessAddress = biz?.address ?? "";
 
   const id = generateId();
   const slug = `biz-${businessId.slice(0, 8)}`;
@@ -708,7 +730,7 @@ async function ensureMicrosite(db: D1Database, businessId: string): Promise<stri
       db,
       `INSERT INTO business_microsite_modules (id, business_microsite_id, website_module_id, enabled, display_order, content)
        VALUES (?, ?, ?, 1, ?, ?)`,
-      [generateId(), id, m.id, order++, JSON.stringify(defaultModuleContent(m.key, businessName))]
+      [generateId(), id, m.id, order++, JSON.stringify(defaultModuleContent(m.key, businessName, businessAddress))]
     );
   }
   return id;
