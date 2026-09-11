@@ -4,6 +4,7 @@ import type { Env } from "../types";
 import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
+import { generateCampaignProposal } from "../lib/campaign-generator";
 
 const businessRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -272,6 +273,168 @@ businessRouter.put("/campaign", async (c) => {
   }
 
   return c.json(await serializeCampaign(db, campaignId));
+});
+
+// ============================================================================
+// Campaign generation (onboarding wizard, plan.md Open Item 8). Takes the
+// wizard's 5 steps of answers, resolves the business's real name/category
+// (fixing routes/auth.ts's placeholder-name/arbitrary-category auto-create
+// gap), deterministically computes size tier + weighted tasks + reward
+// thresholds via lib/campaign-generator.ts, and persists the result onto
+// the business's current campaign as a fresh draft -- mirroring PUT
+// /campaign's own replace-tasks/replace-rewards logic so both endpoints
+// stay consistent. A separate PUT /campaign { status: 'active' } call (the
+// wizard's existing "Launch" action) is what actually activates it.
+// ============================================================================
+
+businessRouter.post("/campaign/generate", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const body = await c.req.json<
+    Partial<{
+      businessName: string;
+      categorySlug: string;
+      goal: string;
+      audienceDescription: string;
+      followerCount: number;
+      offerBudgetToman: number;
+      offerDescription: string;
+      rewardPatternName: string;
+    }>
+  >();
+
+  if (
+    !body.businessName?.trim() ||
+    !body.categorySlug ||
+    !body.goal ||
+    !body.offerDescription?.trim() ||
+    !body.rewardPatternName
+  ) {
+    return c.json(
+      { error: "Missing required fields: businessName, categorySlug, goal, offerDescription, rewardPatternName" },
+      400
+    );
+  }
+  if (!["acquisition", "retention"].includes(body.goal)) {
+    return c.json({ error: "Invalid goal" }, 400);
+  }
+
+  const category = await queryFirst<{ id: string; name_fa: string }>(
+    db,
+    "SELECT id, name_fa FROM business_categories WHERE slug = ?",
+    [body.categorySlug]
+  );
+  if (!category) return c.json({ error: `Unknown categorySlug: ${body.categorySlug}` }, 400);
+
+  const rewardPattern = await queryFirst<{ id: string }>(
+    db,
+    "SELECT id FROM reward_patterns WHERE name = ?",
+    [body.rewardPatternName]
+  );
+  if (!rewardPattern) return c.json({ error: `Unknown rewardPatternName: ${body.rewardPatternName}` }, 400);
+
+  // Single-active-campaign guard (plan.md decision): ensureCampaign always
+  // resolves to the one "current" campaign for this business -- generation
+  // must not silently clobber a live campaign's tasks/rewards/dates out from
+  // under active customers. ensureCampaign's own auto-create-draft-if-none
+  // path is harmless here: a brand-new business has no campaign to clobber.
+  const campaignId = await ensureCampaign(db, businessId);
+  const currentStatus = await queryFirst<{ status: string }>(db, "SELECT status FROM campaigns WHERE id = ?", [
+    campaignId,
+  ]);
+  if (currentStatus?.status === "active") {
+    return c.json(
+      { error: "کمپین فعلی این کسب‌وکار در حال اجراست. برای ساخت کمپین جدید، ابتدا کمپین فعلی را پایان دهید." },
+      409
+    );
+  }
+
+  // Step 1 addition (plan.md decision): write the wizard's business name +
+  // category back to `businesses` directly -- fixes routes/auth.ts's
+  // hardcoded placeholder name / arbitrary first-row category from first
+  // OTP login, since the wizard is realistically the first real screen a
+  // new owner meaningfully interacts with.
+  await execute(db, "UPDATE businesses SET name = ?, category_id = ? WHERE id = ?", [
+    body.businessName.trim(),
+    category.id,
+    businessId,
+  ]);
+
+  // AI constraints interaction (plan.md decision): clamp percentage_discount
+  // rewards to the owner's saved max_discount_percent, if already set via
+  // Settings. Unset (the common case for a brand-new business) -> unclamped
+  // defaults.
+  const constraints = await queryFirst<{ max_discount_percent: number | null }>(
+    db,
+    "SELECT max_discount_percent FROM business_ai_constraints WHERE business_id = ?",
+    [businessId]
+  );
+
+  const proposal = await generateCampaignProposal(db, c.env, {
+    categoryId: category.id,
+    categorySlug: body.categorySlug,
+    categoryNameFa: category.name_fa,
+    businessName: body.businessName.trim(),
+    goal: body.goal as "acquisition" | "retention",
+    audienceDescription: body.audienceDescription?.trim() ?? "",
+    offerDescription: body.offerDescription.trim(),
+    followerCount: Number(body.followerCount) || 0,
+    offerBudgetToman: Number(body.offerBudgetToman) || 0,
+    rewardPatternName: body.rewardPatternName,
+    maxDiscountPercent: constraints?.max_discount_percent ?? null,
+  });
+
+  const nowMs = Date.now();
+  const startDate = new Date(nowMs).toISOString();
+  const endDate = new Date(nowMs + proposal.durationDays * 24 * 60 * 60 * 1000).toISOString();
+
+  // Always resets to 'draft' regardless of whether the prior campaign was
+  // 'draft' or 'ended' -- generation always produces a fresh proposal cycle;
+  // 'active' was already rejected above with a 409.
+  await execute(
+    db,
+    `UPDATE campaigns
+     SET status = 'draft', goal = ?, point_multiplier = ?, start_date = ?, end_date = ?,
+         audience_description = ?, offer_description = ?
+     WHERE id = ?`,
+    [body.goal, proposal.sizeTier.pointMultiplier, startDate, endDate, body.audienceDescription?.trim() ?? "", body.offerDescription.trim(), campaignId]
+  );
+
+  const taskPatternRows = await queryAll<{ id: string; name: string }>(db, "SELECT id, name FROM task_patterns");
+  const taskPatternIdByName = new Map(taskPatternRows.map((p) => [p.name, p.id]));
+  await execute(db, "DELETE FROM campaign_tasks WHERE campaign_id = ?", [campaignId]);
+  for (let i = 0; i < proposal.tasks.length; i++) {
+    const t = proposal.tasks[i];
+    const patternId = taskPatternIdByName.get(t.patternName);
+    if (!patternId) continue; // shouldn't happen -- generator only returns patterns that exist in task_patterns
+    await execute(
+      db,
+      `INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [generateId(), campaignId, patternId, t.points, i, t.name]
+    );
+  }
+
+  await execute(db, "DELETE FROM campaign_rewards WHERE campaign_id = ?", [campaignId]);
+  for (const r of proposal.rewards) {
+    await execute(
+      db,
+      `INSERT INTO campaign_rewards (id, campaign_id, reward_pattern_id, threshold_points, name, description)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [generateId(), campaignId, rewardPattern.id, r.threshold, r.name, r.description]
+    );
+  }
+
+  const serialized = await serializeCampaign(db, campaignId);
+  return c.json({
+    ...serialized,
+    sizeTier: proposal.sizeTier,
+    proposalTitle: proposal.proposalTitle,
+    proposalNarrative: proposal.proposalNarrative,
+    challenge: proposal.challenge,
+    discountClamped: proposal.discountClamped,
+    copyGeneratedByAi: proposal.copyGeneratedByAi,
+  });
 });
 
 // ============================================================================

@@ -2,6 +2,9 @@ import { lazy, Suspense } from 'react'
 import { Accordion, type AccordionItem } from '@ai-campaign-builder/ui-kit'
 
 const OnboardingTab = lazy(() => import('./tabs/OnboardingTab').then((m) => ({ default: m.OnboardingTab })))
+const CampaignWizardTab = lazy(() =>
+  import('./tabs/CampaignWizardTab').then((m) => ({ default: m.CampaignWizardTab })),
+)
 const DashboardTab = lazy(() => import('./tabs/DashboardTab').then((m) => ({ default: m.DashboardTab })))
 const InsightsTab = lazy(() => import('./tabs/InsightsTab').then((m) => ({ default: m.InsightsTab })))
 const SuggestionsTab = lazy(() => import('./tabs/SuggestionsTab').then((m) => ({ default: m.SuggestionsTab })))
@@ -29,6 +32,15 @@ function TabFallback() {
  * currently-open panel's content anyway.
  */
 const items: AccordionItem[] = [
+  {
+    id: 'campaign-wizard',
+    header: '🎯 طراحی کمپین جدید با AI',
+    content: (
+      <Suspense fallback={<TabFallback />}>
+        <CampaignWizardTab />
+      </Suspense>
+    ),
+  },
   {
     id: 'onboarding',
     header: 'مراحل شروع',

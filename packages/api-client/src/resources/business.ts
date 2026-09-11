@@ -3,6 +3,8 @@ import type {
   BusinessProfile,
   ChecklistItem,
   Campaign,
+  GenerateCampaignRequest,
+  GeneratedCampaignProposal,
   Insight,
   SuggestedChange,
   AutopilotState,
@@ -40,6 +42,16 @@ export async function updateCampaign(
 ): Promise<Campaign> {
   return client.request<Campaign>('/api/business/campaign', {
     method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function generateCampaign(
+  client: ApiClient,
+  data: GenerateCampaignRequest
+): Promise<GeneratedCampaignProposal> {
+  return client.request<GeneratedCampaignProposal>('/api/business/campaign/generate', {
+    method: 'POST',
     body: JSON.stringify(data),
   });
 }
