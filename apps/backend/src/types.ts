@@ -12,17 +12,15 @@ export interface Env {
 
   // Vision scoring adapter (lib/vision.ts, Open Item 1) -- populates
   // task_submissions.ai_confidence_score, never auto-approve/reject (Item 5
-  // stays blocked). VISION_PROVIDER picks the implementation; unset/unknown
-  // -> getVisionProvider() returns null and scoring is silently skipped
-  // (submission still lands in the manual-hold queue either way).
+  // stays blocked). Cascade order + which models to use live in
+  // vision-cascade.config.ts, NOT in an env var (2026-09-11 change) -- these
+  // vars just supply credentials per provider. A provider with no keys set
+  // here is skipped by the cascade, not treated as an error (submission
+  // still lands in the manual-hold queue with a null score either way).
   // Each *_API_KEYS var is a COMMA-SEPARATED LIST -- one key is picked at
   // random per call, spreading load/quota across multiple keys for the same
   // provider (no shared counter/KV exists for strict round-robin yet).
-  VISION_PROVIDER?: "openai" | "anthropic" | "google";
   VISION_OPENAI_API_KEYS?: string;
-  VISION_OPENAI_MODEL?: string;
   VISION_ANTHROPIC_API_KEYS?: string;
-  VISION_ANTHROPIC_MODEL?: string;
   VISION_GOOGLE_API_KEYS?: string;
-  VISION_GOOGLE_MODEL?: string;
 }
