@@ -25,13 +25,17 @@
 // rotation comment). One evidence upload is a rare, human-paced action (a
 // customer submitting one task), so the extra ~2 round-trips per upload is
 // an acceptable tradeoff over adding new infra just to cache a token.
+//
+// The B2 bucket is private. Downloads go through server-side proxied functions
+// in this module (`downloadEvidenceImage`), called by vision.ts server-side
+// and by an authenticated review.ts route for the Review Console, rather than
+// relying on public URLs.
 // ============================================================================
 
 import type { Env } from "../types";
 
 export interface UploadedEvidence {
-  url: string;
-  fileName: string;
+  key: string;
 }
 
 interface B2AuthorizeResponse {
@@ -91,7 +95,7 @@ async function getUploadUrl(apiUrl: string, accountAuthToken: string, bucketId: 
 }
 
 // ============================================================================
-// Public entry point used by routes/customer.ts
+// Public entry points used by routes/customer.ts, vision.ts, and routes/review.ts
 // ============================================================================
 
 // Accepted evidence formats -- matches what a phone camera/screenshot
@@ -146,12 +150,29 @@ export async function uploadEvidenceImage(
   }
   const uploaded = (await uploadRes.json()) as B2UploadFileResponse;
 
-  // Assumes the bucket itself is configured with public-read access in the
-  // B2 dashboard (a bucket-level setting, not something this API call sets)
-  // -- same assumption plan.md's "Evidence storage provider" note carries:
-  // vision.ts needs to be able to GET this URL with no auth to fetch the
-  // image for scoring, and Review Console needs to display it inline.
-  const url = `${auth.downloadUrl}/file/${env.B2_BUCKET_NAME}/${encodeB2FileName(uploaded.fileName)}`;
+  return { key: uploaded.fileName };
+}
 
-  return { url, fileName: uploaded.fileName };
+export async function downloadEvidenceImage(
+  env: Env,
+  key: string
+): Promise<{ bytes: ArrayBuffer; contentType: string }> {
+  if (!env.B2_KEY_ID || !env.B2_APPLICATION_KEY || !env.B2_BUCKET_ID || !env.B2_BUCKET_NAME) {
+    throw new Error("B2 storage is not configured (B2_KEY_ID/B2_APPLICATION_KEY/B2_BUCKET_ID/B2_BUCKET_NAME)");
+  }
+
+  const auth = await authorizeAccount(env.B2_KEY_ID, env.B2_APPLICATION_KEY);
+  const res = await fetch(`${auth.downloadUrl}/file/${env.B2_BUCKET_NAME}/${encodeB2FileName(key)}`, {
+    method: "GET",
+    headers: {
+      Authorization: auth.authorizationToken,
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`b2 file download failed: ${res.status} ${await res.text()}`);
+  }
+
+  const bytes = await res.arrayBuffer();
+  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+  return { bytes, contentType };
 }

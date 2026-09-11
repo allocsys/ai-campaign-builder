@@ -31,6 +31,7 @@
 
 import type { Env } from "../types";
 import { VISION_CASCADE, type CascadeStep } from "./vision-cascade.config";
+import { downloadEvidenceImage } from "./storage";
 
 export interface VisionScoreResult {
   confidenceScore: number; // 0..1, clamped
@@ -238,20 +239,16 @@ function buildProviderForStep(step: CascadeStep, env: Env): VisionProvider | nul
 // than mixing url-source and base64-source code paths).
 // ============================================================================
 
-async function fetchImageAsBase64(imageUrl: string): Promise<ImagePayload> {
-  const res = await fetch(imageUrl);
-  if (!res.ok) {
-    throw new Error(`failed to fetch evidence image: ${res.status}`);
-  }
-  const mimeType = res.headers.get("content-type") || "image/jpeg";
-  const buf = await res.arrayBuffer();
-  const bytes = new Uint8Array(buf);
+async function fetchImageAsBase64(env: Env, evidenceKey: string): Promise<ImagePayload> {
+  const { bytes, contentType } = await downloadEvidenceImage(env, evidenceKey);
+  const buf = bytes;
+  const bytesArray = new Uint8Array(buf);
   let binary = "";
   const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  for (let i = 0; i < bytesArray.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytesArray.subarray(i, i + chunkSize));
   }
-  return { base64: btoa(binary), mimeType };
+  return { base64: btoa(binary), mimeType: contentType };
 }
 
 // ============================================================================
@@ -260,7 +257,7 @@ async function fetchImageAsBase64(imageUrl: string): Promise<ImagePayload> {
 
 export async function scoreTaskSubmission(
   env: Env,
-  imageUrl: string,
+  evidenceKey: string,
   taskName: string
 ): Promise<VisionScoreResult | null> {
   const prompt = buildPrompt(taskName);
@@ -268,7 +265,7 @@ export async function scoreTaskSubmission(
   // provider, then reused across any further cascade attempts -- the image
   // itself doesn't change between providers/models, only the scoring call
   // does. If fetching fails, `image` stays null and the next step retries
-  // the fetch; a bad/unreachable evidence URL will fail identically on
+  // the fetch; a bad/unreachable evidence storage key will fail identically on
   // every step either way, so the cascade is still allowed to exhaust
   // itself rather than special-casing that failure mode.
   let image: ImagePayload | null = null;
@@ -279,7 +276,7 @@ export async function scoreTaskSubmission(
 
     try {
       if (!image) {
-        image = await fetchImageAsBase64(imageUrl);
+        image = await fetchImageAsBase64(env, evidenceKey);
       }
       return await provider.scoreImage(image, prompt);
     } catch (err) {

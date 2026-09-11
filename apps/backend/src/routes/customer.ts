@@ -250,13 +250,15 @@ customerRouter.get("/tasks", async (c) => {
 // ============================================================================
 // Evidence upload (lib/storage.ts, addresses the evidence_url gap flagged
 // alongside Open Item 1) -- takes the raw image bytes from
-// TaskSubmitModal.tsx's file input, uploads to B2, and returns a public URL
-// the customer app then passes as `evidenceUrl` on the actual /submit call
-// below. Deliberately a separate endpoint/round-trip rather than accepting
-// multipart on /submit itself: it lets the frontend show upload progress
-// and surface a clear "upload failed, try again" state before the customer
-// commits to submitting the task, and keeps /submit's body a plain JSON
-// shape (unchanged) rather than switching it to multipart.
+// TaskSubmitModal.tsx's file input, uploads to B2, and returns an opaque
+// storage key that the Review Console can only resolve via an authenticated
+// proxy endpoint (not directly fetchable), which the customer app then passes
+// as `evidenceUrl` on the actual /submit call below. Deliberately a separate
+// endpoint/round-trip rather than accepting multipart on /submit itself: it
+// lets the frontend show upload progress and surface a clear "upload failed,
+// try again" state before the customer commits to submitting the task, and
+// keeps /submit's body a plain JSON shape (unchanged) rather than switching
+// it to multipart.
 //
 // Body: raw binary (the file itself), Content-Type header set to the
 // file's real mime type -- validated against ALLOWED_EVIDENCE_CONTENT_TYPES
@@ -285,7 +287,7 @@ customerRouter.post("/evidence-upload", async (c) => {
 
   try {
     const uploaded = await uploadEvidenceImage(c.env, customerId, contentType, bytes);
-    return c.json({ evidenceUrl: uploaded.url });
+    return c.json({ evidenceUrl: uploaded.key });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`evidence upload failed for customer ${customerId}:`, message);
