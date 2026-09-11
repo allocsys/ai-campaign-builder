@@ -58,7 +58,7 @@ export function RangeSlider({
       {label && (
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-slate-300">{label}</span>
-          <span className="text-xs text-brand-300 whitespace-nowrap">
+          <span className="text-xs text-brand-300 whitespace-nowrap" dir="ltr">
             {formatValue(valueMin)} – {formatValue(valueMax)}
           </span>
         </div>
