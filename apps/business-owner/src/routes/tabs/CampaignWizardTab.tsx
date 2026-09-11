@@ -92,7 +92,7 @@ export function CampaignWizardTab() {
   const [goal, setGoal] = useState<'acquisition' | 'retention' | 'acquisition_retention'>('acquisition')
   const [audienceDescription, setAudienceDescription] = useState('')
   const [followerCount, setFollowerCount] = useState('')
-  const [offerBudgetToman, setOfferBudgetToman] = useState('')
+  const [monthlyRevenueToman, setMonthlyRevenueToman] = useState('')
   const [offerDescription, setOfferDescription] = useState('')
   const [rewardPatternNames, setRewardPatternNames] = useState<RewardPatternName[]>(['percentage_discount'])
 
@@ -148,7 +148,7 @@ export function CampaignWizardTab() {
         goal,
         audienceDescription: `${audienceDescription.trim()}${audienceDescription.trim() ? ' — ' : ''}${selectedCategory.conditionalQuestion} ${conditionalAnswer}`,
         followerCount: Number(followerCount) || 0,
-        offerBudgetToman: Number(offerBudgetToman) || 0,
+        monthlyRevenueToman: Number(monthlyRevenueToman) || 0,
         offerDescription: offerDescription.trim(),
         rewardPatternNames,
       })
@@ -316,11 +316,11 @@ export function CampaignWizardTab() {
                 placeholder="۰"
               />
               <Input
-                label="بودجه آفر تخفیف یا پاداش (تومان)"
+                label="درآمد ماهانه تقریبی (تومان)"
                 type="number"
                 inputMode="numeric"
-                value={offerBudgetToman}
-                onChange={(e) => setOfferBudgetToman(e.target.value)}
+                value={monthlyRevenueToman}
+                onChange={(e) => setMonthlyRevenueToman(e.target.value)}
                 placeholder="۰"
               />
             </div>
