@@ -153,6 +153,10 @@ export interface SubmitTaskResponse {
   status: 'pending';
 }
 
+export interface UploadEvidenceResponse {
+  evidenceUrl: string;
+}
+
 export interface SimulateAiApproveResponse {
   status: 'approved';
   pointsAwarded: number;
