@@ -303,24 +303,20 @@ businessRouter.post("/campaign/generate", async (c) => {
       categorySlug: string;
       goal: string;
       audienceDescription: string;
-      followerCount: number;
+      dailyCustomerCount: number;
       monthlyRevenueToman: number;
+      /** Optional -- omitted/null when the owner has no Instagram page. */
+      followerCount: number | null;
+      /** Optional (plan.md "Step 4 leads with AI deciding" decision) -- only ever feeds LLM copy, never the deterministic math, so it's not required. */
       offerDescription: string;
       rewardPatternNames: string[];
     }>
   >();
 
-  if (
-    !body.businessName?.trim() ||
-    !body.categorySlug ||
-    !body.goal ||
-    !body.offerDescription?.trim() ||
-    !body.rewardPatternNames?.length
-  ) {
+  if (!body.businessName?.trim() || !body.categorySlug || !body.goal || !body.rewardPatternNames?.length) {
     return c.json(
       {
-        error:
-          "Missing required fields: businessName, categorySlug, goal, offerDescription, rewardPatternNames (at least one)",
+        error: "Missing required fields: businessName, categorySlug, goal, rewardPatternNames (at least one)",
       },
       400
     );
@@ -397,8 +393,9 @@ businessRouter.post("/campaign/generate", async (c) => {
     businessName: body.businessName.trim(),
     goal: body.goal as "acquisition" | "retention" | "acquisition_retention",
     audienceDescription: body.audienceDescription?.trim() ?? "",
-    offerDescription: body.offerDescription.trim(),
-    followerCount: Number(body.followerCount) || 0,
+    offerDescription: body.offerDescription?.trim() ?? "",
+    followerCount: body.followerCount != null ? Number(body.followerCount) || 0 : null,
+    dailyCustomerCount: Number(body.dailyCustomerCount) || 0,
     monthlyRevenueToman: Number(body.monthlyRevenueToman) || 0,
     rewardPatternNames: body.rewardPatternNames,
     maxDiscountPercent: constraints?.max_discount_percent ?? null,
@@ -417,7 +414,7 @@ businessRouter.post("/campaign/generate", async (c) => {
      SET status = 'draft', goal = ?, point_multiplier = ?, start_date = ?, end_date = ?,
          audience_description = ?, offer_description = ?
      WHERE id = ?`,
-    [body.goal, proposal.sizeTier.pointMultiplier, startDate, endDate, body.audienceDescription?.trim() ?? "", body.offerDescription.trim(), campaignId]
+    [body.goal, proposal.sizeTier.pointMultiplier, startDate, endDate, body.audienceDescription?.trim() ?? "", body.offerDescription?.trim() ?? "", campaignId]
   );
 
   const taskPatternRows = await queryAll<{ id: string; name: string }>(db, "SELECT id, name FROM task_patterns");
