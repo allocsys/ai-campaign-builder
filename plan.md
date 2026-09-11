@@ -330,6 +330,8 @@ packages/
 
 **Built and merged 2026-09-11** per the decisions above — see the Item 8 entry in Open Items for the final PR/commit/deploy details. No further work planned for this item; any refinement to the reward-tier math, discount-percent defaults, or Challenge persistence (all flagged as reasonable-but-undocumented extrapolations in PR #44's description) would be a separate future decision, not a gap in this build.
 
+10. **AI review scoring is not load-isolated from the main API** — flagged 2026-09-12. The original architecture.md decision (2026-09-07) called for AI screenshot review to run as a separate microservice with a job queue, specifically so a burst of review load couldn't degrade the main API's other traffic. What actually got built for Item 1 (PR #39–41) is inline in `apps/backend` — `routes/customer.ts`'s `POST /tasks/:id/submit` fires the vision call via `c.executionCtx.waitUntil(...)`. That solves *not blocking the customer's response* and (via `lib/vision.ts`'s provider cascade) *isolating AI-provider changes*, but not the original **load-balancing** goal — `waitUntil` work still competes for the same Worker's CPU/invocation budget as every other backend route. This wasn't flagged as a dropped goal at the time; plan.md's Item 1 entry reads as a clean implementation note rather than a tradeoff. **Decided 2026-09-12: defer.** Not urgent at current volume. Revisit by actually splitting review-scoring into a separate Worker (with a real queue, e.g. Cloudflare Queues) once load justifies it. See architecture.md's "Open implementation questions" for the technical detail.
+
 ---
 
 ## Architecture reference
