@@ -38,6 +38,25 @@
 #     NOTE: BACKEND_JWT_SECRET is a new repo secret this job depends on — not
 #     yet added to this repo's Actions secrets as of this commit.
 #
+# STATUS (2026-09-11): added an OPTIONAL step, right after the JWT_SECRET
+# one, that pushes REVIEW_ADMIN_USERNAME / REVIEW_ADMIN_PASSWORD_HASH (the
+# review-admin root-login credentials from migration 0009 / review-admin.ts)
+# to the Worker the same way -- but unlike JWT_SECRET this pair is NOT in the
+# job's required-secrets fail-fast check, and deliberately so: root-admin
+# login is an opt-in convenience on top of the DB-backed review_admins table
+# (review-admin.ts's own login handler treats REVIEW_ADMIN_USERNAME/HASH as
+# optional -- it just falls through to the DB lookup when either is unset),
+# so a deploy must keep succeeding for repos/environments that never
+# configure a root admin at all. The new step's run script checks both
+# secrets are non-empty (bash -z check, same shape as the existing
+# required-secrets check above) before calling `wrangler secret put` for
+# each -- if only one of the pair is set, or neither, it exits 0 and skips
+# rather than failing or pushing a half-configured pair. (The guard can't
+# live in the step's own `if:` -- GitHub Actions doesn't permit the secrets
+# context there and rejects the whole workflow file if you try.) Like the
+# existing JWT_SECRET step, `wrangler secret put` is idempotent against a
+# repeat run with the same value, so this is safe to run on every deploy.
+#
 # STATUS (2026-09-10, later same day): the D1 database itself is now
 # auto-provisioned rather than requiring a one-time manual
 # `wrangler d1 create` before first deploy. Both `backend-migrate` and
@@ -476,3 +495,29 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: cd apps/backend && echo "${{ secrets.BACKEND_JWT_SECRET }}" | npx wrangler secret put JWT_SECRET
+      - name: Set REVIEW_ADMIN root-login secrets on the deployed Worker (optional)
+        # Optional feature, not a hard deploy requirement (see the STATUS
+        # note above): only pushes when BOTH repo secrets are actually
+        # configured, so a repo/environment that never sets up a root admin
+        # still deploys cleanly. NOTE: the secrets context is not permitted
+        # inside a step-level `if:` (GitHub Actions rejects the whole
+        # workflow file if you try), so the guard lives in the run script
+        # below instead -- same -z-check shape as "Check required secrets
+        # present" above, except it exits 0 (skip) rather than 1 (fail),
+        # since this pair is optional rather than required. wrangler secret
+        # put is idempotent against a repeat run with the same value, same
+        # as JWT_SECRET above.
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          REVIEW_ADMIN_USERNAME: ${{ secrets.REVIEW_ADMIN_USERNAME }}
+          REVIEW_ADMIN_PASSWORD_HASH: ${{ secrets.REVIEW_ADMIN_PASSWORD_HASH }}
+        run: |
+          cd apps/backend
+          if [ -z "$REVIEW_ADMIN_USERNAME" ] || [ -z "$REVIEW_ADMIN_PASSWORD_HASH" ]; then
+            echo "REVIEW_ADMIN_USERNAME and/or REVIEW_ADMIN_PASSWORD_HASH repo secret(s) not set -- skipping root-admin secret push (this is an optional feature, not a deploy requirement)."
+            exit 0
+          fi
+          echo "$REVIEW_ADMIN_USERNAME" | npx wrangler secret put REVIEW_ADMIN_USERNAME
+          echo "$REVIEW_ADMIN_PASSWORD_HASH" | npx wrangler secret put REVIEW_ADMIN_PASSWORD_HASH

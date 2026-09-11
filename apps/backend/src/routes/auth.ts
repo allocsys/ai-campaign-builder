@@ -135,8 +135,29 @@ authRouter.post("/verify-otp", async (c) => {
       // fetch (see ensureCustomerCampaignCode's docstring).
       await ensureCustomerCampaignCode(db, userId, referralCode?.trim() || undefined);
     } else if (role === "review_team") {
-      // For review team, sub is phone or team member identifier
-      userId = phone;
+      // Review-team signup is invite-only, exactly like staff below: a
+      // review_admin must have already registered this phone (via
+      // POST /api/review-admin/team-members) before it can complete OTP
+      // verification. Previously this branch set userId = phone directly
+      // with no roster lookup at all -- any phone number could authenticate
+      // as review_team, with no access control and no real per-person
+      // identity for the reviewed_by/resolved_by audit trail. Fixed per
+      // plan.md Open Item 6.
+      const reviewer = await queryFirst<{ id: string; active: number }>(
+        db,
+        "SELECT id, active FROM review_team_members WHERE phone = ?",
+        [phone]
+      );
+
+      if (!reviewer) {
+        return c.json({ error: "This phone has not been registered as a review-team member by an admin. Ask an admin to add you first." }, 403);
+      }
+      if (!reviewer.active) {
+        return c.json({ error: "This review-team account has been deactivated." }, 403);
+      }
+
+      userId = reviewer.id;
+      await execute(db, "UPDATE review_team_members SET phone_verified = 1, phone_verified_at = ? WHERE id = ?", [new Date().toISOString(), userId]);
     } else if (role === "staff") {
       // Staff signup is invite-only: a business owner must have already
       // registered this phone against their business (via

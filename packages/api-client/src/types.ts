@@ -315,6 +315,40 @@ export interface ResolveFlagResponse {
   notes: string;
 }
 
+// ============================================================================
+// Review Admin persona
+// Shapes match apps/backend/src/routes/review-admin.ts's JSON responses.
+// ============================================================================
+
+export interface AdminUserProfile {
+  id: string;
+  username: string;
+  role: 'review_admin';
+  isRoot: boolean;
+}
+
+export interface AdminLoginResponse {
+  ok: boolean;
+  token?: string;
+  user?: AdminUserProfile;
+  error?: string;
+}
+
+export interface ReviewTeamMember {
+  id: string;
+  name: string;
+  phone: string;
+  phoneVerified: boolean;
+  active: boolean;
+}
+
+export interface ReviewAdminAccount {
+  id: string;
+  username: string;
+  createdAt: string;
+  createdBy: string;
+}
+
 export type StaffPosActivityEntry =
   | {
       id: string;

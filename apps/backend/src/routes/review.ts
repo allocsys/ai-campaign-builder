@@ -108,10 +108,15 @@ reviewRouter.post("/submissions/:id/resolve", async (c) => {
 
   const pointsAwarded = body.decision === "approved" ? task.points_value : 0;
 
+  // reviewed_by_user_id (Open Item 2, plan.md "Resolution approach") is now
+  // a real review_team_members.id -- c.get("auth").sub is that id since the
+  // review_team roster gate landed in auth.ts. reviewed_by keeps its old
+  // fixed-string convention alongside it for now rather than being dropped,
+  // since existing rows/queries still read it.
   await execute(
     db,
-    "UPDATE task_submissions SET status = ?, reviewed_by = 'central_team', reviewed_at = ?, points_awarded = ? WHERE id = ?",
-    [body.decision, nowIso(), pointsAwarded, id]
+    "UPDATE task_submissions SET status = ?, reviewed_by = 'central_team', reviewed_by_user_id = ?, reviewed_at = ?, points_awarded = ? WHERE id = ?",
+    [body.decision, c.get("auth").sub, nowIso(), pointsAwarded, id]
   );
 
   if (body.decision === "approved") {
@@ -321,10 +326,11 @@ reviewRouter.post("/referral-flags/:id/resolve", async (c) => {
       ? "توسط تیم مرکزی بررسی و بدون اقدام مخرب تشخیص داده شد."
       : "به‌عنوان هشدار اشتباه (False Positive) رد شد.";
 
+  // resolved_by_user_id (Open Item 2) -- see reviewed_by_user_id note above.
   await execute(
     db,
-    "UPDATE referral_flags SET status = ?, notes = ?, resolved_at = ?, resolved_by = 'central_team' WHERE id = ?",
-    [body.decision, notes, nowIso(), id]
+    "UPDATE referral_flags SET status = ?, notes = ?, resolved_at = ?, resolved_by = 'central_team', resolved_by_user_id = ? WHERE id = ?",
+    [body.decision, notes, nowIso(), c.get("auth").sub, id]
   );
 
   return c.json({ id, status: body.decision, notes });

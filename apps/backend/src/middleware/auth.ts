@@ -2,11 +2,17 @@ import type { Context, Next } from "hono";
 
 export interface JWTPayload {
   sub: string;
-  role: "business_owner" | "customer" | "review_team" | "staff";
+  role: "business_owner" | "customer" | "review_team" | "staff" | "review_admin";
   // Only set for role: "staff" -- scopes the staff member to a single
   // business, since staff (unlike business_owner) can't imply their own
   // business from the identity row alone in the same way.
   businessId?: string;
+  // Only set for role: "review_admin". Distinguishes the env-configured root
+  // admin (no review_admins row, sub is the env-configured username itself)
+  // from a persisted review_admins row -- see plan.md "Admin JWT shape" and
+  // "Root admin password mutability" decisions. Downstream code (the
+  // self-service password-change endpoint) checks this to refuse root.
+  isRoot?: boolean;
   iat: number;
   exp: number;
   [key: string]: unknown;
@@ -36,13 +42,14 @@ async function getCryptoKey(secret: string, usage: KeyUsage[]): Promise<CryptoKe
   );
 }
 
-export async function signJWT(payload: { sub: string; role: JWTPayload["role"]; businessId?: string }, secret: string, expiresInSeconds = 86400 * 7): Promise<string> {
+export async function signJWT(payload: { sub: string; role: JWTPayload["role"]; businessId?: string; isRoot?: boolean }, secret: string, expiresInSeconds = 86400 * 7): Promise<string> {
   const header = { alg: "HS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
   const fullPayload: JWTPayload = {
     sub: payload.sub,
     role: payload.role,
     ...(payload.businessId ? { businessId: payload.businessId } : {}),
+    ...(payload.isRoot !== undefined ? { isRoot: payload.isRoot } : {}),
     iat: now,
     exp: now + expiresInSeconds,
   };

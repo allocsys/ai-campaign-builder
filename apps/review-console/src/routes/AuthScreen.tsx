@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button, Card, Input, useToast } from '@ai-campaign-builder/ui-kit'
 import { useAuth } from '../lib/auth'
 
@@ -109,6 +109,12 @@ export function AuthScreen() {
             </Button>
           </form>
         )}
+
+        <div className="text-center mt-6">
+          <Link to="/admin/login" className="text-xs text-slate-500 hover:text-brand-400 hover:underline">
+            ورود ادمین
+          </Link>
+        </div>
       </Card>
     </div>
   )
