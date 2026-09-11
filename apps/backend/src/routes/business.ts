@@ -4,6 +4,7 @@ import type { Env } from "../types";
 import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
+import { generateCampaignProposal } from "../lib/campaign-generator";
 
 const businessRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
