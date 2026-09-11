@@ -24,6 +24,17 @@ export interface RangeSliderProps {
  * keyboard/a11y behavior for free. The scoped <style> block below is needed
  * because Tailwind utility classes can't target ::-webkit-slider-thumb /
  * ::-moz-range-thumb.
+ *
+ * IMPORTANT: the track wrapper below is forced to dir="ltr" even though the
+ * app is RTL (bug found 2026-09-12, real deployed screenshot). Native
+ * <input type="range"> mirrors itself under an inherited RTL direction --
+ * min renders on the right, max on the left -- but the highlight-fill div's
+ * left/right percentages are computed assuming plain LTR value->position
+ * mapping. Left un-forced, the two thumbs visually mirror while the fill
+ * bar doesn't, so the highlighted range and the actual thumbs end up
+ * disconnected. Forcing dir="ltr" on just this inner wrapper (not the whole
+ * app) stops the mirroring and re-aligns the fill with the thumbs, while
+ * the label row above it stays in normal RTL flow.
  */
 export function RangeSlider({
   label,
@@ -52,10 +63,10 @@ export function RangeSlider({
           </span>
         </div>
       )}
-      <div className="relative h-6 flex items-center">
+      <div className="relative h-6 flex items-center" dir="ltr">
         <div className="absolute inset-x-0 h-1.5 rounded-full bg-glass-light border border-glass-border" />
         <div
-          className="absolute h-1.5 rounded-full bg-brand-500"
+          className="absolute h-1.5 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"
           style={{ left: `${pct(valueMin)}%`, right: `${100 - pct(valueMax)}%` }}
         />
         <input
@@ -103,20 +114,22 @@ export function RangeSlider({
           pointer-events: auto;
           -webkit-appearance: none;
           appearance: none;
-          width: 16px;
-          height: 16px;
+          width: 20px;
+          height: 20px;
           border-radius: 9999px;
           background: #fff;
-          border: 2px solid rgb(99 102 241);
+          border: 3px solid rgb(99 102 241);
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
           cursor: pointer;
         }
         .ui-kit-range-thumb::-moz-range-thumb {
           pointer-events: auto;
-          width: 16px;
-          height: 16px;
+          width: 20px;
+          height: 20px;
           border-radius: 9999px;
           background: #fff;
-          border: 2px solid rgb(99 102 241);
+          border: 3px solid rgb(99 102 241);
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
           cursor: pointer;
         }
       `}</style>
