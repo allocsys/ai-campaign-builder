@@ -50,7 +50,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   if (!data) {
     throw new Response("Microsite not found", { status: 404 });
   }
-  return { kind: "microsite" as const, ...data };
+  // Carried into the join links below (bug fix 2026-09-12): this interim
+  // deployment has no real per-business subdomains yet, so /join/:slug on
+  // its own has no way to know which business it's for -- join.$slug.tsx
+  // resolves that via Host header OR a ?business= query param, and Host is
+  // always just this shared workers.dev domain right now. Without this,
+  // the campaign_highlight CTA and the sticky join button both 404.
+  return { kind: "microsite" as const, businessSlug: slug, ...data };
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -89,7 +95,11 @@ export default function MicrositeIndex() {
             // fallback based on whether featuredCampaign is null.
             return (
               <Reveal key={mod.id}>
-                <CampaignHighlight content={mod.content} campaign={data.featuredCampaign} />
+                <CampaignHighlight
+                  content={mod.content}
+                  campaign={data.featuredCampaign}
+                  businessSlug={data.businessSlug}
+                />
               </Reveal>
             );
           case "about":
@@ -137,7 +147,7 @@ export default function MicrositeIndex() {
       </footer>
       {data.featuredCampaign ? (
         <StickyJoinCta
-          href={`/join/${data.featuredCampaign.public_join_slug}`}
+          href={`/join/${data.featuredCampaign.public_join_slug}?business=${encodeURIComponent(data.businessSlug)}`}
           label={
             data.modules.find((m) => m.module_key === "campaign_highlight")?.content.cta_label ??
             "عضویت در کمپین"

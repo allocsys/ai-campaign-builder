@@ -268,6 +268,25 @@ businessRouter.put("/campaign", async (c) => {
         nowIso(),
         micrositeId,
       ]);
+
+      // Bug fix 2026-09-12: the campaign_highlight module's title/description/
+      // cta_label were never populated anywhere -- see fillCampaignHighlightDefaults
+      // for the full story. Only fills in still-empty fields, never overwrites
+      // owner customization.
+      const activatedCampaign = await queryFirst<{ goal: string }>(db, "SELECT goal FROM campaigns WHERE id = ?", [
+        campaignId,
+      ]);
+      const businessRow = await queryFirst<{ name: string }>(db, "SELECT name FROM businesses WHERE id = ?", [
+        businessId,
+      ]);
+      if (activatedCampaign && businessRow) {
+        await fillCampaignHighlightDefaults(
+          db,
+          micrositeId,
+          activatedCampaign.goal as "acquisition" | "retention" | "acquisition_retention",
+          businessRow.name
+        );
+      }
     }
   }
   if (body.goal !== undefined) {
@@ -818,6 +837,84 @@ function defaultModuleContent(moduleKey: string, businessName: string, businessA
     default:
       return null;
   }
+}
+
+// Deterministic goal-based fallback copy for the campaign_highlight module,
+// used only to fill in a still-untouched (all-empty-string) module when a
+// campaign is activated -- see PUT /campaign's status:'active' branch below.
+// Bug found 2026-09-12: activating a campaign gave it a public_join_slug and
+// featured it on the microsite (see the featured_campaign_id block above),
+// but nothing ever wrote real title/description/cta_label into this
+// module's content -- defaultModuleContent() only ever produces empty
+// strings for these fields, and no other code path fills them in, so a
+// launched campaign's highlight section renders with a visible goal badge
+// but a blank title/description and an invisible (label-less) CTA button.
+// Same non-LLM deterministic-fallback style as defaultModuleContent -- no
+// content-editing UI exists for this module yet either way, so a sensible
+// default beats a permanently blank section.
+function campaignHighlightDefaults(
+  goal: "acquisition" | "retention" | "acquisition_retention",
+  businessName: string
+): { title: string; description: string; cta_label: string } {
+  switch (goal) {
+    case "acquisition":
+      return {
+        title: `به جمع مشتریان ${businessName} بپیوندید`,
+        description: `با عضویت در این کمپین، به عنوان مشتری جدید از پاداش‌های ویژه ${businessName} بهره‌مند شوید.`,
+        cta_label: "همین حالا عضو شوید",
+      };
+    case "retention":
+      return {
+        title: `پاداش ویژه مشتریان همیشگی ${businessName}`,
+        description: `با هر خرید امتیاز جمع کنید و جوایز ویژه‌ای که ${businessName} برایتان در نظر گرفته دریافت کنید.`,
+        cta_label: "مشاهده باشگاه مشتریان",
+      };
+    case "acquisition_retention":
+      return {
+        title: `کمپین ویژه ${businessName}`,
+        description: `چه مشتری جدید ${businessName} باشید و چه همیشگی، همین حالا جایزه‌ای منتظر شماست.`,
+        cta_label: "همین حالا شروع کنید",
+      };
+  }
+}
+
+// Fills in a campaign's featured campaign_highlight module content the
+// first time it's activated, but ONLY if title/description/cta_label are
+// still all empty strings (i.e. the untouched default from
+// defaultModuleContent) -- if the owner (or anything else) has already
+// customized any of the three fields, this leaves the module alone rather
+// than clobbering a deliberate edit. no_campaign_title/no_campaign_description
+// are preserved as-is either way, since they're unrelated to a live campaign.
+async function fillCampaignHighlightDefaults(
+  db: D1Database,
+  micrositeId: string,
+  goal: "acquisition" | "retention" | "acquisition_retention",
+  businessName: string
+): Promise<void> {
+  const row = await queryFirst<{ id: string; content: string | null }>(
+    db,
+    `SELECT bmm.id, bmm.content
+     FROM business_microsite_modules bmm JOIN website_modules wm ON wm.id = bmm.website_module_id
+     WHERE bmm.business_microsite_id = ? AND wm.key = 'campaign_highlight'`,
+    [micrositeId]
+  );
+  if (!row?.content) return;
+
+  let current: Record<string, unknown>;
+  try {
+    current = JSON.parse(row.content);
+  } catch {
+    return;
+  }
+
+  const isUntouched = current.title === "" && current.description === "" && current.cta_label === "";
+  if (!isUntouched) return;
+
+  const filled = campaignHighlightDefaults(goal, businessName);
+  await execute(db, "UPDATE business_microsite_modules SET content = ? WHERE id = ?", [
+    JSON.stringify({ ...current, ...filled }),
+    row.id,
+  ]);
 }
 
 // Keeps the microsite's hero/about content (and top-level business_name)
