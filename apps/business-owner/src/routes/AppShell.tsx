@@ -1,29 +1,56 @@
 import { type ReactNode } from 'react'
-import { Button } from '@ai-campaign-builder/ui-kit'
+import { useLocation } from 'react-router-dom'
+import { Button, AppHeader } from '@ai-campaign-builder/ui-kit'
 import { useAuth } from '../lib/auth'
 
 /**
- * Minimal authenticated shell — header with the logged-in phone + logout.
- * Deliberately just a header + content slot for now: the real dashboard nav
- * (Onboarding/Dashboard/Insights/Suggestions/Autopilot/Microsite
- * Builder/Settings/Sends Log — accordion pattern, see the Accordion
- * component and plan.md's mockup nav notes) is Phase 5 Step 4 scope, not this
- * routing/shell step.
+ * AppShell component integrating the new AppHeader with route-aware title
+ * mapping matching design.md's IA table.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { phone, logout } = useAuth()
+  const location = useLocation()
+
+  // Map route pathname to Persian title per design.md IA table
+  const getTitle = (pathname: string) => {
+    switch (pathname) {
+      case '/dashboard':
+        return 'داشبورد'
+      case '/dashboard/campaign':
+        return 'کمپین'
+      case '/dashboard/insights':
+      case '/dashboard/suggestions':
+        return 'تحلیل و پیشنهاد'
+      case '/dashboard/microsite':
+        return 'میکروسایت'
+      case '/dashboard/autopilot':
+        return 'خودکارسازی'
+      case '/dashboard/settings':
+        return 'تنظیمات'
+      case '/dashboard/staff':
+        return 'کارکنان'
+      case '/dashboard/sends-log':
+        return 'لاگ ارسال‌ها'
+      default:
+        return 'داشبورد'
+    }
+  }
+
+  const currentTitle = getTitle(location.pathname)
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-glass-border bg-glass-light backdrop-blur-md">
-        <span className="font-bold">پلتفرم کمپین‌ساز هوشمند</span>
+      <AppHeader
+        title={currentTitle}
+        onMenuClick={() => console.log('TODO: Open drawer menu')}
+      >
         <div className="flex items-center gap-3">
           {phone && <span className="text-sm text-slate-400" dir="ltr">{phone}</span>}
           <Button variant="ghost" onClick={logout}>
             خروج
           </Button>
         </div>
-      </header>
+      </AppHeader>
       <main className="flex-1 p-6">{children}</main>
     </div>
   )
