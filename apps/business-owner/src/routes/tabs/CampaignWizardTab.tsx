@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
 import { generateCampaign, updateCampaign } from '@ai-campaign-builder/api-client'
 import type {
@@ -104,6 +105,7 @@ function selectClassName() {
 
 export function CampaignWizardTab() {
   const { show: showToast } = useToast()
+  const navigate = useNavigate()
   const [step, setStep] = useState(1)
 
   const [businessName, setBusinessName] = useState('')
@@ -189,6 +191,7 @@ export function CampaignWizardTab() {
     try {
       await updateCampaign(apiClient, { status: 'active' })
       showToast('کمپین با موفقیت راه‌اندازی شد!', 'success')
+      navigate('/dashboard')
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), 'danger')
     } finally {
