@@ -13,8 +13,9 @@ export interface Env {
   // Vision scoring adapter (lib/vision.ts, Open Item 1) -- populates
   // task_submissions.ai_confidence_score, never auto-approve/reject (Item 5
   // stays blocked). Cascade order + which models to use live in
-  // vision-cascade.config.ts, NOT in an env var (2026-09-11 change) -- these
-  // vars just supply credentials per provider. A provider with no keys set
+  // lib/ai-models.config.ts (shared with campaign-generator.ts, consolidated
+  // 2026-09-12), NOT in an env var (2026-09-11 change) -- these vars just
+  // supply credentials per provider. A provider with no keys set
   // here is skipped by the cascade, not treated as an error (submission
   // still lands in the manual-hold queue with a null score either way).
   // Each *_API_KEYS var is a COMMA-SEPARATED LIST -- one key is picked at
