@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, Input, useToast } from '@ai-campaign-builder/ui-kit'
 import { ApiError } from '@ai-campaign-builder/api-client'
-import { useAuth } from '../lib/auth'
+import { REF_CODE_STORAGE_KEY, useAuth } from '../lib/auth'
 
 const PHONE_PATTERN = /^09\d{9}$/
 
@@ -18,7 +18,10 @@ type Step = 'phone' | 'otp'
 export function AuthScreen() {
   const [step, setStep] = useState<Step>('phone')
   const [phone, setPhone] = useState('')
-  const [referralCode, setReferralCode] = useState('')
+  // Item 14, Step C: pre-fill (not auto-submit) from the ?ref= code captured
+  // in main.tsx -- the customer still sees the value here and can edit or
+  // clear it before submitting, same as if they'd typed it themselves.
+  const [referralCode, setReferralCode] = useState(() => sessionStorage.getItem(REF_CODE_STORAGE_KEY) || '')
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
