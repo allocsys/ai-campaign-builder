@@ -177,7 +177,7 @@ reviewAdminRouter.post("/team-members", async (c) => {
 reviewAdminRouter.patch("/team-members/:id", async (c) => {
   const db = c.env.DB;
   const id = c.req.param("id");
-  const body = await c.req.json<Partial<{ active: boolean; name: string }>>();
+  const body = await c.req.json<Partial<{ active: boolean; name: string; phone: string }>>();
 
   const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM review_team_members WHERE id = ?", [id]);
   if (!existing) return c.json({ error: "Review-team member not found" }, 404);
@@ -188,6 +188,17 @@ reviewAdminRouter.patch("/team-members/:id", async (c) => {
   if (body.name !== undefined) {
     await execute(db, "UPDATE review_team_members SET name = ? WHERE id = ?", [body.name, id]);
   }
+  if (body.phone !== undefined) {
+    const clash = await queryFirst<{ id: string }>(
+      db,
+      "SELECT id FROM review_team_members WHERE phone = ? AND id != ?",
+      [body.phone, id]
+    );
+    if (clash) {
+      return c.json({ error: "This phone number is already registered as a review-team member" }, 409);
+    }
+    await execute(db, "UPDATE review_team_members SET phone = ? WHERE id = ?", [body.phone, id]);
+  }
 
   const row = await queryFirst<{ id: string; name: string; phone: string; phone_verified: number; active: number }>(
     db,
@@ -196,6 +207,17 @@ reviewAdminRouter.patch("/team-members/:id", async (c) => {
   );
   if (!row) return c.json({ error: "Review-team member not found" }, 404);
   return c.json(serializeReviewTeamMember(row));
+});
+
+reviewAdminRouter.delete("/team-members/:id", async (c) => {
+  const db = c.env.DB;
+  const id = c.req.param("id");
+
+  const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM review_team_members WHERE id = ?", [id]);
+  if (!existing) return c.json({ error: "Review-team member not found" }, 404);
+
+  await execute(db, "DELETE FROM review_team_members WHERE id = ?", [id]);
+  return c.json({ ok: true, id });
 });
 
 // ----------------------------------------------------------------------------

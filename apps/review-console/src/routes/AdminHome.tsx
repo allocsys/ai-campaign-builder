@@ -7,6 +7,7 @@ import {
   getReviewTeamMembers,
   addReviewTeamMember,
   updateReviewTeamMember,
+  removeReviewTeamMember,
   getReviewAdmins,
   addReviewAdmin,
   removeReviewAdmin,
@@ -37,6 +38,14 @@ export function AdminHome() {
   const [addingMember, setAddingMember] = useState(false)
   const [memberFormError, setMemberFormError] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  // Edit team member modal
+  const [editingMember, setEditingMember] = useState<ReviewTeamMember | null>(null)
+  const [editMemberName, setEditMemberName] = useState('')
+  const [editMemberPhone, setEditMemberPhone] = useState('')
+  const [editMemberError, setEditMemberError] = useState<string | null>(null)
+  const [savingMemberEdit, setSavingMemberEdit] = useState(false)
+  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null)
 
   // Add admin form
   const [adminUsername, setAdminUsername] = useState('')
@@ -103,6 +112,50 @@ export function AdminHome() {
       show(err instanceof Error ? err.message : String(err), 'danger')
     } finally {
       setTogglingId(null)
+    }
+  }
+
+  const openEditMember = (member: ReviewTeamMember) => {
+    setEditingMember(member)
+    setEditMemberName(member.name)
+    setEditMemberPhone(member.phone)
+    setEditMemberError(null)
+  }
+
+  const handleSaveMemberEdit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!editingMember) return
+    if (!editMemberName.trim() || !editMemberPhone.trim()) {
+      setEditMemberError('لطفاً نام و شماره موبایل را وارد کنید.')
+      return
+    }
+    setSavingMemberEdit(true)
+    setEditMemberError(null)
+    try {
+      const updated = await updateReviewTeamMember(editingMember.id, {
+        name: editMemberName.trim(),
+        phone: editMemberPhone.trim(),
+      })
+      setMembers((prev) => prev.map((m) => (m.id === editingMember.id ? updated : m)))
+      setEditingMember(null)
+      show('اطلاعات عضو به‌روزرسانی شد.', 'success')
+    } catch (err) {
+      setEditMemberError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSavingMemberEdit(false)
+    }
+  }
+
+  const handleDeleteMember = async (member: ReviewTeamMember) => {
+    setDeletingMemberId(member.id)
+    try {
+      await removeReviewTeamMember(member.id)
+      setMembers((prev) => prev.filter((m) => m.id !== member.id))
+      show('عضو حذف شد.', 'success')
+    } catch (err) {
+      show(err instanceof Error ? err.message : String(err), 'danger')
+    } finally {
+      setDeletingMemberId(null)
     }
   }
 
@@ -230,7 +283,7 @@ export function AdminHome() {
         ) : (
           <div className="flex flex-col gap-3">
             {members.map((m) => (
-              <Card key={m.id} className="p-4 flex items-center justify-between gap-3">
+              <Card key={m.id} className="p-4 flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex flex-col gap-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-slate-100 truncate">{m.name}</span>
@@ -241,9 +294,17 @@ export function AdminHome() {
                     {m.phone}
                   </span>
                 </div>
-                <Button variant="secondary" loading={togglingId === m.id} onClick={() => handleToggleMember(m)}>
-                  {m.active ? 'غیرفعال‌سازی' : 'فعال‌سازی'}
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => openEditMember(m)}>
+                    ویرایش
+                  </Button>
+                  <Button variant="secondary" loading={togglingId === m.id} onClick={() => handleToggleMember(m)}>
+                    {m.active ? 'غیرفعال‌سازی' : 'فعال‌سازی'}
+                  </Button>
+                  <Button variant="danger" loading={deletingMemberId === m.id} onClick={() => handleDeleteMember(m)}>
+                    حذف
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>
@@ -330,6 +391,34 @@ export function AdminHome() {
             </Button>
             <Button type="submit" loading={changingPw}>
               تغییر رمز
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={editingMember !== null} onClose={() => setEditingMember(null)} title="ویرایش عضو تیم مرکزی">
+        <form onSubmit={handleSaveMemberEdit} className="flex flex-col gap-3">
+          <Input
+            label="نام"
+            placeholder="مثال: سارا احمدی"
+            value={editMemberName}
+            onChange={(e) => setEditMemberName(e.target.value)}
+          />
+          <Input
+            label="شماره موبایل"
+            placeholder="09123456789"
+            dir="ltr"
+            className="text-left"
+            value={editMemberPhone}
+            onChange={(e) => setEditMemberPhone(e.target.value)}
+          />
+          {editMemberError && <p className="text-xs text-red-400">{editMemberError}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => setEditingMember(null)}>
+              انصراف
+            </Button>
+            <Button type="submit" loading={savingMemberEdit}>
+              ذخیره
             </Button>
           </div>
         </form>
