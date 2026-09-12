@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types";
 import { generateId, queryFirst, execute } from "../lib/db";
 import { signJWT } from "../middleware/auth";
-import { ensureCustomerCampaignCode } from "./customer";
+import { ensureCustomerCampaignCode, resolveCampaignByJoinSlug } from "./customer";
 
 const authRouter = new Hono<{ Bindings: Env }>();
 
@@ -49,8 +49,8 @@ authRouter.post("/request-otp", async (c) => {
 
 authRouter.post("/verify-otp", async (c) => {
   try {
-    const body = await c.req.json<{ phone?: string; otp?: string; role?: string; referralCode?: string }>();
-    const { phone, otp, role, referralCode } = body;
+    const body = await c.req.json<{ phone?: string; otp?: string; role?: string; referralCode?: string; joinSlug?: string }>();
+    const { phone, otp, role, referralCode, joinSlug } = body;
 
     if (!phone || !otp || !role) {
       return c.json({ error: "Missing required fields: phone, otp, role" }, 400);
@@ -68,6 +68,12 @@ authRouter.post("/verify-otp", async (c) => {
     const db = c.env.DB;
     let userId = "";
     let staffBusinessId: string | undefined;
+    // Only ever set for role: "customer" -- resolved below, from joinSlug if
+    // present, else left undefined and customer.ts's resolveCode() falls
+    // back to the customer's most-recently-joined campaign at request time
+    // (see Open Item 13, Step A). Embedded in the issued JWT so subsequent
+    // requests don't need to re-resolve it.
+    let customerCampaignId: string | undefined;
 
     if (role === "business_owner") {
       // Look up or create business by phone
@@ -125,15 +131,48 @@ authRouter.post("/verify-otp", async (c) => {
         await execute(db, "UPDATE customers SET phone_verified = 1, phone_verified_at = ? WHERE id = ?", [new Date().toISOString(), userId]);
       }
 
+      // Multi-tenant join (Open Item 13, Step A): a joinSlug in the request
+      // body (threaded from the microsite's /join/:slug handoff, see Step B)
+      // resolves to a specific campaign to join -- replaces the previous
+      // "always join whichever campaign was created first in the whole DB"
+      // guess. An unresolvable/stale slug fails loudly (400) rather than
+      // silently landing the customer in some other business's campaign.
+      const trimmedJoinSlug = joinSlug?.trim();
+      if (trimmedJoinSlug) {
+        const resolved = await resolveCampaignByJoinSlug(db, trimmedJoinSlug);
+        if (!resolved) {
+          return c.json({ error: "Invalid or expired join link" }, 400);
+        }
+        customerCampaignId = resolved.id;
+      }
+
       // Fold referral-code-at-signup handling into the OTP flow: creates the
       // customer's campaign code (if not already created) and links it to the
       // referrer's code when a valid, uncapped referralCode was supplied. Safe
       // to call on every login, not just first signup -- ensureCustomerCampaignCode
       // is a no-op past the first call for a given customer+campaign (existing
-      // code short-circuits before the referral linking logic runs). No campaign
-      // existing yet is not an error here; it's retried lazily on first profile
-      // fetch (see ensureCustomerCampaignCode's docstring).
-      await ensureCustomerCampaignCode(db, userId, referralCode?.trim() || undefined);
+      // code short-circuits before the referral linking logic runs).
+      //
+      // No joinSlug given (returning customer opening the app directly, or an
+      // old link predating Step B): fall back to their most-recently-joined
+      // campaign, same lookup customer.ts's resolveCode() uses for an
+      // already-authenticated request. A genuinely brand-new customer with
+      // neither a joinSlug nor any existing campaign code has no campaign to
+      // resolve here -- customerCampaignId stays undefined, the JWT is issued
+      // without a campaignId claim, and every subsequent request will 404
+      // with "No campaign available yet" until they use a real join link.
+      if (!customerCampaignId) {
+        const mostRecent = await queryFirst<{ campaign_id: string }>(
+          db,
+          "SELECT campaign_id FROM customer_campaign_codes WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1",
+          [userId]
+        );
+        customerCampaignId = mostRecent?.campaign_id;
+      }
+
+      if (customerCampaignId) {
+        await ensureCustomerCampaignCode(db, userId, customerCampaignId, referralCode?.trim() || undefined);
+      }
     } else if (role === "review_team") {
       // Review-team signup is invite-only, exactly like staff below: a
       // review_admin must have already registered this phone (via
@@ -190,6 +229,7 @@ authRouter.post("/verify-otp", async (c) => {
         sub: userId,
         role: role as "business_owner" | "customer" | "review_team" | "staff",
         ...(staffBusinessId ? { businessId: staffBusinessId } : {}),
+        ...(customerCampaignId ? { campaignId: customerCampaignId } : {}),
       },
       secret
     );
