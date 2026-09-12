@@ -13,6 +13,7 @@ import { useAdminAuth } from '../lib/admin-auth'
 export function AdminLoginScreen() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -29,7 +30,7 @@ export function AdminLoginScreen() {
     }
     setLoading(true)
     try {
-      const ok = await login(username.trim(), password)
+      const ok = await login(username.trim(), password, remember)
       if (!ok) {
         setError('نام کاربری یا رمز عبور اشتباه است')
         return
@@ -67,6 +68,14 @@ export function AdminLoginScreen() {
             onChange={(e) => setPassword(e.target.value)}
             error={error ?? undefined}
           />
+          <label className="flex items-center gap-2 text-xs text-slate-400">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            مرا به خاطر بسپار
+          </label>
           <Button type="submit" loading={loading} className="w-full">
             ورود
           </Button>
