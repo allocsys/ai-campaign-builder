@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp } from '@ai-campaign-builder/api-client'
+import { ApiError, requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp } from '@ai-campaign-builder/api-client'
 import client from './api-client'
 
 const STORAGE_KEY = 'aicb_customer_auth'
@@ -82,7 +82,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true
       }
       return false
-    } catch {
+    } catch (err) {
+      // Open Item 13, Step D: a 400 here specifically means "no resolvable
+      // campaign" (auth.ts's Step D guard) -- a distinct, more actionable
+      // failure than a wrong OTP code, so it's rethrown for AuthScreen.tsx to
+      // show verbatim rather than collapsed into the generic false-return
+      // below (which AuthScreen renders as "کد وارد شده اشتباه است").
+      if (err instanceof ApiError && err.status === 400) {
+        throw err
+      }
       return false
     }
   }
