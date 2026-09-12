@@ -20,6 +20,17 @@ import apiClient from '../lib/api-client'
 import { TaskSubmitModal } from './TaskSubmitModal'
 import { RetroClaimModal } from './RetroClaimModal'
 
+// Item 14, Step D: real business subdomain routing doesn't exist in production
+// yet (plan.md Open Item 3, domain undecided; architecture.md's
+// business_microsites.subdomain_slug documents the intended shape as
+// "{slug}.ourdomain.com" once a real domain is chosen). This placeholder lets
+// the referral link be built in the intended final shape now rather than
+// falling back to the customer-app-direct shape apps/microsite's own CTA
+// link uses -- per explicit user decision, matches the documented convention
+// even though it won't actually resolve until a real domain exists.
+// TODO: replace with the real domain once Open Item 3 is decided.
+const MICROSITE_DOMAIN = 'ourdomain.com'
+
 function formatCountdown(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60)
   const s = totalSeconds % 60
@@ -136,8 +147,21 @@ export function CustomerHome() {
     }
   }
 
-  const handleCopyReferralLink = () => {
-    show(`لینک دعوت (سقف پاداش ${profile?.maxReferralCap ?? '-'} معرفی) کپی شد.`, 'success')
+  const handleCopyReferralLink = async () => {
+    if (!profile) return
+    // micrositeSlug is nullable -- null until the business creates/publishes a
+    // microsite (Item 14 Step A). No real link can be built without it.
+    if (!profile.micrositeSlug) {
+      show('کسب‌وکار شما هنوز میکروسایت ندارد؛ لینک دعوت هنوز آماده نیست.', 'danger')
+      return
+    }
+    const url = `https://${encodeURIComponent(profile.micrositeSlug)}.${MICROSITE_DOMAIN}/join/${encodeURIComponent(profile.joinSlug)}?ref=${encodeURIComponent(profile.personalCode)}`
+    try {
+      await navigator.clipboard.writeText(url)
+      show(`لینک دعوت (سقف پاداش ${profile.maxReferralCap} معرفی) کپی شد.`, 'success')
+    } catch {
+      show('خطا در کپی کردن لینک', 'danger')
+    }
   }
 
   const handleRedeem = async (reward: CustomerReward) => {
