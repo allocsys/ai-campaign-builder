@@ -6,7 +6,6 @@ import {
   getCustomerRewards,
   getCustomerNotifications,
   submitTask,
-  simulateAiApproveTask,
   redeemReward,
   updateTelegramOptIn,
 } from '@ai-campaign-builder/api-client'
@@ -118,18 +117,6 @@ export function CustomerHome() {
       setRewards(await getCustomerRewards(apiClient))
     } catch {
       // Non-fatal -- rewards list just stays stale until the next full reload.
-    }
-  }
-
-  const handleAiApproveSimulation = async (task: CustomerTask) => {
-    try {
-      const res = await simulateAiApproveTask(apiClient, task.id)
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: 'approved' } : t)))
-      setProfile((p) => (p ? { ...p, pointsBalance: p.pointsBalance + res.pointsAwarded } : p))
-      await refreshRewards()
-      show(`بررسی هوش مصنوعی موفق بود! +${res.pointsAwarded} امتیاز واریز شد.`, 'success')
-    } catch (err) {
-      show(err instanceof Error ? err.message : 'خطا در بررسی هوش مصنوعی', 'danger')
     }
   }
 
@@ -332,9 +319,7 @@ export function CustomerHome() {
                       status === 'approved' ? (
                         <span className="text-xs text-emerald-400">✓ امتیاز ثبت شد</span>
                       ) : status === 'pending' ? (
-                        <Button variant="secondary" onClick={() => handleAiApproveSimulation(t)}>
-                          <span aria-hidden="true">🤖 </span>شبیه‌سازی بررسی AI
-                        </Button>
+                        <span className="text-xs text-slate-400">در صف بررسی تیم مرکزی</span>
                       ) : (
                         <Button onClick={() => setModalTask(t)}><span aria-hidden="true">📷 </span>ارسال مدرک</Button>
                       )
