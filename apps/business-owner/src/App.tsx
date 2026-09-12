@@ -4,6 +4,14 @@ import { LandingPage } from './routes/LandingPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { AppShell } from './routes/AppShell'
 import { BusinessOwnerHome } from './routes/BusinessOwnerHome'
+import { CampaignWizardTab } from './routes/tabs/CampaignWizardTab'
+import { InsightsTab } from './routes/tabs/InsightsTab'
+import { SuggestionsTab } from './routes/tabs/SuggestionsTab'
+import { MicrositeBuilderTab } from './routes/tabs/MicrositeBuilderTab'
+import { AutopilotTab } from './routes/tabs/AutopilotTab'
+import { SettingsTab } from './routes/tabs/SettingsTab'
+import { StaffTab } from './routes/tabs/StaffTab'
+import { SendsLogTab } from './routes/tabs/SendsLogTab'
 
 function App() {
   return (
@@ -17,6 +25,70 @@ function App() {
             <AppShell>
               <BusinessOwnerHome />
             </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/campaign"
+        element={
+          <ProtectedRoute>
+            <CampaignWizardTab />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/insights"
+        element={
+          <ProtectedRoute>
+            <InsightsTab />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/suggestions"
+        element={
+          <ProtectedRoute>
+            <SuggestionsTab />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/microsite"
+        element={
+          <ProtectedRoute>
+            <MicrositeBuilderTab />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/autopilot"
+        element={
+          <ProtectedRoute>
+            <AutopilotTab />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/settings"
+        element={
+          <ProtectedRoute>
+            <SettingsTab />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/staff"
+        element={
+          <ProtectedRoute>
+            <StaffTab />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/sends-log"
+        element={
+          <ProtectedRoute>
+            <SendsLogTab />
           </ProtectedRoute>
         }
       />
