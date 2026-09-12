@@ -6,7 +6,6 @@ import type {
   CustomerNotification,
   SubmitTaskResponse,
   UploadEvidenceResponse,
-  SimulateAiApproveResponse,
   RedeemRewardResponse,
   TelegramOptInResponse,
   RetroClaimResponse,
@@ -58,16 +57,6 @@ export async function submitTask(
     method: 'POST',
     body: evidenceUrl !== undefined ? JSON.stringify({ evidenceUrl }) : undefined,
   });
-}
-
-export async function simulateAiApproveTask(
-  client: ApiClient,
-  taskId: string
-): Promise<SimulateAiApproveResponse> {
-  return client.request<SimulateAiApproveResponse>(
-    `/api/customer/tasks/${encodeURIComponent(taskId)}/simulate-ai-approve`,
-    { method: 'POST' }
-  );
 }
 
 export async function getCustomerRewards(client: ApiClient): Promise<CustomerReward[]> {
