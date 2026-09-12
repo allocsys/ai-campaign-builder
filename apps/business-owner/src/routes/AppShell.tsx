@@ -1,11 +1,11 @@
 import { type ReactNode, useState } from 'react'
 import { useLocation, Link } from 'react-router-dom'
-import { Button, AppHeader, Drawer } from '@ai-campaign-builder/ui-kit'
+import { Button, AppHeader, Drawer, BottomNav } from '@ai-campaign-builder/ui-kit'
 import { useAuth } from '../lib/auth'
 
 /**
- * AppShell component integrating the new AppHeader and Drawer with route-aware title
- * mapping matching design.md's IA table.
+ * AppShell component integrating AppHeader, Drawer, and BottomNav
+ * for persistent navigation across all /dashboard/* routes.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { phone, logout } = useAuth()
@@ -47,7 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   ]
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col pb-20">
       <AppHeader
         title={currentTitle}
         onMenuClick={() => setIsDrawerOpen(true)}
@@ -96,6 +96,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Drawer>
 
       <main className="flex-1 p-6">{children}</main>
+
+      <BottomNav />
     </div>
   )
 }
