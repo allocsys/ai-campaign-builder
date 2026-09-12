@@ -10,8 +10,26 @@
 -- every row across, drop the old table, rename the replacement into place,
 -- then recreate the indexes that lived on the old table (dropped along with
 -- it). Every other column/default/FK is unchanged from migration 0001.
+--
+-- IMPORTANT: Cloudflare D1 enforces foreign keys unconditionally and does
+-- NOT support disabling them via PRAGMA foreign_keys = OFF (unlike vanilla
+-- SQLite). Using that pragma here caused DROP TABLE campaigns to fail with
+-- FOREIGN KEY constraint failed, since 8 child tables reference campaigns(id)
+-- with default NO ACTION. D1's supported mechanism is
+-- PRAGMA defer_foreign_keys = on, which defers constraint checks to the end
+-- of the transaction instead of disabling them outright. That alone is not
+-- quite enough, though: SQLite has a documented quirk where ALTER TABLE
+-- RENAME does not clear the "violation fault counter" set by the preceding
+-- DROP TABLE, so the deferred check still fails at commit even though every
+-- child row's reference is satisfied by the renamed table. Explicitly
+-- switching defer_foreign_keys back to off before the transaction ends
+-- works around this (switching from deferred to immediate mode causes
+-- SQLite to re-evaluate rather than trust the stale counter). See
+-- https://sqlite.org/forum/forumpost (search "FOREIGN KEY constraint
+-- failed while foreign_key_check finds no problems") for the upstream
+-- explanation of this quirk.
 
-PRAGMA foreign_keys = OFF;
+PRAGMA defer_foreign_keys = on;
 
 CREATE TABLE campaigns_new (
   id TEXT PRIMARY KEY,
@@ -41,4 +59,5 @@ ALTER TABLE campaigns_new RENAME TO campaigns;
 
 CREATE INDEX idx_campaigns_business_id ON campaigns(business_id);
 
-PRAGMA foreign_keys = ON;
+PRAGMA foreign_key_check;
+PRAGMA defer_foreign_keys = off;
