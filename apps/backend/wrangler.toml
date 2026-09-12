@@ -2,6 +2,17 @@ name = "ai-campaign-builder-backend"
 main = "src/index.ts"
 compatibility_date = "2024-09-09"
 
+# Workers Logs -- was NOT enabled, which meant console.log/console.error calls
+# throughout this Worker (including vision.ts's per-step cascade failure logs
+# and customer.ts's "vision scoring failed for submission X" catch-all) were
+# never captured anywhere. Discovered while investigating a task_submissions
+# row stuck with a permanently null ai_confidence_score -- there was no way to
+# tell whether the vision cascade ran, failed, or was never triggered. This
+# doesn't fix that specific failure by itself, but without it every future
+# silent failure in this Worker (vision scoring or otherwise) stays invisible.
+[observability]
+enabled = true
+
 # database_id below is a placeholder and is meant to stay one — CI's
 # .github/actions/ensure-d1-database action idempotently looks this database
 # up by name (creating it on first deploy only) and patches its OWN local
