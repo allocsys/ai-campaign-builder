@@ -1,8 +1,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp } from '@ai-campaign-builder/api-client'
+import { ApiError, requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp } from '@ai-campaign-builder/api-client'
 import client from './api-client'
 
 const STORAGE_KEY = 'aicb_customer_auth'
+
+// Open Item 13, Step B: sessionStorage key main.tsx writes ?join=<slug> to,
+// before React mounts (see main.tsx for why it has to happen that early).
+// Read here rather than threaded in as a param so AuthScreen.tsx doesn't
+// need to know about it at all -- keeps Step C's AuthScreen changes cleanly
+// separated from this plumbing.
+export const JOIN_SLUG_STORAGE_KEY = 'aicb_join_slug'
 
 interface StoredAuth {
   phone: string
@@ -50,8 +57,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyOtp = async (phone: string, code: string, referralCode?: string) => {
     // Verify OTP via backend API
+    const joinSlug = sessionStorage.getItem(JOIN_SLUG_STORAGE_KEY) || undefined
     try {
-      const res = await apiVerifyOtp(client, phone, 'customer', code, referralCode?.trim() || undefined)
+      const res = await apiVerifyOtp(
+        client,
+        phone,
+        'customer',
+        code,
+        referralCode?.trim() || undefined,
+        joinSlug,
+      )
       if (res.ok && res.token) {
         const next: StoredAuth = {
           phone,
@@ -60,10 +75,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
         setAuth(next)
+        // Clear after a successful verify so a later, unrelated login (e.g.
+        // this customer eventually logging out and back in with no fresh
+        // join link) doesn't silently reuse a stale slug from this session.
+        sessionStorage.removeItem(JOIN_SLUG_STORAGE_KEY)
         return true
       }
       return false
-    } catch {
+    } catch (err) {
+      // Open Item 13, Step D: a 400 here specifically means "no resolvable
+      // campaign" (auth.ts's Step D guard) -- a distinct, more actionable
+      // failure than a wrong OTP code, so it's rethrown for AuthScreen.tsx to
+      // show verbatim rather than collapsed into the generic false-return
+      // below (which AuthScreen renders as "کد وارد شده اشتباه است").
+      if (err instanceof ApiError && err.status === 400) {
+        throw err
+      }
       return false
     }
   }
