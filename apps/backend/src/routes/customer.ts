@@ -27,12 +27,22 @@ customerRouter.use("/*", async (c, next) => {
 // ============================================================================
 // Campaign code auto-provisioning
 //
-// Single-tenant simplification (matches the current customer app's UI, which
-// hardcodes one demo business/campaign -- see plan.md "Frontend-to-backend
-// wiring / Customer persona" investigation notes): resolves/joins the FIRST
-// campaign that exists in the DB, generating a personal_code + qr_payload the
-// first time a given customer is seen. Flag as a gap once a real
-// multi-business customer join flow (via microsite slug) is needed.
+// Multi-tenant join (Open Item 13, Step A -- built 2026-09-12, replaces the
+// previous single-tenant "always join whichever campaign was created first
+// in the entire DB" guess). The campaign to join is now always an explicit
+// input, resolved by the caller from one of two sources, in priority order:
+//   1. A join link's public_join_slug, resolved via resolveCampaignByJoinSlug
+//      -- the normal path for a brand-new customer signing up through a
+//      specific business's microsite/QR (see auth.ts's verify-otp, Step B).
+//   2. The customer's own most-recently-joined campaign (looked up by the
+//      caller when no fresh join link is available -- e.g. a returning
+//      customer re-opening the app, or backward-compat for a JWT issued
+//      before the campaignId claim existed). This function itself does NOT
+//      perform that lookup -- see customer.ts's resolveCode() below, which
+//      is what actually implements the fallback for authenticated requests.
+// This function's own job is unchanged from before: given a specific
+// campaignId, create the customer's personal_code/qr_payload row for it if
+// one doesn't already exist, applying referral linking at creation time.
 //
 // Exported so auth.ts's verify-otp can call it directly at signup time, to
 // fold referral-code-at-signup handling into the OTP flow (see referralCode
@@ -43,19 +53,30 @@ function generatePersonalCode(): string {
   return String(Math.floor(10000 + Math.random() * 90000));
 }
 
+// Resolves a campaign by its public join-link slug (the same value used in
+// the microsite's /join/:slug route and shown on a business's QR/join link).
+// Returns null for an unknown/stale slug -- callers should treat that as a
+// hard error (400), not silently fall back to some other campaign, since a
+// customer following a specific business's link ending up in a different
+// business's campaign would be far worse than a clear "bad link" error.
+export async function resolveCampaignByJoinSlug(db: D1Database, joinSlug: string): Promise<{ id: string } | null> {
+  return queryFirst<{ id: string }>(db, "SELECT id FROM campaigns WHERE public_join_slug = ?", [joinSlug]);
+}
+
 export async function ensureCustomerCampaignCode(
   db: D1Database,
   customerId: string,
+  campaignId: string,
   referralCode?: string
 ): Promise<{ id: string; capped: boolean } | null> {
   const campaign = await queryFirst<{ id: string; max_referrals_per_customer: number }>(
     db,
-    "SELECT id, max_referrals_per_customer FROM campaigns ORDER BY created_at ASC LIMIT 1"
+    "SELECT id, max_referrals_per_customer FROM campaigns WHERE id = ?",
+    [campaignId]
   );
-  // No campaign exists yet anywhere in the DB (e.g. no business has onboarded
-  // yet) -- caller decides how to handle this (customer routes return 404;
-  // verify-otp just skips code creation and tries again lazily on first
-  // profile fetch, without the referral link in that fallback case).
+  // Caller passed a campaignId that doesn't actually exist -- shouldn't
+  // normally happen (callers resolve it from a real slug or a real existing
+  // customer_campaign_codes row first), but fail closed rather than throwing.
   if (!campaign) return null;
 
   const existing = await queryFirst<{ id: string }>(
@@ -111,8 +132,27 @@ export async function ensureCustomerCampaignCode(
   return { id, capped };
 }
 
-async function resolveCode(db: D1Database, customerId: string) {
-  return ensureCustomerCampaignCode(db, customerId);
+// Resolves the campaign_id to use for an already-authenticated customer
+// request. The JWT's campaignId claim (set at verify-otp time, see auth.ts)
+// is authoritative when present. For a JWT issued before that claim existed
+// (backward compat, Open Item 13 Step A), falls back to the customer's most
+// recently created customer_campaign_codes row -- i.e. whichever campaign
+// they joined last -- rather than erroring out every already-logged-in
+// tester ahead of the JWT's natural 7-day expiry. Returns null only when
+// there's truly no campaign to resolve (brand-new customer, no campaignId
+// claim, and no existing code row) -- callers already handle that as
+// "No campaign available yet" (404).
+async function resolveCode(db: D1Database, customerId: string, campaignIdFromAuth?: string) {
+  if (campaignIdFromAuth) {
+    return ensureCustomerCampaignCode(db, customerId, campaignIdFromAuth);
+  }
+  const mostRecent = await queryFirst<{ campaign_id: string }>(
+    db,
+    "SELECT campaign_id FROM customer_campaign_codes WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1",
+    [customerId]
+  );
+  if (!mostRecent) return null;
+  return ensureCustomerCampaignCode(db, customerId, mostRecent.campaign_id);
 }
 
 // ============================================================================
