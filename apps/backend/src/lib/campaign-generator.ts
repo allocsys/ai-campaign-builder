@@ -326,9 +326,15 @@ interface TextCascadeStep {
   model: string;
 }
 
+// Updated 2026-09-12: gemini-2.0-flash and gemini-1.5-flash were shut down
+// by Google (see vision-cascade.config.ts's fix for the same issue, same
+// day) -- every text-generation call here was 404ing and silently falling
+// back to static default copy. Replaced with the same current stable,
+// free-tier Gemini 3.x Flash models used in the vision cascade.
 const TEXT_GENERATION_CASCADE: TextCascadeStep[] = [
-  { provider: "google", model: "gemini-2.0-flash" },
-  { provider: "google", model: "gemini-1.5-flash" },
+  { provider: "google", model: "gemini-3.6-flash" },
+  { provider: "google", model: "gemini-3.5-flash" },
+  { provider: "google", model: "gemini-3.5-flash-lite" },
   { provider: "openai", model: "gpt-4o-mini" },
   { provider: "openai", model: "gpt-4.1-nano" },
 ];
