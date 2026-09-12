@@ -1,58 +1,43 @@
 import { useEffect, useState } from 'react'
-import { Badge, Card } from '@ai-campaign-builder/ui-kit'
+import { Card } from '@ai-campaign-builder/ui-kit'
 import { getChecklist } from '@ai-campaign-builder/api-client'
 import type { ChecklistItem } from '@ai-campaign-builder/api-client'
-import apiClient from '../../lib/api-client'
+import apiClient from '../lib/api-client'
 
 /**
- * "Next Steps" checklist (plan.md "Post-launch guidance", decided 2026-09-08) — auto-hides
- * once every item is complete.
+ * Small "next steps" nudge (plan.md "Post-launch guidance", decided
+ * 2026-09-08 -- simplified from a standalone accordion section to a compact
+ * banner per user request 2026-09-12). Rendered above the main Accordion in
+ * BusinessOwnerHome, not as one of its panels.
+ *
+ * Renders nothing (not even a placeholder) while loading, on fetch failure,
+ * or once every checklist item is complete -- the common steady-state for an
+ * already-onboarded business should show no trace of this component at all.
  */
-export function OnboardingTab() {
-  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export function OnboardingBanner() {
+  const [pendingItems, setPendingItems] = useState<ChecklistItem[] | null>(null)
 
   useEffect(() => {
     let mounted = true
     getChecklist(apiClient)
       .then((data) => {
-        if (mounted) {
-          setChecklistItems(data)
-          setLoading(false)
-        }
+        if (mounted) setPendingItems(data.filter((item) => !item.completed))
       })
-      .catch((err) => {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : String(err))
-          setLoading(false)
-        }
+      .catch(() => {
+        // Silent failure, same pattern as DashboardTab's stats fetch: a
+        // broken checklist call just means no banner, never a page error.
       })
     return () => {
       mounted = false
     }
   }, [])
 
-  if (loading) {
-    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
-  }
+  if (!pendingItems || pendingItems.length === 0) return null
 
-  if (error) {
-    return <div className="p-4 text-sm text-red-400">{error}</div>
-  }
-
-  const allDone = checklistItems.every((i) => i.completed)
-  if (allDone) {
-    return <p className="text-sm text-slate-400">همه مراحل تکمیل شده‌اند <span aria-hidden="true">✅</span></p>
-  }
   return (
-    <div className="flex flex-col gap-3">
-      {checklistItems.map((item) => (
-        <Card key={item.key} className="flex items-center justify-between p-4">
-          <span className="text-sm">{item.label}</span>
-          <Badge tone={item.completed ? 'success' : 'neutral'}>{item.completed ? 'انجام شد' : 'باقی‌مانده'}</Badge>
-        </Card>
-      ))}
-    </div>
+    <Card className="!p-3 mb-4 flex items-center gap-2 text-sm text-slate-300">
+      <span aria-hidden="true">💡</span>
+      <span>مراحل باقی‌مانده برای شروع: {pendingItems.map((item) => item.label).join('، ')}</span>
+    </Card>
   )
 }
