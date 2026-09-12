@@ -7,6 +7,17 @@ export interface JWTPayload {
   // business, since staff (unlike business_owner) can't imply their own
   // business from the identity row alone in the same way.
   businessId?: string;
+  // Only set for role: "customer" (Open Item 13, Step A). Scopes the
+  // customer's session to a single campaign, resolved once at OTP-verify
+  // time from the join link's public_join_slug (or, for a returning
+  // customer with no fresh join link, their most-recently-joined campaign --
+  // see auth.ts's verify-otp and customer.ts's resolveCode). Replaces the
+  // previous "always join whichever campaign was created first in the whole
+  // DB" single-tenant guess -- see plan.md Open Item 13 for the full bug
+  // history. A customer JWT issued before this field existed simply won't
+  // have it; downstream code falls back to the same most-recent-campaign
+  // lookup in that case rather than treating a missing claim as an error.
+  campaignId?: string;
   // Only set for role: "review_admin". Distinguishes the env-configured root
   // admin (no review_admins row, sub is the env-configured username itself)
   // from a persisted review_admins row -- see plan.md "Admin JWT shape" and
@@ -42,13 +53,14 @@ async function getCryptoKey(secret: string, usage: KeyUsage[]): Promise<CryptoKe
   );
 }
 
-export async function signJWT(payload: { sub: string; role: JWTPayload["role"]; businessId?: string; isRoot?: boolean }, secret: string, expiresInSeconds = 86400 * 7): Promise<string> {
+export async function signJWT(payload: { sub: string; role: JWTPayload["role"]; businessId?: string; campaignId?: string; isRoot?: boolean }, secret: string, expiresInSeconds = 86400 * 7): Promise<string> {
   const header = { alg: "HS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
   const fullPayload: JWTPayload = {
     sub: payload.sub,
     role: payload.role,
     ...(payload.businessId ? { businessId: payload.businessId } : {}),
+    ...(payload.campaignId ? { campaignId: payload.campaignId } : {}),
     ...(payload.isRoot !== undefined ? { isRoot: payload.isRoot } : {}),
     iat: now,
     exp: now + expiresInSeconds,
