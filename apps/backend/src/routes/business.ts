@@ -268,6 +268,25 @@ businessRouter.put("/campaign", async (c) => {
         nowIso(),
         micrositeId,
       ]);
+
+      // Bug fix 2026-09-12: the campaign_highlight module's title/description/
+      // cta_label were never populated anywhere -- see fillCampaignHighlightDefaults
+      // for the full story. Only fills in still-empty fields, never overwrites
+      // owner customization.
+      const activatedCampaign = await queryFirst<{ goal: string }>(db, "SELECT goal FROM campaigns WHERE id = ?", [
+        campaignId,
+      ]);
+      const businessRow = await queryFirst<{ name: string }>(db, "SELECT name FROM businesses WHERE id = ?", [
+        businessId,
+      ]);
+      if (activatedCampaign && businessRow) {
+        await fillCampaignHighlightDefaults(
+          db,
+          micrositeId,
+          activatedCampaign.goal as "acquisition" | "retention" | "acquisition_retention",
+          businessRow.name
+        );
+      }
     }
   }
   if (body.goal !== undefined) {
