@@ -170,9 +170,22 @@ authRouter.post("/verify-otp", async (c) => {
         customerCampaignId = mostRecent?.campaign_id;
       }
 
-      if (customerCampaignId) {
-        await ensureCustomerCampaignCode(db, userId, customerCampaignId, referralCode?.trim() || undefined);
+      // Open Item 13, Step D: a customer with neither a joinSlug (fresh
+      // signup, no ?join= link used) nor any existing customer_campaign_codes
+      // row (a genuine first-ever signup, as opposed to a returning customer
+      // whose campaign code lookup above already resolved something) has no
+      // campaign to land in. Decided 2026-09-12: reject loudly here rather
+      // than issuing a JWT with no campaignId claim -- the previous behavior
+      // let the customer "log in" successfully only to hit a wall of 404s on
+      // every subsequent request, which is a worse experience than a clear
+      // failure at the OTP step itself. A returning customer (existing row
+      // above) is unaffected -- this only blocks a first-ever signup with no
+      // join link, matching the "join link required to sign up" decision.
+      if (!customerCampaignId) {
+        return c.json({ error: "برای عضویت، لطفاً از لینک مخصوص عضویت کسب‌وکار خود استفاده کنید." }, 400);
       }
+
+      await ensureCustomerCampaignCode(db, userId, customerCampaignId, referralCode?.trim() || undefined);
     } else if (role === "review_team") {
       // Review-team signup is invite-only, exactly like staff below: a
       // review_admin must have already registered this phone (via
