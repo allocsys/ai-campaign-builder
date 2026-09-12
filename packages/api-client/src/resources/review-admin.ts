@@ -40,11 +40,17 @@ export async function addReviewTeamMember(
 export async function updateReviewTeamMember(
   client: ApiClient,
   id: string,
-  input: Partial<{ active: boolean; name: string }>
+  input: Partial<{ active: boolean; name: string; phone: string }>
 ): Promise<ReviewTeamMember> {
   return client.request<ReviewTeamMember>(`/api/review-admin/team-members/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
+  });
+}
+
+export async function removeReviewTeamMember(client: ApiClient, id: string): Promise<{ ok: boolean; id: string }> {
+  return client.request<{ ok: boolean; id: string }>(`/api/review-admin/team-members/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
   });
 }
 
