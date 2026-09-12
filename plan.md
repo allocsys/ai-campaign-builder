@@ -376,5 +376,21 @@ packages/
 
 ---
 
+14. **Customer-side referral link generation does not actually exist -- the "کپی لینک دعوت" button is a non-functional stub.** Found 2026-09-12 while preparing Item 13 Step E's live verification pass (code inspection, not yet a live-tested bug). Traced end to end:
+    - `apps/customer/src/routes/CustomerHome.tsx`'s `handleCopyReferralLink()` never builds a URL or writes to the clipboard -- it only shows a "copied!" toast. Clicking the button does nothing real.
+    - Even if it did, there's nothing to build a link from: `GET /api/customer/profile` (`apps/backend/src/routes/customer.ts`) returns `personalCode` but never the business's microsite `subdomain_slug` or the campaign's `public_join_slug` -- the two pieces needed to construct a real join-with-referral URL.
+    - Even with a link, nothing downstream would honor it: `apps/microsite/app/routes/join.$slug.tsx`'s CTA only ever forwards `?join=${joinSlug}` to the customer app -- there's no `ref=`/referral param anywhere in that handoff, unlike `?join=` which Item 13 Step B already wired through.
+    - Referral only works today via the fully manual path: the referrer reads/screenshots/tells someone their `personalCode` out-of-band, and the new customer types it into the free-text "کد معرف" field on `AuthScreen.tsx`'s phone step (existing, working, pre-dates this item).
+
+    **Decided 2026-09-12: build this as a sequential chain of independently-shippable steps, same pattern as Item 13, each its own branch/PR, in order:**
+    - **Step A -- backend: expose what's needed to build a real link.** Add the business's microsite `subdomain_slug` and the campaign's `public_join_slug` to `GET /api/customer/profile`'s response (both already columns in the DB via existing joins in that handler -- no migration needed, just widening the SELECT/response shape).
+    - **Step B -- microsite: forward a referral param through the join handoff.** `join.$slug.tsx`'s loader reads an optional `?ref=` query param and appends it to the CTA link's target (`${CUSTOMER_APP_URL}/?join=${joinSlug}&ref=${refCode}` when present), mirroring exactly how `joinSlug` itself is already threaded through.
+    - **Step C -- customer app: capture and pre-fill.** Capture `?ref=` on first load the same way `?join=` is already captured (before `ProtectedRoute` swallows it for an unauthenticated visitor), persist via sessionStorage, and pre-fill (not auto-submit -- the customer should still see and confirm it) `AuthScreen.tsx`'s existing manual referral-code field with the captured value.
+    - **Step D -- wire the real button.** `handleCopyReferralLink()` in `CustomerHome.tsx` builds the actual URL from Step A's new profile fields + the customer's own `personalCode` (`{microsite join link}&ref={personalCode}`) and writes it to the clipboard via the Clipboard API, replacing the current fake toast-only stub.
+
+    Not started -- no branch opened yet.
+
+---
+
 ## Architecture reference
 Full DB schema (35 tables) lives in `architecture.md`, not duplicated here.
