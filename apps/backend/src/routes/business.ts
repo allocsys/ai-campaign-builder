@@ -144,6 +144,20 @@ businessRouter.get("/checklist", async (c) => {
 // exactly one Campaign object, not a list)
 // ============================================================================
 
+// Short, URL-safe, unique slug for a campaign's public join link/QR
+// (/join/:slug on apps/microsite). Collision-checked against the live table
+// rather than assumed-unique, since it's a truncated random string, not a
+// full UUID; 5 attempts before falling back to a full UUID is generous for
+// an 8-char base16 space at this table's realistic size.
+async function generateUniqueJoinSlug(db: D1Database): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const slug = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+    const clash = await queryFirst<{ id: string }>(db, "SELECT id FROM campaigns WHERE public_join_slug = ?", [slug]);
+    if (!clash) return slug;
+  }
+  return crypto.randomUUID();
+}
+
 async function ensureCampaign(db: D1Database, businessId: string): Promise<string> {
   const existing = await queryFirst<{ id: string }>(
     db,
@@ -226,6 +240,35 @@ businessRouter.put("/campaign", async (c) => {
       return c.json({ error: "Invalid status" }, 400);
     }
     await execute(db, "UPDATE campaigns SET status = ? WHERE id = ?", [body.status, campaignId]);
+
+    // Activating a campaign should make it reachable/advertised from the
+    // business's microsite -- gap found 2026-09-12: launching a real campaign
+    // through the wizard never gave it a public_join_slug, and the
+    // microsite's featured_campaign_id was never wired to point at it (only
+    // the old demo seed data (migration 0008) ever had both set). Without
+    // this, a real launched campaign has no join link/QR and never appears
+    // as the microsite's featured campaign.
+    if (body.status === "active") {
+      const current = await queryFirst<{ public_join_slug: string | null }>(
+        db,
+        "SELECT public_join_slug FROM campaigns WHERE id = ?",
+        [campaignId]
+      );
+      if (!current?.public_join_slug) {
+        const slug = await generateUniqueJoinSlug(db);
+        await execute(db, "UPDATE campaigns SET public_join_slug = ? WHERE id = ?", [slug, campaignId]);
+      }
+      // The just-activated campaign becomes the one featured on the
+      // microsite -- a business has only one "current" campaign at a time
+      // (see ensureCampaign's single-current-campaign model), so this is
+      // always the right campaign to feature going forward.
+      const micrositeId = await ensureMicrosite(db, businessId);
+      await execute(db, "UPDATE business_microsites SET featured_campaign_id = ?, updated_at = ? WHERE id = ?", [
+        campaignId,
+        nowIso(),
+        micrositeId,
+      ]);
+    }
   }
   if (body.goal !== undefined) {
     if (!["acquisition", "retention", "acquisition_retention"].includes(body.goal)) {
