@@ -105,7 +105,9 @@ export default function JoinCampaign() {
           <p className="mt-3 text-[var(--accent-text)]/80">{data.description}</p>
         ) : null}
         <a
-          href={`${CUSTOMER_APP_URL}/?join=${encodeURIComponent(data.joinSlug)}`}
+          href={`${CUSTOMER_APP_URL}/?join=${encodeURIComponent(data.joinSlug)}${
+            data.refCode ? `&ref=${encodeURIComponent(data.refCode)}` : ""
+          }`}
           className="mt-6 inline-block rounded-full bg-[var(--surface-card)] px-8 py-3 font-medium text-[var(--text)] transition hover:bg-[var(--accent-hover)]"
         >
           {data.ctaLabel}
