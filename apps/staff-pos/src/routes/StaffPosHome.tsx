@@ -57,7 +57,19 @@ interface SyncResultData {
 }
 
 const ACTIVE_CAMPAIGN_ID = 'c_narvan_autumn'
-const DEFAULT_PURCHASE_POINTS = 60
+
+// Estimate only, shown in the pre-submit preview line below -- there's no
+// endpoint yet to fetch this campaign's actual configured pos_scan
+// points_value ahead of time. The REAL awarded amount always comes back from
+// the backend on submit (StaffPosLogPurchaseResponse.pointsAwarded) or sync
+// (StaffPosSyncResultItem.pointsAwarded) and is what's actually displayed and
+// recorded once known -- this constant must never be used as if it were the
+// confirmed award amount. Previously it was used for exactly that (silent
+// drift risk: any campaign whose real pos_scan task isn't worth exactly this
+// many points would show staff/customers the wrong number while the ledger
+// recorded the correct one), same bug shape as the dead Gemini model names
+// fixed in PR #72.
+const ESTIMATED_PURCHASE_POINTS = 60
 
 function formatToman(amount: number): string {
   return `${amount.toLocaleString('fa-IR')} تومان`
@@ -168,7 +180,6 @@ export function StaffPosHome() {
   const handleSubmitPurchase = async () => {
     const code = customerCode.trim() || '48291'
     const amount = Number(purchaseAmount) || 180000
-    const points = DEFAULT_PURCHASE_POINTS
     const idempotencyKey = makeIdempotencyKey(code)
 
     if (isOffline) {
@@ -181,34 +192,52 @@ export function StaffPosHome() {
           campaignId: ACTIVE_CAMPAIGN_ID,
           actionType: 'purchase',
           amountToman: amount,
-          pointsAwarded: points,
+          pointsAwarded: ESTIMATED_PURCHASE_POINTS,
           createdAt: 'همین الان',
         },
       ])
       addActivity({
         type: 'purchase',
-        text: `ثبت فاکتور ${formatToman(amount)} برای کد ${code} (+${points} امتیاز)`,
+        text: `ثبت فاکتور ${formatToman(amount)} برای کد ${code} (امتیاز پس از همگام‌سازی نهایی می‌شود)`,
         time: 'همین الان',
         status: 'queued',
       })
       show('تراکنش در صف آفلاین دستگاه ذخیره شد و پس از اتصال اینترنت همگام می‌شود.', 'warning')
     } else {
       try {
-        await logPurchase({
+        // pointsAwarded here is the real, backend-configured value for this
+        // campaign's pos_scan task (apps/backend/src/routes/staff-pos.ts) --
+        // never assume it equals ESTIMATED_PURCHASE_POINTS, which is only a
+        // pre-submit guess and can silently drift from the real per-campaign
+        // config.
+        const result = await logPurchase({
           idempotencyKey,
           personalCode: code,
           amountToman: amount,
         })
         setSyncedKeys((prev) => new Set(prev).add(idempotencyKey))
-        addActivity({
-          type: 'purchase',
-          text: `ثبت فاکتور ${formatToman(amount)} برای کد ${code} (+${points} امتیاز)`,
-          time: 'همین الان',
-          status: 'synced',
-        })
-        show(`خرید با موفقیت ثبت شد و ${points} امتیاز به کد ${code} اعطا گردید.`, 'success')
+        if (result.status === 'duplicate_skipped') {
+          addActivity({
+            type: 'purchase',
+            text: `فاکتور برای کد ${code} قبلاً ثبت شده بود (تکراری، امتیاز مجدد اعطا نشد).`,
+            time: 'همین الان',
+            status: 'synced',
+          })
+          show('این تراکنش قبلاً ثبت شده بود؛ امتیازی دوباره اعطا نشد.', 'info')
+        } else {
+          const awarded = result.pointsAwarded ?? 0
+          addActivity({
+            type: 'purchase',
+            text: `ثبت فاکتور ${formatToman(amount)} برای کد ${code} (+${awarded} امتیاز)`,
+            time: 'همین الان',
+            status: 'synced',
+          })
+          show(`خرید با موفقیت ثبت شد و ${awarded} امتیاز به کد ${code} اعطا گردید.`, 'success')
+        }
       } catch (err) {
-        // Fallback to queue if network error occurs during submission
+        // Fallback to queue if network error occurs during submission -- the
+        // real awarded amount isn't known until this item is synced (see the
+        // "نتایج آخرین همگام‌سازی" card), so don't assert a specific number here.
         setOfflineQueue((prev) => [
           ...prev,
           {
@@ -218,13 +247,13 @@ export function StaffPosHome() {
             campaignId: ACTIVE_CAMPAIGN_ID,
             actionType: 'purchase',
             amountToman: amount,
-            pointsAwarded: points,
+            pointsAwarded: ESTIMATED_PURCHASE_POINTS,
             createdAt: 'همین الان',
           },
         ])
         addActivity({
           type: 'purchase',
-          text: `ثبت فاکتور ${formatToman(amount)} برای کد ${code} (+${points} امتیاز)`,
+          text: `ثبت فاکتور ${formatToman(amount)} برای کد ${code} (امتیاز پس از همگام‌سازی نهایی می‌شود)`,
           time: 'همین الان',
           status: 'queued',
         })
@@ -440,7 +469,7 @@ export function StaffPosHome() {
             onChange={(e) => setPurchaseAmount(e.target.value)}
           />
           <p className="text-xs text-slate-400">
-            <span aria-hidden="true">✨</span> به ازای این خرید {DEFAULT_PURCHASE_POINTS} امتیاز ثبت می‌شود. (اگر این مشتری با کد معرف ثبت‌نام کرده باشد، پاداش معرفی معرف پس از این اولین خرید آزاد می‌شود.)
+            <span aria-hidden="true">✨</span> به ازای این خرید حدود {ESTIMATED_PURCHASE_POINTS} امتیاز (تقریبی) ثبت می‌شود؛ مقدار دقیق پس از ثبت نمایش داده خواهد شد. (اگر این مشتری با کد معرف ثبت‌نام کرده باشد، پاداش معرفی معرف پس از این اولین خرید آزاد می‌شود.)
           </p>
           <Button onClick={handleSubmitPurchase} className="w-full">
             ✓ ثبت خرید و اعمال امتیاز

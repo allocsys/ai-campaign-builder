@@ -12,6 +12,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply ai-campaign-builder-db --remote"
   },
   "dependencies": {
+    "@ai-campaign-builder/shared-config": "*",
     "hono": "^4.6.0"
   },
   "devDependencies": {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Badge, Button, Card } from '@ai-campaign-builder/ui-kit'
 import { getMicrositeState, updateMicrositeState } from '@ai-campaign-builder/api-client'
 import type { MicrositeState } from '@ai-campaign-builder/api-client'
+import { MICROSITE_DOMAIN } from '@ai-campaign-builder/shared-config'
 import apiClient from '../../lib/api-client'
 
 /**
@@ -86,7 +87,7 @@ export function MicrositeBuilderTab() {
           <div>
             <p className="text-sm font-medium">قالب: {state.templateName}</p>
             <p className="text-xs text-slate-500 mt-0.5" dir="ltr">
-              {state.subdomainSlug}.ourdomain.com
+              {state.subdomainSlug}.{MICROSITE_DOMAIN}
             </p>
           </div>
           <Badge tone={state.published ? 'success' : 'neutral'}>

@@ -33,6 +33,7 @@
 // ============================================================================
 
 import type { Env } from "../types";
+import { EVIDENCE_MIME_TO_EXTENSION } from "@ai-campaign-builder/shared-config";
 
 export interface UploadedEvidence {
   key: string;
@@ -100,12 +101,11 @@ async function getUploadUrl(apiUrl: string, accountAuthToken: string, bucketId: 
 
 // Accepted evidence formats -- matches what a phone camera/screenshot
 // realistically produces; anything else is rejected before B2 is even
-// contacted (see routes/customer.ts's validation).
-export const ALLOWED_EVIDENCE_CONTENT_TYPES: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
+// contacted (see routes/customer.ts's validation). Sourced from
+// packages/shared-config so this mime->extension mapping stays in sync with
+// apps/customer/src/routes/TaskSubmitModal.tsx's file-input accept list
+// instead of being a second independent hardcoded copy.
+export const ALLOWED_EVIDENCE_CONTENT_TYPES: Record<string, string> = EVIDENCE_MIME_TO_EXTENSION;
 
 // Conservative cap: a phone screenshot/photo comfortably fits well under
 // this, and it keeps a single upload from tying up a Worker's CPU/memory
