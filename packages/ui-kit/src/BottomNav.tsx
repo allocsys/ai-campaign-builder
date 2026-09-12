@@ -45,12 +45,9 @@ const navItems: NavItem[] = [
         viewBox="0 0 24 24"
         stroke="currentColor"
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.14-6.15M18 13a3 3 0 100-6M5.443 13.676l2.14 6.15A1.76 1.76 0 0011 19.24V5.882a1.76 1.76 0 00-3.417-.592l-2.14 6.15z"
-        />
+        <circle cx="12" cy="12" r="8" strokeWidth={2} />
+        <circle cx="12" cy="12" r="4" strokeWidth={2} />
+        <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
       </svg>
     ),
   },
@@ -112,7 +109,7 @@ export function BottomNav({ className = '', insightsBadgeCount, ...rest }: Botto
     >
       <div className="max-w-md mx-auto flex items-center justify-around">
         {navItems.map((item) => {
-          const showBadge = item.to === '/dashboard/insights' && insightsBadgeCount && insightsBadgeCount > 0
+          const showBadge = item.to === '/dashboard/insights' && Boolean(insightsBadgeCount) && insightsBadgeCount > 0
           return (
             <NavLink
               key={item.to}
