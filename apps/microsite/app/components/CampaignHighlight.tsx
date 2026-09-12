@@ -21,9 +21,16 @@ const GOAL_BADGE: Record<FeaturedCampaign["goal"], string> = {
 export function CampaignHighlight({
   content,
   campaign,
+  businessSlug,
 }: {
   content: CampaignHighlightContent;
   campaign: FeaturedCampaign | null;
+  // Optional (bug fix 2026-09-12): when provided, appended as ?business=
+  // on the join link so join.$slug.tsx can resolve the business in this
+  // interim deployment, which has no real per-business subdomains yet and
+  // therefore can't rely on the Host header alone. See routes/_index.tsx's
+  // loader for where this comes from.
+  businessSlug?: string;
 }) {
   if (!campaign) {
     return (
@@ -47,7 +54,11 @@ export function CampaignHighlight({
       <h2 className="mt-3 text-xl font-semibold">{content.title}</h2>
       <p className="mt-2 text-[var(--accent-text)]/80">{content.description}</p>
       <a
-        href={`/join/${campaign.public_join_slug}`}
+        href={
+          businessSlug
+            ? `/join/${campaign.public_join_slug}?business=${encodeURIComponent(businessSlug)}`
+            : `/join/${campaign.public_join_slug}`
+        }
         className="mt-5 inline-block rounded-full bg-[var(--surface-card)] px-6 py-2.5 font-medium text-[var(--text)] transition hover:bg-[var(--accent-hover)]"
       >
         {content.cta_label}
