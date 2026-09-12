@@ -3,9 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ToastProvider } from '@ai-campaign-builder/ui-kit'
 import App from './App'
-import { AuthProvider } from './lib/auth'
+import { AuthProvider, JOIN_SLUG_STORAGE_KEY } from './lib/auth'
 import './index.css'
-import { JOIN_SLUG_STORAGE_KEY } from './lib/auth'
 
 // Open Item 13, Step B: capture ?join=<slug> here, before React ever mounts.
 // An unauthenticated visit to "/" immediately triggers ProtectedRoute's
