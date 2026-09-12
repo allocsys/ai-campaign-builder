@@ -20,6 +20,7 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import type { Env } from "../types";
 import { queryAll } from "./db";
+import { CAMPAIGN_COPY_CASCADE, pickKey } from "./ai-models.config";
 
 // ============================================================================
 // Size-tier resolution (Phase 1 "Business size-tier scaling" table)
@@ -312,33 +313,18 @@ function buildChallenge(tasks: GeneratedTask[]): GeneratedChallenge {
 // ============================================================================
 // Step 2: LLM copy generation -- text-only cascade mirroring lib/vision.ts's
 // provider order (Google models first, then OpenAI), but for chat/text
-// completion rather than multimodal scoring. Deliberately NOT imported from
-// vision.ts / vision-cascade.config.ts: those are scoped narrowly to image
-// scoring per that file's own header comment, and the model lineup best
-// suited to short structured-JSON text generation isn't necessarily
-// identical to the vision lineup, even though the provider ORDER (Google
-// free tier first, OpenAI paid fallback second) is intentionally the same
-// pattern for consistency.
+// completion rather than multimodal scoring.
+//
+// CAMPAIGN_COPY_CASCADE (imported below from ai-models.config.ts, shared
+// with vision.ts -- consolidated 2026-09-12, see that file's header for
+// why) is a SEPARATE array from VISION_CASCADE, not a reused reference to
+// it, even though both currently list the identical models: the model
+// lineup best suited to short structured-JSON text generation isn't
+// guaranteed to stay identical to the vision lineup going forward, so each
+// cascade can be tuned independently later without touching the other --
+// only the underlying model-name CONSTANTS (CURRENT_MODELS) and the
+// provider-order convention are actually shared.
 // ============================================================================
-
-interface TextCascadeStep {
-  provider: "google" | "openai";
-  model: string;
-}
-
-const TEXT_GENERATION_CASCADE: TextCascadeStep[] = [
-  { provider: "google", model: "gemini-2.0-flash" },
-  { provider: "google", model: "gemini-1.5-flash" },
-  { provider: "openai", model: "gpt-4o-mini" },
-  { provider: "openai", model: "gpt-4.1-nano" },
-];
-
-function pickKey(csv: string | undefined): string | null {
-  if (!csv) return null;
-  const keys = csv.split(",").map((k) => k.trim()).filter(Boolean);
-  if (keys.length === 0) return null;
-  return keys[Math.floor(Math.random() * keys.length)];
-}
 
 interface CopyGenerationResult {
   proposalTitle: string;
@@ -431,7 +417,7 @@ async function callOpenAiText(apiKey: string, model: string, prompt: string): Pr
 }
 
 async function generateCopyViaCascade(env: Env, prompt: string): Promise<CopyGenerationResult | null> {
-  for (const step of TEXT_GENERATION_CASCADE) {
+  for (const step of CAMPAIGN_COPY_CASCADE) {
     let key: string | null = null;
     if (step.provider === "google") key = pickKey(env.VISION_GOOGLE_API_KEYS);
     else if (step.provider === "openai") key = pickKey(env.VISION_OPENAI_API_KEYS);

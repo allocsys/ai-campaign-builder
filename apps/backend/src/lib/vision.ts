@@ -11,7 +11,7 @@
 // the score is purely an aid shown to Review Console.
 //
 // Two axes of configurability:
-//   1. CASCADE ORDER -- vision-cascade.config.ts lists an ordered sequence of
+//   1. CASCADE ORDER -- ai-models.config.ts lists an ordered sequence of
 //      (provider, model) steps, changed 2026-09-11 per explicit user request
 //      to try Google's models first (real free tier), then fall back through
 //      OpenAI's cheapest vision-capable models. Each step is tried in order;
@@ -19,7 +19,9 @@
 //      succeeds wins. This replaces the old single VISION_PROVIDER env var
 //      swap -- editing the cascade config file is now how you reorder, add,
 //      or remove providers/models, no env var or secret redeploy needed for
-//      that part.
+//      that part. (2026-09-12: cascade + model names + pickKey moved into
+//      ai-models.config.ts, shared with campaign-generator.ts -- see that
+//      file's header for why.)
 //   2. KEY ROTATION -- each provider's key env var is still a comma-separated
 //      list (VISION_OPENAI_API_KEYS="key1,key2,key3"). One is picked at
 //      random per call. Workers are stateless per-request with no cheap
@@ -30,7 +32,7 @@
 // ============================================================================
 
 import type { Env } from "../types";
-import { VISION_CASCADE, type CascadeStep } from "./vision-cascade.config";
+import { VISION_CASCADE, pickKey, type CascadeStep } from "./ai-models.config";
 import { downloadEvidenceImage } from "./storage";
 
 export interface VisionScoreResult {
@@ -48,20 +50,6 @@ interface ImagePayload {
 export interface VisionProvider {
   readonly name: string;
   scoreImage(image: ImagePayload, prompt: string): Promise<VisionScoreResult>;
-}
-
-// ============================================================================
-// Key rotation helper
-// ============================================================================
-
-function pickKey(csv: string | undefined): string | null {
-  if (!csv) return null;
-  const keys = csv
-    .split(",")
-    .map((k) => k.trim())
-    .filter(Boolean);
-  if (keys.length === 0) return null;
-  return keys[Math.floor(Math.random() * keys.length)];
 }
 
 // ============================================================================
@@ -206,7 +194,7 @@ class GoogleVisionProvider implements VisionProvider {
 
 // ============================================================================
 // Cascade support -- for a given cascade step (provider + specific model,
-// from vision-cascade.config.ts), build a provider instance with a rotated
+// from ai-models.config.ts), build a provider instance with a rotated
 // key, or null if that provider has no keys configured at all (caller skips
 // the step rather than treating it as a failure).
 // ============================================================================
