@@ -2,10 +2,6 @@ import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, Input, useToast } from '@ai-campaign-builder/ui-kit'
 import { useAuth } from '../lib/auth'
-// No public/unauthenticated backend endpoint exists to fetch the business
-// name before login (single-tenant simplification). Hardcoded until the app
-// supports multiple tenants.
-const businessName = 'کافه نارون'
 
 const PHONE_PATTERN = /^09\d{9}$/
 
@@ -70,7 +66,13 @@ export function AuthScreen() {
           <div className="text-4xl mb-2">
             <span aria-hidden="true">☕</span>
           </div>
-          <h1 className="text-xl font-bold mb-1">به باشگاه مشتریان {businessName} خوش آمدید!</h1>
+          {/* Open Item 13, Step C: generic copy, not a specific business name --
+              no public/unauthenticated endpoint exists to resolve a business
+              name from the join slug pre-login, and per plan.md this is the
+              deliberately-chosen simpler option over building one. Post-login,
+              CustomerHome.tsx already shows the real business name dynamically
+              via profile.businessName from GET /api/customer/profile. */}
+          <h1 className="text-xl font-bold mb-1">به باشگاه مشتریان خوش آمدید!</h1>
           <p className="text-slate-400 text-sm">
             {step === 'phone' ? 'با عضویت، در ازای هر سفارش، استوری یا معرفی دوستان امتیاز بگیرید.' : `کد ارسال شده به ${phone} را وارد کنید`}
           </p>
