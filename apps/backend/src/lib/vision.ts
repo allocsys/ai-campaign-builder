@@ -280,7 +280,16 @@ export async function scoreTaskSubmission(
       }
       return await provider.scoreImage(image, prompt);
     } catch (err) {
-      console.error(`vision cascade step ${step.provider}/${step.model} failed:`, err);
+      // Log the message (and stack, separately) as explicit strings -- passing
+      // the raw Error object as console.error's second argument was silently
+      // dropping the actual message text in Workers Logs, leaving only stack
+      // frames with no way to tell WHY a step failed (bad status code? bad
+      // key? network error? malformed model response?).
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error(`vision cascade step ${step.provider}/${step.model} failed: ${detail}`);
+      if (err instanceof Error && err.stack) {
+        console.error(`vision cascade step ${step.provider}/${step.model} stack: ${err.stack}`);
+      }
       // Fall through to the next step in the cascade.
     }
   }
