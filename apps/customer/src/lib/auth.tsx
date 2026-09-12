@@ -89,6 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // this customer eventually logging out and back in with no fresh
         // join link) doesn't silently reuse a stale slug from this session.
         sessionStorage.removeItem(JOIN_SLUG_STORAGE_KEY)
+        // Same reasoning as above, for the referral code capture.
+        sessionStorage.removeItem(REF_CODE_STORAGE_KEY)
         return true
       }
       return false
