@@ -109,7 +109,8 @@ export function BottomNav({ className = '', insightsBadgeCount, ...rest }: Botto
     >
       <div className="max-w-md mx-auto flex items-center justify-around">
         {navItems.map((item) => {
-          const showBadge = item.to === '/dashboard/insights' && (insightsBadgeCount ?? 0) > 0
+          const count = insightsBadgeCount ?? 0
+          const showBadge = item.to === '/dashboard/insights' && count > 0
           return (
             <NavLink
               key={item.to}
@@ -129,7 +130,7 @@ export function BottomNav({ className = '', insightsBadgeCount, ...rest }: Botto
                     {item.icon(isActive)}
                     {showBadge && (
                       <span className="absolute -top-1 -right-2 bg-amber-500 text-slate-900 text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
-                        {insightsBadgeCount > 99 ? '99+' : insightsBadgeCount}
+                        {count > 99 ? '99+' : count}
                       </span>
                     )}
                   </div>
