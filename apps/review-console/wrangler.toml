@@ -16,6 +16,12 @@ compatibility_date = "2026-09-08"
 
 [assets]
 directory = "dist"
+# SPA fallback: without this, a hard refresh (or any direct navigation) on
+# any client-side route other than "/" hits the Worker's static-assets
+# handler directly, finds no file at that exact path, and 404s instead of
+# handing off to the React Router app. This serves index.html for any
+# unmatched path so client-side routing can take over.
+not_found_handling = "single-page-application"
 
 # TODO before first real deploy: set `routes` or a custom domain once business
 # domain/subdomain naming is decided (see plan.md Phase 5 "NEXT STEP" note —
