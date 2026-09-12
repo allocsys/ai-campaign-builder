@@ -25,8 +25,10 @@ interface AuthContextValue {
   phone: string | null
   isAuthenticated: boolean
   referralCodeUsed: string | null
-  /** Requests an OTP code from the backend. */
-  requestOtp: (phone: string) => Promise<void>
+  /** Requests an OTP code from the backend. Returns the TEMPORARY dev-mode
+   * OTP code (see packages/api-client's RequestOtpResponse.devOtp) so the
+   * caller can surface it to the user until a real SMS provider exists. */
+  requestOtp: (phone: string) => Promise<string | undefined>
   /** Verifies the OTP code with the backend, passing referralCode through so
    * the backend can link it server-side at signup time (see StoredAuth comment
    * above). */
@@ -52,7 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestOtp = async (phone: string) => {
     // Request OTP via backend API
-    await apiRequestOtp(client, phone, 'customer')
+    const res = await apiRequestOtp(client, phone, 'customer')
+    return res.devOtp
   }
 
   const verifyOtp = async (phone: string, code: string, referralCode?: string) => {
