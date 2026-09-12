@@ -20,6 +20,7 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import type { Env } from "../types";
 import { queryAll } from "./db";
+import { CAMPAIGN_COPY_CASCADE, pickKey } from "./ai-models.config";
 
 // ============================================================================
 // Size-tier resolution (Phase 1 "Business size-tier scaling" table)
@@ -321,30 +322,9 @@ function buildChallenge(tasks: GeneratedTask[]): GeneratedChallenge {
 // pattern for consistency.
 // ============================================================================
 
-interface TextCascadeStep {
-  provider: "google" | "openai";
-  model: string;
-}
-
-// Updated 2026-09-12: gemini-2.0-flash and gemini-1.5-flash were shut down
-// by Google (see vision-cascade.config.ts's fix for the same issue, same
-// day) -- every text-generation call here was 404ing and silently falling
-// back to static default copy. Replaced with the same current stable,
-// free-tier Gemini 3.x Flash models used in the vision cascade.
-const TEXT_GENERATION_CASCADE: TextCascadeStep[] = [
-  { provider: "google", model: "gemini-3.6-flash" },
-  { provider: "google", model: "gemini-3.5-flash" },
-  { provider: "google", model: "gemini-3.5-flash-lite" },
-  { provider: "openai", model: "gpt-4o-mini" },
-  { provider: "openai", model: "gpt-4.1-nano" },
-];
-
-function pickKey(csv: string | undefined): string | null {
-  if (!csv) return null;
-  const keys = csv.split(",").map((k) => k.trim()).filter(Boolean);
-  if (keys.length === 0) return null;
-  return keys[Math.floor(Math.random() * keys.length)];
-}
+// Cascade order, model names, and pickKey() now live in ai-models.config.ts
+// (shared with vision.ts) -- see that file's header for why this was
+// consolidated out of a local copy on 2026-09-12.
 
 interface CopyGenerationResult {
   proposalTitle: string;
@@ -437,7 +417,7 @@ async function callOpenAiText(apiKey: string, model: string, prompt: string): Pr
 }
 
 async function generateCopyViaCascade(env: Env, prompt: string): Promise<CopyGenerationResult | null> {
-  for (const step of TEXT_GENERATION_CASCADE) {
+  for (const step of CAMPAIGN_COPY_CASCADE) {
     let key: string | null = null;
     if (step.provider === "google") key = pickKey(env.VISION_GOOGLE_API_KEYS);
     else if (step.provider === "openai") key = pickKey(env.VISION_OPENAI_API_KEYS);
