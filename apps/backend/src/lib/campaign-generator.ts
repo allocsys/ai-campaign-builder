@@ -313,18 +313,18 @@ function buildChallenge(tasks: GeneratedTask[]): GeneratedChallenge {
 // ============================================================================
 // Step 2: LLM copy generation -- text-only cascade mirroring lib/vision.ts's
 // provider order (Google models first, then OpenAI), but for chat/text
-// completion rather than multimodal scoring. Deliberately NOT imported from
-// vision.ts / vision-cascade.config.ts: those are scoped narrowly to image
-// scoring per that file's own header comment, and the model lineup best
-// suited to short structured-JSON text generation isn't necessarily
-// identical to the vision lineup, even though the provider ORDER (Google
-// free tier first, OpenAI paid fallback second) is intentionally the same
-// pattern for consistency.
+// completion rather than multimodal scoring.
+//
+// CAMPAIGN_COPY_CASCADE (imported below from ai-models.config.ts, shared
+// with vision.ts -- consolidated 2026-09-12, see that file's header for
+// why) is a SEPARATE array from VISION_CASCADE, not a reused reference to
+// it, even though both currently list the identical models: the model
+// lineup best suited to short structured-JSON text generation isn't
+// guaranteed to stay identical to the vision lineup going forward, so each
+// cascade can be tuned independently later without touching the other --
+// only the underlying model-name CONSTANTS (CURRENT_MODELS) and the
+// provider-order convention are actually shared.
 // ============================================================================
-
-// Cascade order, model names, and pickKey() now live in ai-models.config.ts
-// (shared with vision.ts) -- see that file's header for why this was
-// consolidated out of a local copy on 2026-09-12.
 
 interface CopyGenerationResult {
   proposalTitle: string;
