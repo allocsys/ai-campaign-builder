@@ -173,13 +173,17 @@ customerRouter.get("/profile", async (c) => {
     max_referrals_per_customer: number;
     business_id: string;
     campaign_id: string;
+    public_join_slug: string;
+    microsite_slug: string | null;
   }>(
     db,
     `SELECT b.name AS business_name, ccc.personal_code, ccc.qr_payload,
-            cp.max_referrals_per_customer, b.id AS business_id, cp.id AS campaign_id
+            cp.max_referrals_per_customer, b.id AS business_id, cp.id AS campaign_id,
+            cp.public_join_slug, bm.subdomain_slug AS microsite_slug
      FROM customer_campaign_codes ccc
      JOIN campaigns cp ON cp.id = ccc.campaign_id
      JOIN businesses b ON b.id = cp.business_id
+     LEFT JOIN business_microsites bm ON bm.business_id = b.id
      WHERE ccc.id = ?`,
     [code.id]
   );
