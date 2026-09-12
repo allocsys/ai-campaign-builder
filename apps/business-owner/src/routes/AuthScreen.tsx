@@ -36,8 +36,14 @@ export function AuthScreen() {
     }
     setLoading(true)
     try {
-      await requestOtp(phone)
+      const devOtp = await requestOtp(phone)
       setStep('otp')
+      // TEMPORARY (dev-mode only): no real SMS provider is wired in yet, so
+      // surface the backend's fixed dev OTP directly instead of leaving the
+      // person to guess/dig it out of server logs. Remove once real SMS exists.
+      if (devOtp) {
+        show(`کد تست (حالت توسعه): ${devOtp}`, 'warning')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ارسال کد با خطا مواجه شد، دوباره تلاش کنید')
     } finally {

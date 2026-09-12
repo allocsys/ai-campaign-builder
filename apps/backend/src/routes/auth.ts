@@ -41,7 +41,12 @@ authRouter.post("/request-otp", async (c) => {
     // For now, in dev mode, the mock OTP is statically known (e.g., 7712 / 5432 / 9911).
     console.log(`[DEV OTP] Requested for phone ${phone} with role ${role}. Dev OTP is: ${DEV_OTPS[role]}`);
 
-    return c.json({ ok: true, message: "OTP sent (dev mode stub)" });
+    // TEMPORARY (dev-mode only, remove once a real SMS provider is wired in):
+    // echo the OTP back in the response so a live human tester can complete
+    // OTP verification (e.g. Open Item 13, Step E part 2) without server/log
+    // access -- there is no real SMS being sent today either way, so this
+    // doesn't weaken anything that currently exists.
+    return c.json({ ok: true, message: "OTP sent (dev mode stub)", devOtp: DEV_OTPS[role] });
   } catch (err) {
     return c.json({ error: "Invalid request body" }, 400);
   }

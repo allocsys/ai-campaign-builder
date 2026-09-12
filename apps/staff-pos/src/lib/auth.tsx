@@ -25,8 +25,10 @@ interface AuthContextValue {
   isAuthenticated: boolean
   loading: boolean
   isLoading: boolean
-  /** Requests an OTP code from the backend. */
-  requestOtp: (phone: string) => Promise<void>
+  /** Requests an OTP code from the backend. Returns the TEMPORARY dev-mode
+   * OTP code (see packages/api-client's RequestOtpResponse.devOtp) so the
+   * caller can surface it to the user until a real SMS provider exists. */
+  requestOtp: (phone: string) => Promise<string | undefined>
   /** Verifies the OTP code with the backend. */
   verifyOtp: (phone: string, code: string) => Promise<boolean>
   /** Alias for verifyOtp */
@@ -53,7 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const requestOtp = async (phone: string) => {
-    await apiRequestOtp(client, phone, 'staff')
+    const res = await apiRequestOtp(client, phone, 'staff')
+    return res.devOtp
   }
 
   const verifyOtp = async (phone: string, code: string) => {
