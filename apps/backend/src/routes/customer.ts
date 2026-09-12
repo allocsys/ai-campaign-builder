@@ -163,7 +163,7 @@ customerRouter.get("/profile", async (c) => {
   const db = c.env.DB;
   const customerId = c.get("auth").sub;
 
-  const code = await resolveCode(db, customerId);
+  const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
   const row = await queryFirst<{
@@ -243,7 +243,7 @@ customerRouter.put("/telegram-opt-in", async (c) => {
 customerRouter.get("/tasks", async (c) => {
   const db = c.env.DB;
   const customerId = c.get("auth").sub;
-  const code = await resolveCode(db, customerId);
+  const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
   const campaign = await queryFirst<{ campaign_id: string }>(
@@ -344,7 +344,7 @@ customerRouter.post("/tasks/:id/submit", async (c) => {
   const db = c.env.DB;
   const customerId = c.get("auth").sub;
   const taskId = c.req.param("id");
-  const code = await resolveCode(db, customerId);
+  const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
   const task = await queryFirst<{ id: string; name: string; verification_method: string }>(
@@ -411,7 +411,7 @@ customerRouter.post("/tasks/:id/simulate-ai-approve", async (c) => {
   const db = c.env.DB;
   const customerId = c.get("auth").sub;
   const taskId = c.req.param("id");
-  const code = await resolveCode(db, customerId);
+  const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
   const submission = await queryFirst<{ id: string }>(
@@ -452,7 +452,7 @@ customerRouter.post("/tasks/:id/simulate-ai-approve", async (c) => {
 customerRouter.get("/rewards", async (c) => {
   const db = c.env.DB;
   const customerId = c.get("auth").sub;
-  const code = await resolveCode(db, customerId);
+  const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
   const campaign = await queryFirst<{ campaign_id: string }>(
@@ -489,7 +489,7 @@ customerRouter.post("/rewards/:id/redeem", async (c) => {
   const db = c.env.DB;
   const customerId = c.get("auth").sub;
   const rewardId = c.req.param("id");
-  const code = await resolveCode(db, customerId);
+  const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
   const reward = await queryFirst<{ threshold_points: number }>(
@@ -544,7 +544,7 @@ const RETRO_CLAIM_MAX_HOURS = 72;
 customerRouter.post("/retro-claims", async (c) => {
   const db = c.env.DB;
   const customerId = c.get("auth").sub;
-  const code = await resolveCode(db, customerId);
+  const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
   const body = await c.req.json<{ receiptHash?: string; receiptNumber?: string; hoursAgo?: number }>();
@@ -633,7 +633,7 @@ customerRouter.post("/retro-claims", async (c) => {
 customerRouter.get("/notifications", async (c) => {
   const db = c.env.DB;
   const customerId = c.get("auth").sub;
-  const code = await resolveCode(db, customerId);
+  const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
   const rows = await queryAll<{ id: string; channel: string; trigger_type: string; body_template: string; sent_at: string }>(
