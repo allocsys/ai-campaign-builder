@@ -5,8 +5,7 @@ import { ProtectedRoute } from './routes/ProtectedRoute'
 import { AppShell } from './routes/AppShell'
 import { BusinessOwnerHome } from './routes/BusinessOwnerHome'
 import { CampaignWizardTab } from './routes/tabs/CampaignWizardTab'
-import { InsightsTab } from './routes/tabs/InsightsTab'
-import { SuggestionsTab } from './routes/tabs/SuggestionsTab'
+import { InsightsAndSuggestionsTab } from './routes/tabs/InsightsAndSuggestionsTab'
 import { MicrositeBuilderTab } from './routes/tabs/MicrositeBuilderTab'
 import { AutopilotTab } from './routes/tabs/AutopilotTab'
 import { SettingsTab } from './routes/tabs/SettingsTab'
@@ -40,17 +39,13 @@ function App() {
         path="/dashboard/insights"
         element={
           <ProtectedRoute>
-            <InsightsTab />
+            <InsightsAndSuggestionsTab />
           </ProtectedRoute>
         }
       />
       <Route
         path="/dashboard/suggestions"
-        element={
-          <ProtectedRoute>
-            <SuggestionsTab />
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/dashboard/insights" replace />}
       />
       <Route
         path="/dashboard/microsite"
