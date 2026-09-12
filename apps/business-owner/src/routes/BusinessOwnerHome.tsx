@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Accordion, type AccordionItem } from '@ai-campaign-builder/ui-kit'
+import { OnboardingBanner } from './OnboardingBanner'
 
-const OnboardingTab = lazy(() => import('./tabs/OnboardingTab').then((m) => ({ default: m.OnboardingTab })))
 const CampaignWizardTab = lazy(() =>
   import('./tabs/CampaignWizardTab').then((m) => ({ default: m.CampaignWizardTab })),
 )
@@ -38,15 +38,6 @@ const items: AccordionItem[] = [
     content: (
       <Suspense fallback={<TabFallback />}>
         <CampaignWizardTab />
-      </Suspense>
-    ),
-  },
-  {
-    id: 'onboarding',
-    header: 'مراحل شروع',
-    content: (
-      <Suspense fallback={<TabFallback />}>
-        <OnboardingTab />
       </Suspense>
     ),
   },
@@ -127,6 +118,7 @@ const items: AccordionItem[] = [
 export function BusinessOwnerHome() {
   return (
     <div className="max-w-2xl mx-auto" role="region" aria-label="پنل مدیریت کسب‌وکار">
+      <OnboardingBanner />
       <Accordion items={items} defaultOpenId="dashboard" />
     </div>
   )
