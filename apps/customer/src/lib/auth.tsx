@@ -11,6 +11,13 @@ const STORAGE_KEY = 'aicb_customer_auth'
 // separated from this plumbing.
 export const JOIN_SLUG_STORAGE_KEY = 'aicb_join_slug'
 
+// Item 14, Step C: sessionStorage key main.tsx writes ?ref=<code> to, before
+// React mounts (mirrors JOIN_SLUG_STORAGE_KEY above -- same early-capture
+// reasoning applies). AuthScreen.tsx reads this once, on mount, to pre-fill
+// (not auto-submit) its existing manual referral-code field -- the customer
+// still sees and can edit/clear it before submitting.
+export const REF_CODE_STORAGE_KEY = 'aicb_ref_code'
+
 interface StoredAuth {
   phone: string
   token: string
