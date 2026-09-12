@@ -5,13 +5,14 @@ import { Button } from './Button'
 export interface AppHeaderProps extends HTMLAttributes<HTMLElement> {
   title?: string
   onMenuClick?: () => void
+  children?: React.ReactNode
 }
 
 /**
  * AppHeader component for the UI kit.
- * Features a route-aware page title and a hamburger trigger button on the visual right (RTL).
+ * Features a hamburger trigger button (visual right in RTL) and a title slot/prop.
  */
-export function AppHeader({ title, onMenuClick, className = '', ...rest }: AppHeaderProps) {
+export function AppHeader({ title, onMenuClick, children, className = '', ...rest }: AppHeaderProps) {
   return (
     <motion.header
       initial={{ opacity: 0, y: -10 }}
@@ -19,12 +20,6 @@ export function AppHeader({ title, onMenuClick, className = '', ...rest }: AppHe
       className={`flex items-center justify-between px-6 py-4 border-b border-glass-border bg-glass-light backdrop-blur-md sticky top-0 z-30 ${className}`}
       {...(rest as any)}
     >
-      <div className="flex items-center gap-3">
-        {title && (
-          <h1 className="text-lg font-bold text-slate-100">{title}</h1>
-        )}
-      </div>
-
       <div className="flex items-center gap-3">
         <Button
           variant="secondary"
@@ -43,12 +38,20 @@ export function AppHeader({ title, onMenuClick, className = '', ...rest }: AppHe
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-            href=""
-            d="M4 6h16M4 12h16M4 18h16"
-          />
-        </svg>
-      </Button>
-    </div>
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </Button>
+        {title && (
+          <h1 className="text-lg font-bold text-slate-100">{title}</h1>
+        )}
+      </div>
+
+      {children && (
+        <div className="flex items-center gap-3">
+          {children}
+        </div>
+      )}
     </motion.header>
   )
 }
