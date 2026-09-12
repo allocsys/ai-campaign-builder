@@ -158,9 +158,9 @@ authRouter.post("/verify-otp", async (c) => {
       // campaign, same lookup customer.ts's resolveCode() uses for an
       // already-authenticated request. A genuinely brand-new customer with
       // neither a joinSlug nor any existing campaign code has no campaign to
-      // resolve here -- customerCampaignId stays undefined, the JWT is issued
-      // without a campaignId claim, and every subsequent request will 404
-      // with "No campaign available yet" until they use a real join link.
+      // resolve here -- customerCampaignId stays undefined, and per Step D
+      // below this now fails the request outright (400) rather than issuing
+      // a JWT that would just 404 on every later request.
       if (!customerCampaignId) {
         const mostRecent = await queryFirst<{ campaign_id: string }>(
           db,
