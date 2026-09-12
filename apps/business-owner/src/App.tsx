@@ -3,7 +3,8 @@ import { AuthScreen } from './routes/AuthScreen'
 import { LandingPage } from './routes/LandingPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { AppShell } from './routes/AppShell'
-import { BusinessOwnerHome } from './routes/BusinessOwnerHome'
+import { OnboardingBanner } from './routes/OnboardingBanner'
+import { DashboardTab } from './routes/tabs/DashboardTab'
 import { CampaignWizardTab } from './routes/tabs/CampaignWizardTab'
 import { InsightsAndSuggestionsTab } from './routes/tabs/InsightsAndSuggestionsTab'
 import { MicrositeBuilderTab } from './routes/tabs/MicrositeBuilderTab'
@@ -22,7 +23,8 @@ function App() {
         element={
           <ProtectedRoute>
             <AppShell>
-              <BusinessOwnerHome />
+              <OnboardingBanner />
+              <DashboardTab />
             </AppShell>
           </ProtectedRoute>
         }
@@ -31,7 +33,9 @@ function App() {
         path="/dashboard/campaign"
         element={
           <ProtectedRoute>
-            <CampaignWizardTab />
+            <AppShell>
+              <CampaignWizardTab />
+            </AppShell>
           </ProtectedRoute>
         }
       />
@@ -39,7 +43,9 @@ function App() {
         path="/dashboard/insights"
         element={
           <ProtectedRoute>
-            <InsightsAndSuggestionsTab />
+            <AppShell>
+              <InsightsAndSuggestionsTab />
+            </AppShell>
           </ProtectedRoute>
         }
       />
@@ -51,7 +57,9 @@ function App() {
         path="/dashboard/microsite"
         element={
           <ProtectedRoute>
-            <MicrositeBuilderTab />
+            <AppShell>
+              <MicrositeBuilderTab />
+            </AppShell>
           </ProtectedRoute>
         }
       />
@@ -59,7 +67,9 @@ function App() {
         path="/dashboard/autopilot"
         element={
           <ProtectedRoute>
-            <AutopilotTab />
+            <AppShell>
+              <AutopilotTab />
+            </AppShell>
           </ProtectedRoute>
         }
       />
@@ -67,7 +77,9 @@ function App() {
         path="/dashboard/settings"
         element={
           <ProtectedRoute>
-            <SettingsTab />
+            <AppShell>
+              <SettingsTab />
+            </AppShell>
           </ProtectedRoute>
         }
       />
@@ -75,7 +87,9 @@ function App() {
         path="/dashboard/staff"
         element={
           <ProtectedRoute>
-            <StaffTab />
+            <AppShell>
+              <StaffTab />
+            </AppShell>
           </ProtectedRoute>
         }
       />
@@ -83,7 +97,9 @@ function App() {
         path="/dashboard/sends-log"
         element={
           <ProtectedRoute>
-            <SendsLogTab />
+            <AppShell>
+              <SendsLogTab />
+            </AppShell>
           </ProtectedRoute>
         }
       />
@@ -92,4 +108,4 @@ function App() {
   )
 }
 
-export default App
+default App
