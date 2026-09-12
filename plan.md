@@ -246,9 +246,9 @@ All signals actually provided (customer count and revenue always; follower count
 
 **New threshold column needed:** daily-customer-count bounds don't exist yet in `SIZE_TIERS` (only follower-count and monthly-revenue bounds do). Initial estimates (micro ≤ 15/day, small ≤ 50/day, medium ≤ 150/day, large > 150/day) are a first guess, not benchmarked data -- flagged for revisiting once real businesses are on the platform, same caveat Phase 2's benchmark-data strategy already carries for other numbers.
 
-**UI component gap:** `packages/ui-kit` has no range-slider (dual-handle) component yet -- the same recurring gap pattern as Select (Item-8-era `selectClassName()` workaround) and the still-unbuilt Textarea (flagged in the 2026-09-12 session checkpoint, Task A). This is the third instance of the same "ui-kit is missing a basic form primitive" gap; may be worth a dedicated pass to fill in the missing primitives together rather than one-off as each is hit.
+**UI component gap -- CLOSED.** `packages/ui-kit/src/RangeSlider.tsx` (dual-handle) was built as part of this work, closing the third instance of the "ui-kit is missing a basic form primitive" gap (after Select's `selectClassName()` workaround and the still-unbuilt Textarea).
 
-**Not yet built as of this note** -- implementation follows on branch `feature/step4-ai-first-reward-order` (same branch as the Step 4 reward-checkbox reorder above, both being Step 3/4 wizard UX passes from the same session).
+**Built and merged 2026-09-11 -- PR #48 (commit `b215541`):** the 3-signal size-tier model landed in `CampaignWizardTab.tsx` Step 3 (daily-customer-count and monthly-revenue range sliders + optional Instagram-follower checkbox/field) alongside the Step 4 reward-checkbox reorder described above. `campaign-generator.ts`'s `SIZE_TIERS`/`resolveSizeTier` updated to take all 3 independent signals (highest tier wins). Two follow-up fixes shipped the same day: PR #49 (`c53456e`) + a direct commit (`ccf69ac`) fixed RTL fill/thumb/value-label mirroring on `RangeSlider`; PR #50 (`2bd0a6e`) added manual کف/سقف number inputs as a fallback to dragging. No further work planned for this item.
 
 ---
 
