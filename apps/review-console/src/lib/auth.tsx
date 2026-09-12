@@ -15,8 +15,11 @@ interface AuthContextValue {
    *  'central_team' string. See plan.md "Review Console authentication". */
   phone: string | null
   isAuthenticated: boolean
-  /** Calls the real backend: POST /api/auth/request-otp with role='review_team'. */
-  requestOtp: (phone: string) => Promise<void>
+  /** Calls the real backend: POST /api/auth/request-otp with role='review_team'.
+   * Returns the TEMPORARY dev-mode OTP code (see packages/api-client's
+   * RequestOtpResponse.devOtp) so the caller can surface it to the user until
+   * a real SMS provider exists. */
+  requestOtp: (phone: string) => Promise<string | undefined>
   /** Calls the real backend: POST /api/auth/verify-otp with role='review_team'.
    *  Dev-mode OTP is a fixed stub (9911) on the backend side, not here. */
   verifyOtp: (phone: string, code: string) => Promise<boolean>
@@ -40,7 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const requestOtp = async (phone: string) => {
-    await apiRequestOtp(client, phone, 'review_team')
+    const res = await apiRequestOtp(client, phone, 'review_team')
+    return res.devOtp
   }
 
   const verifyOtp = async (phone: string, code: string) => {
