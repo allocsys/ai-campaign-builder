@@ -78,7 +78,11 @@ businessRouter.put("/profile", async (c) => {
   >();
 
   if (body.name !== undefined) {
+    const previous = await queryFirst<{ name: string }>(db, "SELECT name FROM businesses WHERE id = ?", [
+      businessId,
+    ]);
     await execute(db, "UPDATE businesses SET name = ? WHERE id = ?", [body.name, businessId]);
+    if (previous) await syncMicrositeNameChange(db, businessId, previous.name, body.name);
   }
   if (body.address !== undefined) {
     await execute(db, "UPDATE businesses SET address = ? WHERE id = ?", [body.address, businessId]);
@@ -364,11 +368,17 @@ businessRouter.post("/campaign/generate", async (c) => {
   // hardcoded placeholder name / arbitrary first-row category from first
   // OTP login, since the wizard is realistically the first real screen a
   // new owner meaningfully interacts with.
+  const previousBusiness = await queryFirst<{ name: string }>(db, "SELECT name FROM businesses WHERE id = ?", [
+    businessId,
+  ]);
   await execute(db, "UPDATE businesses SET name = ?, category_id = ? WHERE id = ?", [
     body.businessName.trim(),
     category.id,
     businessId,
   ]);
+  if (previousBusiness) {
+    await syncMicrositeNameChange(db, businessId, previousBusiness.name, body.businessName.trim());
+  }
   // Address (plan.md Open Item 9): optional here too -- an owner who already
   // set it via Settings shouldn't be forced to re-type it in the wizard, so
   // an empty/omitted value leaves the existing column untouched.
@@ -764,6 +774,77 @@ function defaultModuleContent(moduleKey: string, businessName: string, businessA
       };
     default:
       return null;
+  }
+}
+
+// Keeps the microsite's hero/about content (and top-level business_name)
+// in step with businesses.name after it changes -- without this, a rename
+// via the onboarding wizard's Step 1 or the Settings profile form leaves
+// the microsite permanently showing whatever placeholder/old name existed
+// when ensureMicrosite() first auto-created the row (plan.md, found
+// 2026-09-12 while investigating a stale "کسب‌وکار جدید" hero on a business
+// that had since been renamed to a real name via the wizard).
+//
+// Only overwrites a field if its current stored value exactly matches what
+// defaultModuleContent(oldName, ...) would have produced -- i.e. it still
+// looks like an untouched auto-generated default. If the owner has since
+// hand-edited the hero/about text (or the top-level business_name shown in
+// the microsite header), this leaves it alone rather than clobbering a
+// deliberate customization. No microsite row yet -> nothing to sync;
+// ensureMicrosite() will use the already-updated name whenever it first runs.
+async function syncMicrositeNameChange(
+  db: D1Database,
+  businessId: string,
+  oldName: string,
+  newName: string
+): Promise<void> {
+  if (oldName === newName) return;
+
+  const microsite = await queryFirst<{ id: string; content: string }>(
+    db,
+    "SELECT id, content FROM business_microsites WHERE business_id = ?",
+    [businessId]
+  );
+  if (!microsite) return;
+
+  try {
+    const topContent = JSON.parse(microsite.content) as { business_name?: string; [key: string]: unknown };
+    if (topContent.business_name === oldName) {
+      topContent.business_name = newName;
+      await execute(db, "UPDATE business_microsites SET content = ?, updated_at = ? WHERE id = ?", [
+        JSON.stringify(topContent),
+        nowIso(),
+        microsite.id,
+      ]);
+    }
+  } catch {
+    // Malformed/unexpected content shape -- leave it untouched rather than guessing.
+  }
+
+  const rows = await queryAll<{ id: string; key: string; content: string | null }>(
+    db,
+    `SELECT bmm.id, wm.key, bmm.content
+     FROM business_microsite_modules bmm JOIN website_modules wm ON wm.id = bmm.website_module_id
+     WHERE bmm.business_microsite_id = ? AND wm.key IN ('hero', 'about')`,
+    [microsite.id]
+  );
+  for (const row of rows) {
+    if (!row.content) continue;
+    let current: Record<string, unknown>;
+    try {
+      current = JSON.parse(row.content);
+    } catch {
+      continue;
+    }
+    // Address doesn't factor into hero/about's default shape, so "" is fine here.
+    const oldDefault = defaultModuleContent(row.key, oldName, "");
+    if (oldDefault && JSON.stringify(current) === JSON.stringify(oldDefault)) {
+      const newDefault = defaultModuleContent(row.key, newName, "");
+      await execute(db, "UPDATE business_microsite_modules SET content = ? WHERE id = ?", [
+        JSON.stringify(newDefault),
+        row.id,
+      ]);
+    }
   }
 }
 
