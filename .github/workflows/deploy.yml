@@ -533,7 +533,8 @@ jobs:
           echo "$REVIEW_ADMIN_PASSWORD_HASH" | npx wrangler secret put REVIEW_ADMIN_PASSWORD_HASH
       - name: Set VISION_* scoring secrets on the deployed Worker (optional)
         # STATUS (2026-09-11): cascade order + which models to try moved into
-        # src/lib/vision-cascade.config.ts (source code, not a secret) --
+        # src/lib/ai-models.config.ts (source code, not a secret; consolidated
+        # here with campaign-generator.ts's text cascade on 2026-09-12) --
         # Google's models first, then OpenAI's, per explicit user request.
         # VISION_PROVIDER and the per-provider VISION_*_MODEL secrets are no
         # longer read by vision.ts at all, so they're no longer pushed here;
