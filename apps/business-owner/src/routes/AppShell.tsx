@@ -1,7 +1,9 @@
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { Button, AppHeader, Drawer, BottomNav } from '@ai-campaign-builder/ui-kit'
+import { getSuggestedChanges } from '@ai-campaign-builder/api-client'
 import { useAuth } from '../lib/auth'
+import apiClient from '../lib/api-client'
 
 /**
  * AppShell component integrating AppHeader, Drawer, and BottomNav
@@ -11,6 +13,27 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { phone, logout } = useAuth()
   const location = useLocation()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+    getSuggestedChanges(apiClient)
+      .then((data) => {
+        if (mounted) {
+          const pendingCount = data.filter((c) => c.status === 'pending').length
+          setPendingSuggestionsCount(pendingCount)
+        }
+      })
+      .catch(() => {
+        // Silently default to 0 on error
+        if (mounted) {
+          setPendingSuggestionsCount(0)
+        }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   // Map route pathname to Persian title per design.md IA table
   const getTitle = (pathname: string) => {
@@ -97,7 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className="flex-1 p-6">{children}</main>
 
-      <BottomNav />
+      <BottomNav insightsBadgeCount={pendingSuggestionsCount} />
     </div>
   )
 }
