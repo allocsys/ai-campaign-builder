@@ -5,6 +5,7 @@ import {
   getReviewTeamMembers as _getReviewTeamMembers,
   addReviewTeamMember as _addReviewTeamMember,
   updateReviewTeamMember as _updateReviewTeamMember,
+  removeReviewTeamMember as _removeReviewTeamMember,
   getReviewAdmins as _getReviewAdmins,
   addReviewAdmin as _addReviewAdmin,
   removeReviewAdmin as _removeReviewAdmin,
@@ -37,8 +38,9 @@ export const changeAdminPassword = (currentPassword: string, newPassword: string
 export const getReviewTeamMembers = () => _getReviewTeamMembers(adminApiClient)
 export const addReviewTeamMember = (input: { name: string; phone: string }) =>
   _addReviewTeamMember(adminApiClient, input)
-export const updateReviewTeamMember = (id: string, input: Partial<{ active: boolean; name: string }>) =>
+export const updateReviewTeamMember = (id: string, input: Partial<{ active: boolean; name: string; phone: string }>) =>
   _updateReviewTeamMember(adminApiClient, id, input)
+export const removeReviewTeamMember = (id: string) => _removeReviewTeamMember(adminApiClient, id)
 export const getReviewAdmins = () => _getReviewAdmins(adminApiClient)
 export const addReviewAdmin = (input: { username: string; password: string }) => _addReviewAdmin(adminApiClient, input)
 export const removeReviewAdmin = (id: string) => _removeReviewAdmin(adminApiClient, id)
