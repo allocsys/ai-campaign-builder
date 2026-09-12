@@ -194,6 +194,10 @@ export interface CustomerProfile {
   maxReferralCap: number;
   carryoverBonus: number;
   telegramOptedIn: boolean;
+  /** plan.md Item 14 Step A -- null until the business creates/publishes a microsite. */
+  micrositeSlug: string | null;
+  /** plan.md Item 14 Step A -- the campaign's public join-link slug (same value used in apps/microsite's /join/:slug route). */
+  joinSlug: string;
 }
 
 export type CustomerTaskVerificationMethod =
