@@ -7,6 +7,7 @@ export { Input, type InputProps } from './Input'
 export { RangeSlider, type RangeSliderProps } from './RangeSlider'
 export { ToastProvider, useToast, type ToastTone } from './Toast'
 export { AppHeader, type AppHeaderProps } from './AppHeader'
+export { Drawer, type DrawerProps } from './Drawer'
 export {
   motionDuration,
   motionEasing,
