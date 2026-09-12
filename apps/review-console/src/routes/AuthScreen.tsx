@@ -17,6 +17,7 @@ export function AuthScreen() {
   const [step, setStep] = useState<Step>('phone')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
+  const [remember, setRemember] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -51,7 +52,7 @@ export function AuthScreen() {
     setError(null)
     setLoading(true)
     try {
-      const ok = await verifyOtp(phone, code)
+      const ok = await verifyOtp(phone, code, remember)
       if (!ok) {
         setError('کد وارد شده اشتباه است')
         return
@@ -98,6 +99,14 @@ export function AuthScreen() {
               error={error ?? undefined}
               autoFocus
             />
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              مرا به خاطر بسپار
+            </label>
             <Button type="submit" loading={loading} className="w-full">
               تایید و ورود
             </Button>
