@@ -408,7 +408,8 @@ customerRouter.post("/tasks/:id/submit", async (c) => {
           ]);
         })
         .catch((err) => {
-          console.error(`vision scoring failed for submission ${submissionId}:`, err);
+          const detail = err instanceof Error ? err.message : String(err);
+          console.error(`vision scoring failed for submission ${submissionId}: ${detail}`);
         })
     );
   }
