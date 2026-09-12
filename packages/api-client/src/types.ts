@@ -9,6 +9,20 @@ export interface BusinessProfile {
   address: string;
 }
 
+/**
+ * Aggregate lifetime stats for the dashboard overview panel.
+ * Backend endpoint (GET /api/business/stats) doesn't exist yet -- this type
+ * and getBusinessStats() are added frontend-first so the UI is ready; until
+ * the endpoint ships, getBusinessStats() 404s and DashboardTab hides the
+ * stats row rather than erroring the whole page. See plan.md open items.
+ */
+export interface BusinessStats {
+  totalMembers: number;
+  totalPointsIssued: number;
+  rewardsRedeemed: number;
+  conversionRatePercent: number;
+}
+
 export interface ChecklistItem {
   key: string;
   label: string;

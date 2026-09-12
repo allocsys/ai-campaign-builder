@@ -1,6 +1,7 @@
 import type { ApiClient } from '../client';
 import type {
   BusinessProfile,
+  BusinessStats,
   ChecklistItem,
   Campaign,
   GenerateCampaignRequest,
@@ -30,6 +31,16 @@ export async function updateBusinessProfile(
 
 export async function getChecklist(client: ApiClient): Promise<ChecklistItem[]> {
   return client.request<ChecklistItem[]>('/api/business/checklist');
+}
+
+/**
+ * GET /api/business/stats -- backend route not implemented yet (frontend-first,
+ * see BusinessStats doc comment in types.ts). Callers must catch/handle the
+ * rejection until the endpoint ships; DashboardTab treats a failure here as
+ * "no stats to show" rather than a page-level error.
+ */
+export async function getBusinessStats(client: ApiClient): Promise<BusinessStats> {
+  return client.request<BusinessStats>('/api/business/stats');
 }
 
 export async function getCampaign(client: ApiClient): Promise<Campaign> {
