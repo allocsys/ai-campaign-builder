@@ -1,8 +1,11 @@
 import { type HTMLAttributes } from 'react'
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { motionDuration, motionEasing } from './animation-tokens'
 
-export interface BottomNavProps extends HTMLAttributes<HTMLElement> {}
+export interface BottomNavProps extends HTMLAttributes<HTMLElement> {
+  insightsBadgeCount?: number
+}
 
 interface NavItem {
   to: string
@@ -46,7 +49,7 @@ const navItems: NavItem[] = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M11 58l6-3m-6 3v-3m0 3v3m3-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+          d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.14-6.15M18 13a3 3 0 100-6M5.443 13.676l2.14 6.15A1.76 1.76 0 0011 19.24V5.882a1.76 1.76 0 00-3.417-.592l-2.14 6.15z"
         />
       </svg>
     ),
@@ -98,36 +101,47 @@ const navItems: NavItem[] = [
  * Fixed position bottom tab bar with 4 primary destinations, active-route highlighting,
  * glass/dark aesthetic matching Drawer.tsx and Card.tsx.
  */
-export function BottomNav({ className = '', ...rest }: BottomNavProps) {
+export function BottomNav({ className = '', insightsBadgeCount, ...rest }: BottomNavProps) {
   return (
     <motion.nav
       initial={{ y: 50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: motionDuration.base, ease: motionEasing.out }}
       className={`fixed bottom-0 left-0 right-0 z-40 bg-glass-light backdrop-blur-md border-t border-glass-border shadow-glass px-4 py-2 ${className}`}
       {...(rest as any)}
     >
       <div className="max-w-md mx-auto flex items-center justify-around">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/dashboard'}
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all duration-200 ${
-                isActive
-                  ? 'text-brand-400 font-semibold bg-brand-600/15 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {item.icon(isActive)}
-                <span className="text-xs tracking-tight">{item.label}</span>
-              </>
-            )}
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const showBadge = item.to === '/dashboard/insights' && insightsBadgeCount && insightsBadgeCount > 0
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/dashboard'}
+              className={({ isActive }) =>
+                `flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all duration-200 ${
+                  isActive
+                    ? 'text-brand-400 font-semibold bg-brand-600/15 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <div className="relative">
+                    {item.icon(isActive)}
+                    {showBadge && (
+                      <span className="absolute -top-1 -right-2 bg-amber-500 text-slate-900 text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                        {insightsBadgeCount > 99 ? '99+' : insightsBadgeCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs tracking-tight">{item.label}</span>
+                </>
+              )}
+            </NavLink>
+          )
+        })}
       </div>
     </motion.nav>
   )
