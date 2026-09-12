@@ -241,11 +241,6 @@ export interface UploadEvidenceResponse {
   evidenceUrl: string;
 }
 
-export interface SimulateAiApproveResponse {
-  status: 'approved';
-  pointsAwarded: number;
-}
-
 export interface RedeemRewardResponse {
   redemptionId: string;
   redemptionCode: string;

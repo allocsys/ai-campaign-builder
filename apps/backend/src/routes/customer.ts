@@ -416,47 +416,6 @@ customerRouter.post("/tasks/:id/submit", async (c) => {
   return c.json({ submissionId, status: "pending" as const });
 });
 
-// Dev-only stub mirroring the current customer UI's "شبیه‌سازی بررسی AI"
-// button -- real AI review isn't built yet. Kept clearly marked, same
-// convention as auth.ts's DEV_OTPS.
-customerRouter.post("/tasks/:id/simulate-ai-approve", async (c) => {
-  const db = c.env.DB;
-  const customerId = c.get("auth").sub;
-  const taskId = c.req.param("id");
-  const code = await resolveCode(db, customerId, c.get("auth").campaignId);
-  if (!code) return c.json({ error: "No campaign available yet" }, 404);
-
-  const submission = await queryFirst<{ id: string }>(
-    db,
-    `SELECT id FROM task_submissions
-     WHERE campaign_task_id = ? AND customer_campaign_code_id = ? AND status = 'pending'
-     ORDER BY submitted_at DESC LIMIT 1`,
-    [taskId, code.id]
-  );
-  if (!submission) return c.json({ error: "No pending submission found for this task" }, 404);
-
-  const task = await queryFirst<{ points_value: number }>(
-    db,
-    "SELECT points_value FROM campaign_tasks WHERE id = ?",
-    [taskId]
-  );
-  if (!task) return c.json({ error: "Task not found" }, 404);
-
-  await execute(
-    db,
-    "UPDATE task_submissions SET status = 'approved', reviewed_by = 'ai', reviewed_at = ?, points_awarded = ? WHERE id = ?",
-    [nowIso(), task.points_value, submission.id]
-  );
-  await execute(
-    db,
-    `INSERT INTO points_ledger (id, customer_campaign_code_id, task_submission_id, entry_type, points, created_at)
-     VALUES (?, ?, ?, 'earned', ?, ?)`,
-    [generateId(), code.id, submission.id, task.points_value, nowIso()]
-  );
-
-  return c.json({ status: "approved" as const, pointsAwarded: task.points_value });
-});
-
 // ============================================================================
 // Rewards
 // ============================================================================

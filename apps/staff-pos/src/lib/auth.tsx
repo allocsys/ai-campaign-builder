@@ -29,28 +29,36 @@ interface AuthContextValue {
    * OTP code (see packages/api-client's RequestOtpResponse.devOtp) so the
    * caller can surface it to the user until a real SMS provider exists. */
   requestOtp: (phone: string) => Promise<string | undefined>
-  /** Verifies the OTP code with the backend. */
-  verifyOtp: (phone: string, code: string) => Promise<boolean>
+  /** Verifies the OTP code with the backend. `remember` (default true)
+   * controls where the session is persisted: true -> localStorage, same as
+   * today's always-on behavior; false -> sessionStorage, cleared as soon as
+   * the tab/browser closes. */
+  verifyOtp: (phone: string, code: string, remember?: boolean) => Promise<boolean>
   /** Alias for verifyOtp */
-  login: (phone: string, code: string) => Promise<boolean>
+  login: (phone: string, code: string, remember?: boolean) => Promise<boolean>
   logout: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+function readStoredAuth(): StoredAuth | null {
+  const raw = localStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(STORAGE_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    localStorage.removeItem(STORAGE_KEY)
+    sessionStorage.removeItem(STORAGE_KEY)
+    return null
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAuth | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      try {
-        setAuth(JSON.parse(raw))
-      } catch {
-        localStorage.removeItem(STORAGE_KEY)
-      }
-    }
+    setAuth(readStoredAuth())
     setLoading(false)
   }, [])
 
@@ -59,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res.devOtp
   }
 
-  const verifyOtp = async (phone: string, code: string) => {
+  const verifyOtp = async (phone: string, code: string, remember = true) => {
     try {
       const res = await apiVerifyOtp(client, phone, 'staff', code)
       if (res.ok && res.token) {
@@ -81,7 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           businessId,
           user,
         }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        localStorage.removeItem(STORAGE_KEY)
+        sessionStorage.removeItem(STORAGE_KEY)
+        ;(remember ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(next))
         setAuth(next)
         return true
       }
@@ -93,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem(STORAGE_KEY)
+    sessionStorage.removeItem(STORAGE_KEY)
     setAuth(null)
   }
 

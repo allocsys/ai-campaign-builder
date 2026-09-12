@@ -21,25 +21,33 @@ interface AuthContextValue {
    * a real SMS provider exists. */
   requestOtp: (phone: string) => Promise<string | undefined>
   /** Calls the real backend: POST /api/auth/verify-otp with role='review_team'.
-   *  Dev-mode OTP is a fixed stub (9911) on the backend side, not here. */
-  verifyOtp: (phone: string, code: string) => Promise<boolean>
+   *  Dev-mode OTP is a fixed stub (9911) on the backend side, not here.
+   *  `remember` (default true) controls where the session is persisted:
+   *  true -> localStorage, same as today's always-on behavior; false ->
+   *  sessionStorage, cleared as soon as the tab/browser closes. */
+  verifyOtp: (phone: string, code: string, remember?: boolean) => Promise<boolean>
   logout: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function readStoredAuth(): StoredAuth | null {
+  const raw = localStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(STORAGE_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    localStorage.removeItem(STORAGE_KEY)
+    sessionStorage.removeItem(STORAGE_KEY)
+    return null
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAuth | null>(null)
 
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      try {
-        setAuth(JSON.parse(raw))
-      } catch {
-        localStorage.removeItem(STORAGE_KEY)
-      }
-    }
+    setAuth(readStoredAuth())
   }, [])
 
   const requestOtp = async (phone: string) => {
@@ -47,12 +55,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res.devOtp
   }
 
-  const verifyOtp = async (phone: string, code: string) => {
+  const verifyOtp = async (phone: string, code: string, remember = true) => {
     try {
       const res = await apiVerifyOtp(client, phone, 'review_team', code)
       if (res.ok && res.token) {
         const next: StoredAuth = { phone, token: res.token }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        localStorage.removeItem(STORAGE_KEY)
+        sessionStorage.removeItem(STORAGE_KEY)
+        ;(remember ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(next))
         setAuth(next)
         return true
       }
@@ -64,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem(STORAGE_KEY)
+    sessionStorage.removeItem(STORAGE_KEY)
     setAuth(null)
   }
 

@@ -12,33 +12,43 @@ interface AdminAuthContextValue {
   isRoot: boolean
   isAuthenticated: boolean
   /** Calls the real backend: POST /api/review-admin/login (username+password,
-   *  not phone+OTP -- see plan.md "Admin login mechanism"). */
-  login: (username: string, password: string) => Promise<boolean>
+   *  not phone+OTP -- see plan.md "Admin login mechanism"). `remember`
+   *  (default true) controls where the session is persisted: true ->
+   *  localStorage, same as today's always-on behavior; false ->
+   *  sessionStorage, cleared as soon as the tab/browser closes. */
+  login: (username: string, password: string, remember?: boolean) => Promise<boolean>
   logout: () => void
 }
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null)
 
+function readStoredAdminAuth(): StoredAdminAuth | null {
+  const raw = localStorage.getItem(ADMIN_AUTH_STORAGE_KEY) ?? sessionStorage.getItem(ADMIN_AUTH_STORAGE_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    localStorage.removeItem(ADMIN_AUTH_STORAGE_KEY)
+    sessionStorage.removeItem(ADMIN_AUTH_STORAGE_KEY)
+    return null
+  }
+}
+
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAdminAuth | null>(null)
 
   useEffect(() => {
-    const raw = localStorage.getItem(ADMIN_AUTH_STORAGE_KEY)
-    if (raw) {
-      try {
-        setAuth(JSON.parse(raw))
-      } catch {
-        localStorage.removeItem(ADMIN_AUTH_STORAGE_KEY)
-      }
-    }
+    setAuth(readStoredAdminAuth())
   }, [])
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, password: string, remember = true) => {
     try {
       const res = await apiAdminLogin(username, password)
       if (res.ok && res.token && res.user) {
         const next: StoredAdminAuth = { username: res.user.username, token: res.token, isRoot: res.user.isRoot }
-        localStorage.setItem(ADMIN_AUTH_STORAGE_KEY, JSON.stringify(next))
+        localStorage.removeItem(ADMIN_AUTH_STORAGE_KEY)
+        sessionStorage.removeItem(ADMIN_AUTH_STORAGE_KEY)
+        ;(remember ? localStorage : sessionStorage).setItem(ADMIN_AUTH_STORAGE_KEY, JSON.stringify(next))
         setAuth(next)
         return true
       }
@@ -50,6 +60,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem(ADMIN_AUTH_STORAGE_KEY)
+    sessionStorage.removeItem(ADMIN_AUTH_STORAGE_KEY)
     setAuth(null)
   }
 
