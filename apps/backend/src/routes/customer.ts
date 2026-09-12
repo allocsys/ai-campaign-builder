@@ -220,6 +220,14 @@ customerRouter.get("/profile", async (c) => {
     maxReferralCap: row.max_referrals_per_customer,
     carryoverBonus: carryoverRow?.total ?? 0,
     telegramOptedIn: !!(customerRow?.telegram_opted_in ?? 0),
+    // Item 14 Step A: added so the frontend (Step D, CustomerHome.tsx's
+    // handleCopyReferralLink) can build a real referral URL without a
+    // second round-trip. micrositeSlug is null when the business hasn't
+    // created/published a microsite yet -- callers should fall back to
+    // some non-microsite share link (or disable the button) in that case,
+    // same null-handling posture as the rest of this response.
+    micrositeSlug: row.microsite_slug,
+    joinSlug: row.public_join_slug,
   });
 });
 
