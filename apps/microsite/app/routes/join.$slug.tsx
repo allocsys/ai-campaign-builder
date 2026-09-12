@@ -63,6 +63,12 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
     title: campaignModule?.content.title || "کمپین فعال",
     description: campaignModule?.content.description ?? "",
     ctaLabel: campaignModule?.content.cta_label || "ادامه و عضویت",
+    // Open Item 13, Step B: carried through to the customer app so it can
+    // resolve which campaign to join at signup (see Step A's joinSlug
+    // handling in auth.ts). Equal to params.slug by construction -- already
+    // validated against featuredCampaign.public_join_slug above -- but read
+    // off the campaign record itself rather than re-trusting the raw param.
+    joinSlug: featuredCampaign.public_join_slug,
   };
 }
 
@@ -90,7 +96,7 @@ export default function JoinCampaign() {
           <p className="mt-3 text-[var(--accent-text)]/80">{data.description}</p>
         ) : null}
         <a
-          href={CUSTOMER_APP_URL}
+          href={`${CUSTOMER_APP_URL}/?join=${encodeURIComponent(data.joinSlug)}`}
           className="mt-6 inline-block rounded-full bg-[var(--surface-card)] px-8 py-3 font-medium text-[var(--text)] transition hover:bg-[var(--accent-hover)]"
         >
           {data.ctaLabel}
