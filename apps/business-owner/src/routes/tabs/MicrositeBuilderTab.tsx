@@ -35,6 +35,8 @@ export function MicrositeBuilderTab() {
     }
   }, [])
 
+  const [publishing, setPublishing] = useState(false)
+
   const toggle = async (key: string) => {
     if (!state) return
     setActionError(null)
@@ -47,6 +49,21 @@ export function MicrositeBuilderTab() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setActionError(msg)
+    }
+  }
+
+  const togglePublish = async () => {
+    if (!state) return
+    setActionError(null)
+    setPublishing(true)
+    try {
+      const updated = await updateMicrositeState(apiClient, { published: !state.published })
+      setState(updated)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setActionError(msg)
+    } finally {
+      setPublishing(false)
     }
   }
 
@@ -79,6 +96,14 @@ export function MicrositeBuilderTab() {
         {actionError && (
           <p className="text-xs text-red-400">{actionError}</p>
         )}
+        <Button
+          variant={state.published ? 'ghost' : 'primary'}
+          onClick={togglePublish}
+          loading={publishing}
+          className="self-start"
+        >
+          {state.published ? 'لغو انتشار' : 'انتشار میکروسایت'}
+        </Button>
       </Card>
 
       <div className="flex flex-col gap-2">
