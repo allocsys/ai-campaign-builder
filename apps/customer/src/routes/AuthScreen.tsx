@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, Input, useToast } from '@ai-campaign-builder/ui-kit'
+import { ApiError } from '@ai-campaign-builder/api-client'
 import { useAuth } from '../lib/auth'
 
 const PHONE_PATTERN = /^09\d{9}$/
@@ -54,6 +55,16 @@ export function AuthScreen() {
       }
       show('ورود با موفقیت انجام شد. خوش آمدید!', 'success')
       navigate('/', { replace: true })
+    } catch (err) {
+      // Open Item 13, Step D: useAuth().verifyOtp rethrows specifically for a
+      // 400 "no resolvable campaign" failure (first-ever signup with no join
+      // link) -- surfaced verbatim here since it's a distinct, more actionable
+      // message than the generic wrong-OTP case above.
+      if (err instanceof ApiError && err.status === 400) {
+        setError(err.message)
+        return
+      }
+      throw err
     } finally {
       setLoading(false)
     }
