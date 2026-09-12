@@ -4,6 +4,10 @@ import type { AuthUserProfile } from '../types';
 export interface RequestOtpResponse {
   ok: boolean;
   message?: string;
+  /** TEMPORARY, dev-mode only: the backend's hardcoded DEV_OTPS value for this
+   * role, echoed back so a live human tester can complete OTP verification
+   * without server/log access. Remove once a real SMS provider is wired in. */
+  devOtp?: string;
 }
 
 export interface VerifyOtpResponse {
