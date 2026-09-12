@@ -109,7 +109,7 @@ export function BottomNav({ className = '', insightsBadgeCount, ...rest }: Botto
     >
       <div className="max-w-md mx-auto flex items-center justify-around">
         {navItems.map((item) => {
-          const showBadge = item.to === '/dashboard/insights' && Boolean(insightsBadgeCount) && insightsBadgeCount > 0
+          const showBadge = item.to === '/dashboard/insights' && (insightsBadgeCount ?? 0) > 0
           return (
             <NavLink
               key={item.to}
