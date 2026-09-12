@@ -57,6 +57,14 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
     (m) => m.module_key === "campaign_highlight",
   ) as Extract<AnyBusinessMicrositeModule, { module_key: "campaign_highlight" }> | undefined;
 
+  // Item 14, Step B: an optional referral code riding along on the join
+  // link (e.g. "...&ref=12345", built from Step A's profile fields by the
+  // eventual Step D). Purely pass-through here -- no validation against a
+  // real customer_campaign_codes row happens at this layer, same posture as
+  // joinSlug itself (validated downstream, not at the microsite). Absent
+  // for an ordinary (non-referral) join link, which is the common case.
+  const refCode = url.searchParams.get("ref");
+
   return {
     businessName: data.microsite.content.business_name,
     theme: data.template.theme_identifier,
@@ -69,6 +77,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
     // validated against featuredCampaign.public_join_slug above -- but read
     // off the campaign record itself rather than re-trusting the raw param.
     joinSlug: featuredCampaign.public_join_slug,
+    refCode,
   };
 }
 
