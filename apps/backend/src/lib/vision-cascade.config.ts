@@ -29,11 +29,16 @@ export interface CascadeStep {
 }
 
 export const VISION_CASCADE: CascadeStep[] = [
-  // Google cascade: fastest/cheapest free-tier model first, then progressively
-  // older/smaller free-tier fallbacks.
-  { provider: "google", model: "gemini-2.0-flash" },
-  { provider: "google", model: "gemini-1.5-flash" },
-  { provider: "google", model: "gemini-1.5-flash-8b" },
+  // Google cascade: updated 2026-09-12 -- gemini-2.0-flash and the entire
+  // 1.5/1.0 line were shut down by Google (confirmed via
+  // ai.google.dev/gemini-api/docs/models, "Previous models" / deprecations
+  // page) and every call to them now 404s. Replaced with the current stable,
+  // free-tier-eligible Gemini 3.x Flash line (free tier as of this date only
+  // covers Flash/Flash-Lite tiers, not Pro), ordered strongest-capability
+  // first then progressively smaller/cheaper fallbacks, same shape as before.
+  { provider: "google", model: "gemini-3.6-flash" },
+  { provider: "google", model: "gemini-3.5-flash" },
+  { provider: "google", model: "gemini-3.5-flash-lite" },
   // OpenAI cascade: cheapest vision-capable models, tried only once every
   // Google step above has failed or Google has no keys configured at all.
   { provider: "openai", model: "gpt-4o-mini" },
