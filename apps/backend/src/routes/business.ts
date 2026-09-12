@@ -457,6 +457,82 @@ businessRouter.post("/campaign/generate", async (c) => {
 });
 
 // ============================================================================
+// Stats (dashboard overview panel). Scoped to the business's single "current"
+// campaign, same scope as GET /campaign -- the dashboard shows one campaign
+// at a time, so lifetime-across-all-campaigns aggregation isn't what's
+// wanted here.
+//
+// conversionRatePercent definition (explicit product decision, since this
+// wasn't specified anywhere in architecture.md/plan.md): "combined funnel" --
+// total conversions (task completions + referral signups) divided by total
+// opportunities (tasks assigned + referrals sent), i.e. one volume-weighted
+// rate rather than an average of two separately-computed rates. This was
+// chosen over averaging because averaging would let a low-volume funnel
+// (e.g. 1-2 referrals) swing the number as much as a high-volume one
+// (hundreds of task attempts).
+//
+// Both funnels are already fully represented in task_submissions: a
+// 'referral_auto' submission_type row IS a referral attempt (created when
+// someone uses a referral code), and its status becoming 'approved' IS the
+// signup/conversion -- there's no separate "referral sent" event tracked
+// anywhere, so no new table is needed to derive this. Non-referral
+// submissions represent regular task attempts/completions the same way.
+// This means opportunities = COUNT(*) of all task_submissions for the
+// campaign, and conversions = COUNT(*) of those with status = 'approved'.
+// ============================================================================
+
+async function loadBusinessStats(db: D1Database, campaignId: string) {
+  const members = await queryFirst<{ count: number }>(
+    db,
+    "SELECT COUNT(*) AS count FROM customer_campaign_codes WHERE campaign_id = ?",
+    [campaignId]
+  );
+
+  const pointsIssued = await queryFirst<{ total: number }>(
+    db,
+    `SELECT COALESCE(SUM(pl.points), 0) AS total
+     FROM points_ledger pl JOIN customer_campaign_codes ccc ON ccc.id = pl.customer_campaign_code_id
+     WHERE ccc.campaign_id = ? AND pl.entry_type = 'earned'`,
+    [campaignId]
+  );
+
+  const redemptions = await queryFirst<{ count: number }>(
+    db,
+    `SELECT COUNT(*) AS count
+     FROM reward_redemptions rr JOIN customer_campaign_codes ccc ON ccc.id = rr.customer_campaign_code_id
+     WHERE ccc.campaign_id = ? AND rr.status = 'fulfilled'`,
+    [campaignId]
+  );
+
+  const funnel = await queryFirst<{ opportunities: number; conversions: number }>(
+    db,
+    `SELECT
+       COUNT(*) AS opportunities,
+       COALESCE(SUM(CASE WHEN ts.status = 'approved' THEN 1 ELSE 0 END), 0) AS conversions
+     FROM task_submissions ts JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
+     WHERE ccc.campaign_id = ?`,
+    [campaignId]
+  );
+
+  const opportunities = funnel?.opportunities ?? 0;
+  const conversions = funnel?.conversions ?? 0;
+  const conversionRatePercent = opportunities > 0 ? Math.round((conversions / opportunities) * 1000) / 10 : 0;
+
+  return {
+    totalMembers: members?.count ?? 0,
+    totalPointsIssued: pointsIssued?.total ?? 0,
+    rewardsRedeemed: redemptions?.count ?? 0,
+    conversionRatePercent,
+  };
+}
+
+businessRouter.get("/stats", async (c) => {
+  const db = c.env.DB;
+  const campaignId = await ensureCampaign(db, c.get("auth").sub);
+  return c.json(await loadBusinessStats(db, campaignId));
+});
+
+// ============================================================================
 // Insights (read-only, generated elsewhere)
 // ============================================================================
 
