@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ToastProvider } from '@ai-campaign-builder/ui-kit'
 import App from './App'
-import { AuthProvider, JOIN_SLUG_STORAGE_KEY } from './lib/auth'
+import { AuthProvider, JOIN_SLUG_STORAGE_KEY, REF_CODE_STORAGE_KEY } from './lib/auth'
 import './index.css'
 
 // Open Item 13, Step B: capture ?join=<slug> here, before React ever mounts.
@@ -16,6 +16,14 @@ import './index.css'
 const joinSlugFromUrl = new URLSearchParams(window.location.search).get('join')
 if (joinSlugFromUrl) {
   sessionStorage.setItem(JOIN_SLUG_STORAGE_KEY, joinSlugFromUrl)
+}
+
+// Item 14, Step C: same early-capture reasoning as ?join= above, for the
+// referral code forwarded from the microsite's join CTA (see
+// apps/microsite/app/routes/join.$slug.tsx's Step B ?ref= forwarding).
+const refCodeFromUrl = new URLSearchParams(window.location.search).get('ref')
+if (refCodeFromUrl) {
+  sessionStorage.setItem(REF_CODE_STORAGE_KEY, refCodeFromUrl)
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
