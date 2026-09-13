@@ -27,3 +27,32 @@ export const EVIDENCE_MIME_TO_EXTENSION: Record<string, string> = {
 };
 
 export const EVIDENCE_ACCEPTED_MIME_TYPES = Object.keys(EVIDENCE_MIME_TO_EXTENSION);
+
+// ----------------------------------------------------------------------------
+// Business-rule thresholds. These were previously redeclared independently
+// in apps/backend/src/routes/customer.ts, apps/backend/src/routes/review.ts,
+// and duplicated a second time as hardcoded numbers baked into Persian
+// display copy in apps/customer/src/routes/RetroClaimModal.tsx -- exactly
+// the "same value drifts in one spot, stays correct in another" bug shape
+// this file already exists to prevent. Add new thresholds here, not as a
+// new file.
+// ----------------------------------------------------------------------------
+
+// Retroactive purchase claim rules (apps/backend/src/routes/customer.ts
+// POST /retro-claims). RetroClaimModal.tsx interpolates both of these into
+// its rejection-reason copy instead of hardcoding "۷۲"/"۳" a second time.
+export const RETRO_CLAIM_MAX_HOURS = 72;
+export const RETRO_CLAIM_RATE_LIMIT = 3;
+
+// Referral anomaly detection (apps/backend/src/routes/review.ts): velocity
+// = more than this many referred signups in 24h; dead-referral = at least
+// this many referred signups older than 7 days with zero approved
+// task_submissions. Same thresholds are described in prose in
+// architecture.md and plan.md -- those aren't code, so they're not wired up
+// here, but keep them in sync by hand if either number changes.
+export const REFERRAL_VELOCITY_THRESHOLD = 5;
+export const DEAD_REFERRAL_THRESHOLD = 5;
+
+// Reward redemption code validity window (apps/backend/src/routes/customer.ts
+// POST /rewards/:id/redeem).
+export const REDEMPTION_CODE_EXPIRY_MS = 5 * 60 * 1000;
