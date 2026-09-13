@@ -4,6 +4,7 @@ import type { Env } from "../types";
 import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
+import { REFERRAL_VELOCITY_THRESHOLD, DEAD_REFERRAL_THRESHOLD } from "@ai-campaign-builder/shared-config";
 
 const reviewRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -44,8 +45,8 @@ reviewRouter.use("/*", async (c, next) => {
 // with zero approved task_submissions).
 // ============================================================================
 
-const VELOCITY_THRESHOLD = 5;
-const DEAD_REFERRAL_THRESHOLD = 5;
+const VELOCITY_THRESHOLD = REFERRAL_VELOCITY_THRESHOLD;
+// DEAD_REFERRAL_THRESHOLD used directly below, imported from shared-config.
 
 interface ReferrerAggregateRow {
   code_id: string;
