@@ -11,6 +11,7 @@ import {
   serializeCampaign,
   applyCampaignUpdate,
   generateCampaignForBusiness,
+  deleteCampaignForBusiness,
 } from "./business";
 import type { CampaignUpdateBody, CampaignGenerateBody } from "./business";
 
@@ -397,6 +398,25 @@ reviewAdminRouter.put("/businesses/:businessId/campaign", async (c) => {
   const result = await applyCampaignUpdate(db, businessId, body);
   if (!result.ok) return c.json({ error: result.error }, result.status);
   return c.json(result.campaign);
+});
+
+// Pause is a plain status change, not a distinct DB concept -- reuses the
+// same PUT /campaign { status: 'draft' } path above (no separate route).
+// This DELETE, however, is genuinely destructive: it hard-deletes the
+// business's current campaign and every row that references it (customer
+// codes, task submissions, redemptions, points ledger entries, etc.) --
+// see deleteCampaignForBusiness's own comment for the full cascade and its
+// two carryover edge cases. No confirmation step server-side; the
+// review-console UI is expected to confirm with the admin before calling
+// this. review_admin-only, same full-access model as the rest of this router.
+reviewAdminRouter.delete("/businesses/:businessId/campaign", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.req.param("businessId");
+  if (!(await loadBusinessOr404(db, businessId))) return c.json({ error: "Business not found" }, 404);
+
+  const result = await deleteCampaignForBusiness(db, businessId);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json({ ok: true, deletedCampaignId: result.deletedCampaignId });
 });
 
 // businessId-route-param equivalent of business.ts's POST /campaign/generate
