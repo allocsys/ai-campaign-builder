@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Badge } from '@ai-campaign-builder/ui-kit'
-import { getBusinessProfile, getCampaign, updateCampaign } from '@ai-campaign-builder/api-client'
+import { Badge, useToast } from '@ai-campaign-builder/ui-kit'
+import { getBusinessProfile, getCampaign, updateBusinessProfile, updateCampaign } from '@ai-campaign-builder/api-client'
 import type { BusinessProfile, Campaign } from '@ai-campaign-builder/api-client'
 import { CampaignEditor } from '@ai-campaign-builder/campaign-editor'
 import apiClient from '../../lib/api-client'
@@ -22,12 +21,18 @@ import apiClient from '../../lib/api-client'
  * read-only view of their own tasks/rewards. It still gates EDITING: this
  * is re-checked on every load so a direct URL nav can't grant edit access,
  * only view access.
+ *
+ * The top-right pill doubles as the toggle for pro mode itself (added so
+ * owners don't have to detour through Settings just to flip it -- same
+ * `updateBusinessProfile({ manualEditorEnabled })` call SettingsTab uses).
  */
 export function CampaignEditorTab() {
+  const { show: showToast } = useToast()
   const [profile, setProfile] = useState<BusinessProfile | null>(null)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [togglingManualEditor, setTogglingManualEditor] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -49,6 +54,25 @@ export function CampaignEditorTab() {
     }
   }, [])
 
+  const toggleManualEditor = async () => {
+    if (!profile) return
+    setTogglingManualEditor(true)
+    try {
+      const updated = await updateBusinessProfile(apiClient, {
+        manualEditorEnabled: !profile.manualEditorEnabled,
+      })
+      setProfile(updated)
+      showToast(
+        updated.manualEditorEnabled ? 'حالت حرفه‌ای فعال شد.' : 'حالت حرفه‌ای غیرفعال شد.',
+        'success',
+      )
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : String(err), 'danger')
+    } finally {
+      setTogglingManualEditor(false)
+    }
+  }
+
   if (loading) {
     return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
   }
@@ -67,15 +91,30 @@ export function CampaignEditorTab() {
         <h2 className="text-base font-semibold text-slate-100">
           {readOnly ? 'کمپین' : 'ویرایش دستی کمپین'}
         </h2>
-        {!readOnly && <Badge tone="brand">حالت حرفه‌ای</Badge>}
+        <button
+          type="button"
+          onClick={toggleManualEditor}
+          disabled={togglingManualEditor}
+          aria-pressed={!readOnly}
+          className="disabled:opacity-60 disabled:cursor-wait"
+        >
+          <Badge
+            tone={readOnly ? 'neutral' : 'brand'}
+            className={`cursor-pointer select-none transition-colors ${
+              readOnly ? 'hover:bg-white/20' : 'hover:bg-brand-500/25'
+            }`}
+          >
+            {togglingManualEditor
+              ? 'در حال تغییر...'
+              : readOnly
+                ? 'فعال‌سازی حالت حرفه‌ای'
+                : 'حالت حرفه‌ای'}
+          </Badge>
+        </button>
       </div>
       {readOnly ? (
         <p className="text-xs text-slate-400 -mt-2">
-          این فقط نمایش تسک‌ها و پاداش‌های کمپین فعلیته. برای ویرایش مستقیم،{' '}
-          <Link to="/dashboard/settings" className="text-brand-400 hover:text-brand-300 underline underline-offset-2">
-            حالت حرفه‌ای را از تنظیمات فعال کن
-          </Link>
-          .
+          این فقط نمایش تسک‌ها و پاداش‌های کمپین فعلیته. برای ویرایش مستقیم، روی «فعال‌سازی حالت حرفه‌ای» بالا بزن.
         </p>
       ) : (
         <p className="text-xs text-slate-400 -mt-2">
