@@ -248,9 +248,11 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-300">پاداش‌ها</h3>
-          <Button variant="ghost" onClick={addReward} disabled={saving}>
-            + افزودن پاداش
-          </Button>
+          {!readOnly && (
+            <Button variant="ghost" onClick={addReward} disabled={saving}>
+              + افزودن پاداش
+            </Button>
+          )}
         </div>
         <div className="flex flex-col gap-3">
           {rewards.length === 0 && (
@@ -264,17 +266,19 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                     label="نام پاداش"
                     value={r.name}
                     onChange={(e) => updateReward(r.clientKey, { name: e.target.value })}
-                    disabled={saving}
+                    disabled={saving || readOnly}
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeReward(r.clientKey)}
-                  disabled={saving}
-                  className="text-xs text-red-400 hover:text-red-300 shrink-0 py-2.5"
-                >
-                  حذف
-                </button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => removeReward(r.clientKey)}
+                    disabled={saving}
+                    className="text-xs text-red-400 hover:text-red-300 shrink-0 py-2.5"
+                  >
+                    حذف
+                  </button>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1.5">
@@ -283,7 +287,7 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                     className={selectClassName()}
                     value={r.pattern}
                     onChange={(e) => updateReward(r.clientKey, { pattern: e.target.value })}
-                    disabled={saving}
+                    disabled={saving || readOnly}
                   >
                     {REWARD_PATTERN_OPTIONS.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -298,7 +302,7 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                   inputMode="numeric"
                   value={String(r.threshold)}
                   onChange={(e) => updateReward(r.clientKey, { threshold: Number(e.target.value) || 0 })}
-                  disabled={saving}
+                  disabled={saving || readOnly}
                 />
               </div>
             </div>
