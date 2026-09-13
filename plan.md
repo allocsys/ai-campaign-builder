@@ -357,7 +357,7 @@ packages/
 
 ---
 
-20. **Natural-language campaign editing (chat-driven) + wizard "thinking" polish -- decided 2026-09-14, NOT YET STARTED.** Two related but separately-scoped pieces, both grounded in infra that already exists (`ai-models.config.ts`'s free-tier Gemini-Flash-first cascade, and the `suggested_changes` table + `SuggestionsTab.tsx` Apply/Dismiss flow). Nothing below is built yet -- this entry exists so the two pieces can be picked up and executed step by step without re-deriving the design decisions.
+20. **Natural-language campaign editing (chat-driven) + wizard "thinking" polish -- decided 2026-09-14.** Two related but separately-scoped pieces, both grounded in infra that already exists (`ai-models.config.ts`'s free-tier Gemini-Flash-first cascade, and the `suggested_changes` table + `SuggestionsTab.tsx` Apply/Dismiss flow). **Part C is built and merged (see below); Parts A and B are not yet started.**
 
     **Part A -- shared NL request-parsing engine (backend, build first, both Part B and Part C depend on it).**
     - New function, e.g. `parseNaturalLanguageCampaignRequest(text, currentCampaignState)` in a new `apps/backend/src/lib/campaign-agent.ts`, using the *existing* `CAMPAIGN_COPY_CASCADE` cascade from `ai-models.config.ts` -- no new model/provider/infra, this is a second call site on the same cascade `campaign-generator.ts` already uses.
@@ -375,7 +375,9 @@ packages/
     - **Cancel stale timers on rapid navigation.** If an owner navigates back and then forward again before a prior `setTimeout` has fired, the old timer must be cleared (store its ID and `clearTimeout` on unmount/re-trigger of `goNext()`/`goBack()`), otherwise two thinking cards could resolve out of order and briefly show a stale one stacked on the current step.
     - **Rotate the thinking-message copy.** Instead of one fixed string per step, keep a small pool (2-3 lines) for each non-conditional step and pick one at random per transition, so repeat visits to the wizard (e.g. testing, or an owner who restarts) don't see identical copy every time. Purely cosmetic, no risk, since these lines don't claim anything about real personalization -- same honesty rule as above still applies to whichever line is picked.
 
-    **Suggested build order:** Part C first (no dependencies, purely cosmetic, ships same day). Then Part A (backend engine + the stateful-history decision). Then Part B (wires Part A into `CampaignEditorTab.tsx` + `SuggestionsTab.tsx`).
+    **Part C built and merged 2026-09-14, PR #98 (squash commit `8a6a6d3`):** `CampaignWizardTab.tsx`'s `CampaignWizardForm` gained the `thinking`/`thinkingMessage` state and `thinkingTimeoutRef` exactly as designed above -- both refinements (stale-timer cancellation in `goNext()`/`goBack()`/on-unmount, and the per-step random message pool) landed in the same PR, not as follow-ups. CI green on the PR (only the path-filtered `business-owner` job ran, as expected -- everything else correctly skipped). No backend/database changes, matching the "purely cosmetic" scope.
+
+    **Suggested build order:** ~~Part C first (no dependencies, purely cosmetic, ships same day).~~ Done. Then Part A (backend engine + the stateful-history decision -- KV, per the decision above). Then Part B (wires Part A into `CampaignEditorTab.tsx` + `SuggestionsTab.tsx`).
 
 ---
 
