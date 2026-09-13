@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { Button, Card } from '@ai-campaign-builder/ui-kit'
 import { getCampaign } from '@ai-campaign-builder/api-client'
 import apiClient from '../lib/api-client'
 import { OnboardingBanner } from './OnboardingBanner'
@@ -22,12 +23,20 @@ import { DashboardTab } from './tabs/DashboardTab'
  * campaignTo redirect and by CampaignWizardTab/CampaignEditorTab's own
  * guards (row existence alone can't distinguish "fresh business" from
  * "has a campaign", since ensureCampaign() always creates a row on first
- * read). A business with no real campaign yet is sent straight to the
- * wizard instead of the dashboard; going through it overwrites the
- * placeholder name/category with the owner's real answers (see
- * business.ts's generateCampaignForBusiness).
+ * read).
+ *
+ * Rather than a hard redirect straight into the wizard (which just swaps
+ * one unexplained screen for another), a business with no real campaign
+ * yet sees the normal dashboard rendered blurred underneath a cover card
+ * with a single clear CTA -- the owner can see there's a real dashboard
+ * waiting, understands why it's locked, and has one obvious next step.
+ * The underlying placeholder data is blurred/non-interactive either way,
+ * so its exact contents don't matter here. Going through the wizard
+ * overwrites the placeholder name/category with the owner's real answers
+ * (see business.ts's generateCampaignForBusiness).
  */
 export function DashboardIndexRoute() {
+  const navigate = useNavigate()
   const [hasRealCampaign, setHasRealCampaign] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -41,9 +50,9 @@ export function DashboardIndexRoute() {
         }
       })
       .catch(() => {
-        // On fetch failure, fail open to the dashboard rather than risking a
-        // redirect loop -- same fail-open choice AppShell's own campaignTo
-        // effect makes on error.
+        // On fetch failure, fail open to the real dashboard rather than
+        // risking a stuck cover screen -- same fail-open choice AppShell's
+        // own campaignTo effect makes on error.
         if (mounted) setHasRealCampaign(true)
       })
     return () => {
@@ -56,7 +65,29 @@ export function DashboardIndexRoute() {
   }
 
   if (!hasRealCampaign) {
-    return <Navigate to="/dashboard/campaign" replace />
+    return (
+      <div className="relative min-h-[70vh]">
+        <div className="pointer-events-none select-none blur-md opacity-50" aria-hidden="true">
+          <DashboardTab />
+        </div>
+        <div className="absolute inset-0 flex items-start justify-center pt-16 px-4">
+          <Card className="max-w-sm w-full p-6 flex flex-col items-center gap-4 text-center shadow-2xl border-brand-500/40">
+            <span className="text-3xl" aria-hidden="true">
+              ✨
+            </span>
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-base font-bold text-slate-100">کسب‌وکار شما هنوز راه‌اندازی نشده</h2>
+              <p className="text-sm text-slate-400">
+                برای مشاهده داشبورد، ابتدا با کمک دستیار هوشمند کمپین اولیه خود را بسازید. چند دقیقه بیشتر طول نمی‌کشد.
+              </p>
+            </div>
+            <Button onClick={() => navigate('/dashboard/campaign')} className="w-full justify-center">
+              ساخت کمپین با دستیار هوشمند
+            </Button>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (
