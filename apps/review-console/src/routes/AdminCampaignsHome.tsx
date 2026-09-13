@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Badge, Button, Card, useToast } from '@ai-campaign-builder/ui-kit'
 import { CampaignEditor } from '@ai-campaign-builder/campaign-editor'
 import type { AdminBusinessListItem, Campaign } from '@ai-campaign-builder/api-client'
+import { AdminAppShell } from './AdminAppShell'
 import {
   getAdminBusinesses,
   getAdminBusinessCampaign,
@@ -113,91 +113,93 @@ export function AdminCampaignsHome() {
   }
 
   if (loadingList) {
-    return <div className="p-6 text-sm text-slate-400">در حال بارگذاری...</div>
+    return (
+      <AdminAppShell title="کمپین‌های کسب‌وکارها">
+        <div className="p-6 text-sm text-slate-400">در حال بارگذاری...</div>
+      </AdminAppShell>
+    )
   }
   if (listError) {
-    return <div className="p-6 text-sm text-red-400">{listError}</div>
+    return (
+      <AdminAppShell title="کمپین‌های کسب‌وکارها">
+        <div className="p-6 text-sm text-red-400">{listError}</div>
+      </AdminAppShell>
+    )
   }
 
   return (
-    <div className="min-h-screen p-6 max-w-4xl mx-auto">
-      <header className="flex items-center justify-between gap-4 mb-8">
+    <AdminAppShell title="کمپین‌های کسب‌وکارها">
+      <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-xl font-bold">
-            <span aria-hidden="true">📋</span> کمپین‌های کسب‌وکارها
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">مشاهده و ویرایش دستی کمپین هر کسب‌وکار</p>
+          <p className="text-slate-400 text-sm">مشاهده و ویرایش دستی کمپین هر کسب‌وکار</p>
         </div>
-        <Link to="/admin" className="text-sm text-brand-400 hover:underline">
-          پنل ادمین
-        </Link>
-      </header>
 
-      {!selected ? (
-        businesses.length === 0 ? (
-          <Card className="p-5 text-center text-sm text-slate-400">هیچ کسب‌وکاری ثبت نشده است.</Card>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {businesses.map((b) => (
-              <Card key={b.id} className="p-4 flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex flex-col gap-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-100 truncate">{b.name}</span>
-                    <Badge tone="neutral">{b.categoryLabel}</Badge>
-                    {b.manualEditorEnabled && <Badge tone="brand">حالت حرفه‌ای</Badge>}
+        {!selected ? (
+          businesses.length === 0 ? (
+            <Card className="p-5 text-center text-sm text-slate-400">هیچ کسب‌وکاری ثبت نشده است.</Card>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {businesses.map((b) => (
+                <Card key={b.id} className="p-4 flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-slate-100 truncate">{b.name}</span>
+                      <Badge tone="neutral">{b.categoryLabel}</Badge>
+                      {b.manualEditorEnabled && <Badge tone="brand">حالت حرفه‌ای</Badge>}
+                    </div>
+                    <span dir="ltr" className="text-xs text-slate-400 text-left">
+                      {b.phone}
+                    </span>
                   </div>
-                  <span dir="ltr" className="text-xs text-slate-400 text-left">
-                    {b.phone}
-                  </span>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button variant="secondary" loading={togglingId === b.id} onClick={() => toggleManualEditor(b)}>
-                    {b.manualEditorEnabled ? 'غیرفعال‌سازی حالت حرفه‌ای' : 'فعال‌سازی حالت حرفه‌ای'}
-                  </Button>
-                  <Button onClick={() => selectBusiness(b)}>مشاهده کمپین</Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )
-      ) : (
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <h2 className="text-base font-semibold text-slate-100">{selected.name}</h2>
-              <p className="text-xs text-slate-400">
-                {selected.categoryLabel} · <span dir="ltr">{selected.phone}</span>
-              </p>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button variant="secondary" loading={togglingId === b.id} onClick={() => toggleManualEditor(b)}>
+                      {b.manualEditorEnabled ? 'غیرفعال‌سازی حالت حرفه‌ای' : 'فعال‌سازی حالت حرفه‌ای'}
+                    </Button>
+                    <Button onClick={() => selectBusiness(b)}>مشاهده کمپین</Button>
+                  </div>
+                </Card>
+              ))}
             </div>
-            <Button variant="ghost" onClick={backToList}>
-              ← بازگشت به فهرست
-            </Button>
+          )
+        ) : (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-base font-semibold text-slate-100">{selected.name}</h2>
+                <p className="text-xs text-slate-400">
+                  {selected.categoryLabel} · <span dir="ltr">{selected.phone}</span>
+                </p>
+              </div>
+              <Button variant="ghost" onClick={backToList}>
+                ← بازگشت به فهرست
+              </Button>
+            </div>
+
+            {loadingCampaign && <div className="p-4 text-sm text-slate-400">در حال بارگذاری کمپین...</div>}
+            {campaignError && <div className="p-4 text-sm text-red-400">{campaignError}</div>}
+
+            {campaign && (
+              <>
+                <Card className="p-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                  <Badge tone={STATUS_TONE[campaign.status]}>{STATUS_LABELS_FA[campaign.status]}</Badge>
+                  <span className="text-slate-300">{GOAL_LABELS_FA[campaign.goal]}</span>
+                  <span className="text-slate-400">ضریب امتیاز: {faDigits(campaign.pointMultiplier)}×</span>
+                  <span className="text-slate-400" dir="ltr">
+                    {campaign.startDate} → {campaign.endDate}
+                  </span>
+                </Card>
+
+                <CampaignEditor
+                  key={selected.id}
+                  campaign={campaign}
+                  onSave={(data) => updateAdminBusinessCampaign(selected.id, data)}
+                  onSaved={(updated) => setCampaign(updated)}
+                />
+              </>
+            )}
           </div>
-
-          {loadingCampaign && <div className="p-4 text-sm text-slate-400">در حال بارگذاری کمپین...</div>}
-          {campaignError && <div className="p-4 text-sm text-red-400">{campaignError}</div>}
-
-          {campaign && (
-            <>
-              <Card className="p-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                <Badge tone={STATUS_TONE[campaign.status]}>{STATUS_LABELS_FA[campaign.status]}</Badge>
-                <span className="text-slate-300">{GOAL_LABELS_FA[campaign.goal]}</span>
-                <span className="text-slate-400">ضریب امتیاز: {faDigits(campaign.pointMultiplier)}×</span>
-                <span className="text-slate-400" dir="ltr">
-                  {campaign.startDate} → {campaign.endDate}
-                </span>
-              </Card>
-
-              <CampaignEditor
-                key={selected.id}
-                campaign={campaign}
-                onSave={(data) => updateAdminBusinessCampaign(selected.id, data)}
-                onSaved={(updated) => setCampaign(updated)}
-              />
-            </>
-          )}
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </AdminAppShell>
   )
 }
