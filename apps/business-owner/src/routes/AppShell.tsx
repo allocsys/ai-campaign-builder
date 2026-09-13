@@ -67,6 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       case '/dashboard':
         return 'داشبورد'
       case '/dashboard/campaign':
+      case '/dashboard/campaign/edit':
         return 'کمپین'
       case '/dashboard/insights':
       case '/dashboard/suggestions':
