@@ -13,6 +13,61 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+// ============================================================================
+// AI confidence gate (staff-safety-net redesign, 2026-09-13): vision scoring
+// (lib/vision.ts) used to be purely advisory -- every submission landed in a
+// manual-hold queue regardless of score. Per explicit user request, it now
+// actually gates the decision: a high-confidence score auto-approves and
+// awards points immediately (reviewed_by = 'ai'), while anything below the
+// threshold (or scoring that fails/isn't configured, which leaves
+// ai_confidence_score null) is left 'pending' so it lands in staff-pos.ts's
+// queue for the business's own staff to check firsthand -- not the central
+// review console, which has no way to recognize a given receipt/screenshot
+// out of context.
+//
+// 0.85 is a first-pass assumption, not a measured threshold -- there's no
+// real score-distribution data yet to tune it against (same gap the old
+// "Open Item 5" comment in vision.ts flagged before this redesign). Easy to
+// adjust here in one place once real distributions come in.
+// ============================================================================
+const AUTO_APPROVE_CONFIDENCE_THRESHOLD = 0.85;
+
+async function applyVisionScoreAndMaybeAutoApprove(
+  db: D1Database,
+  submissionId: string,
+  customerCampaignCodeId: string,
+  pointsValue: number,
+  confidenceScore: number
+): Promise<void> {
+  await execute(db, "UPDATE task_submissions SET ai_confidence_score = ? WHERE id = ?", [
+    confidenceScore,
+    submissionId,
+  ]);
+
+  if (confidenceScore < AUTO_APPROVE_CONFIDENCE_THRESHOLD) {
+    return; // stays 'pending' -- staff picks it up in their queue
+  }
+
+  // Guard against a race with a staff member resolving this submission
+  // manually in the tiny window before scoring finishes (waitUntil can
+  // outlive the initial response by a few seconds) -- only flip to approved
+  // if it's still pending, and only award points if that update actually
+  // took effect.
+  const result = await execute(
+    db,
+    "UPDATE task_submissions SET status = 'approved', reviewed_by = 'ai', reviewed_at = ?, points_awarded = ? WHERE id = ? AND status = 'pending'",
+    [nowIso(), pointsValue, submissionId]
+  );
+  if (!result.meta || result.meta.changes < 1) return;
+
+  await execute(
+    db,
+    `INSERT INTO points_ledger (id, customer_campaign_code_id, task_submission_id, entry_type, points, created_at)
+     VALUES (?, ?, ?, 'earned', ?, ?)`,
+    [generateId(), customerCampaignCodeId, submissionId, pointsValue, nowIso()]
+  );
+}
+
 // All routes below act on "my own customer record" -- the customer id is
 // always taken from the authenticated JWT subject (auth.sub), same pattern
 // as business.ts.
