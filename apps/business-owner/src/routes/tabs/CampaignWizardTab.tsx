@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
-import { generateCampaign, updateCampaign, updateMicrositeState, getCampaign } from '@ai-campaign-builder/api-client'
+import { generateCampaign, updateCampaign, updateMicrositeState, getCampaign, addStaff } from '@ai-campaign-builder/api-client'
 import type {
   BusinessCategorySlug,
   GeneratedCampaignProposal,
   RewardPatternName,
+  StaffMember,
 } from '@ai-campaign-builder/api-client'
 import { MICROSITE_DOMAIN, validateMicrositeSlug } from '@ai-campaign-builder/shared-config'
 import apiClient from '../../lib/api-client'
@@ -168,6 +169,18 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
   const [siteSlugSaved, setSiteSlugSaved] = useState(false)
   const [siteSlugSkipped, setSiteSlugSkipped] = useState(false)
 
+  // Staff quick-add -- another post-generation, skippable card next to the
+  // site-slug suggestion. Deliberately NOT part of the generate payload:
+  // staff data has nothing to do with campaign math/copy, so it bypasses
+  // handleGenerate entirely and calls addStaff directly, same pure-code
+  // workflow StaffTab.tsx already uses in Settings -- no LLM involved.
+  const [staffName, setStaffName] = useState('')
+  const [staffPhone, setStaffPhone] = useState('')
+  const [staffAdding, setStaffAdding] = useState(false)
+  const [staffError, setStaffError] = useState<string | null>(null)
+  const [addedStaff, setAddedStaff] = useState<StaffMember[]>([])
+  const [staffSectionSkipped, setStaffSectionSkipped] = useState(false)
+
   const selectedCategory = CATEGORY_OPTIONS.find((c) => c.slug === categorySlug) ?? CATEGORY_OPTIONS[0]
 
   function handleCategoryChange(slug: BusinessCategorySlug) {
@@ -262,6 +275,28 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
     }
   }
 
+  // Mirrors StaffTab.tsx's handleAddStaff -- same validation/error shape,
+  // just embedded inline so an owner can staff up right after generating a
+  // campaign instead of navigating to Settings separately.
+  async function handleAddStaffQuick() {
+    if (!staffName.trim() || !staffPhone.trim()) {
+      setStaffError('لطفاً نام و شماره موبایل را وارد کنید.')
+      return
+    }
+    setStaffAdding(true)
+    setStaffError(null)
+    try {
+      const newMember = await addStaff(apiClient, { name: staffName.trim(), phone: staffPhone.trim() })
+      setAddedStaff((prev) => [...prev, newMember])
+      setStaffName('')
+      setStaffPhone('')
+    } catch (err) {
+      setStaffError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setStaffAdding(false)
+    }
+  }
+
   async function handleLaunch() {
     setLaunching(true)
     try {
@@ -284,6 +319,11 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
     setSiteSlugSkipped(false)
     setSiteSlugConfirming(false)
     setSiteSlugError(null)
+    setStaffName('')
+    setStaffPhone('')
+    setStaffError(null)
+    setAddedStaff([])
+    setStaffSectionSkipped(false)
   }
 
   if (proposal) {
@@ -375,6 +415,66 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
           <Card className="p-4 flex flex-col gap-1">
             <p className="text-sm font-medium">آدرس سایت</p>
             <p className="text-xs text-slate-500" dir="ltr">{siteSlugInput}.{MICROSITE_DOMAIN}</p>
+          </Card>
+        )}
+
+        {!staffSectionSkipped && (
+          <Card className="p-4 flex flex-col gap-3">
+            <div>
+              <p className="text-sm font-medium">افزودن سریع کارکنان</p>
+              <p className="text-xs text-slate-500 mt-1">
+                می‌تونی همین الان چند نفر از کارکنانت رو برای اپلیکیشن صندوق‌دار اضافه کنی. این بخش ربطی به هوش مصنوعی نداره -- هر وقت هم بخوای از تنظیمات قابل انجامه.
+              </p>
+            </div>
+
+            {addedStaff.length > 0 && (
+              <ul className="flex flex-col gap-1.5">
+                {addedStaff.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between text-sm bg-glass-light rounded-xl2 px-3 py-2">
+                    <span>{s.name}</span>
+                    <span dir="ltr" className="text-xs text-slate-400">{s.phone}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="flex-1">
+                <Input
+                  label="نام"
+                  placeholder="مثال: علی رضایی"
+                  value={staffName}
+                  onChange={(e) => setStaffName(e.target.value)}
+                />
+              </div>
+              <div className="flex-1">
+                <Input
+                  label="شماره موبایل"
+                  placeholder="09123456789"
+                  dir="ltr"
+                  className="text-left"
+                  value={staffPhone}
+                  onChange={(e) => setStaffPhone(e.target.value)}
+                />
+              </div>
+              <Button onClick={handleAddStaffQuick} loading={staffAdding}>
+                افزودن
+              </Button>
+            </div>
+            {staffError && <p className="text-xs text-red-400">{staffError}</p>}
+
+            <button
+              type="button"
+              onClick={() => setStaffSectionSkipped(true)}
+              className="self-start text-xs text-slate-500 hover:text-brand-300 underline underline-offset-2"
+            >
+              بعداً از تنظیمات انجامش می‌دم
+            </button>
+          </Card>
+        )}
+        {staffSectionSkipped && addedStaff.length > 0 && (
+          <Card className="p-4 flex flex-col gap-1">
+            <p className="text-sm font-medium">کارکنان اضافه‌شده ({addedStaff.length.toLocaleString('fa-IR')})</p>
           </Card>
         )}
 
