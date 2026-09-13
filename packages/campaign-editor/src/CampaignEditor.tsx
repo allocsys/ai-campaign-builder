@@ -201,7 +201,7 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                     label="نام تسک"
                     value={t.name}
                     onChange={(e) => updateTask(t.clientKey, { name: e.target.value })}
-                    disabled={saving}
+                    disabled={saving || readOnly}
                   />
                 </div>
                 {!readOnly && (
@@ -222,7 +222,7 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                     className={selectClassName()}
                     value={t.pattern}
                     onChange={(e) => updateTask(t.clientKey, { pattern: e.target.value })}
-                    disabled={saving}
+                    disabled={saving || readOnly}
                   >
                     {TASK_PATTERN_OPTIONS.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -237,7 +237,7 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                   inputMode="numeric"
                   value={String(t.points)}
                   onChange={(e) => updateTask(t.clientKey, { points: Number(e.target.value) || 0 })}
-                  disabled={saving}
+                  disabled={saving || readOnly}
                 />
               </div>
             </div>
