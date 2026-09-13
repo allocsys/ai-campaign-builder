@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Badge, Button, Card, Input, useToast } from '@ai-campaign-builder/ui-kit'
 import { getBusinessProfile, getSubscription, updateBusinessProfile } from '@ai-campaign-builder/api-client'
 import type { BusinessProfile, Subscription } from '@ai-campaign-builder/api-client'
@@ -27,6 +28,7 @@ export function SettingsTab() {
   const [addressInput, setAddressInput] = useState('')
   const [capInput, setCapInput] = useState('')
   const [noCap, setNoCap] = useState(false)
+  const [togglingManualEditor, setTogglingManualEditor] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -62,6 +64,25 @@ export function SettingsTab() {
   const cancelEditing = () => {
     setEditing(false)
     setSaveError(null)
+  }
+
+  const toggleManualEditor = async () => {
+    if (!profile) return
+    setTogglingManualEditor(true)
+    try {
+      const updated = await updateBusinessProfile(apiClient, {
+        manualEditorEnabled: !profile.manualEditorEnabled,
+      })
+      setProfile(updated)
+      showToast(
+        updated.manualEditorEnabled ? 'حالت حرفه‌ای فعال شد.' : 'حالت حرفه‌ای غیرفعال شد.',
+        'success',
+      )
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : String(err), 'danger')
+    } finally {
+      setTogglingManualEditor(false)
+    }
   }
 
   const save = async () => {
@@ -195,6 +216,32 @@ export function SettingsTab() {
         <span className="text-sm font-semibold" role="img" aria-label={`موجودی کیف پول: ${profile.smsWalletBalanceToman.toLocaleString('fa-IR')} تومان`}>
           {profile.smsWalletBalanceToman.toLocaleString('fa-IR')} تومان
         </span>
+      </Card>
+
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <p className="text-sm font-medium">حالت حرفه‌ای</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              با فعال‌سازی این حالت، می‌تونی تسک‌ها و پاداش‌های کمپینت رو مستقیم و دستی ویرایش کنی.
+            </p>
+          </div>
+          <Button
+            variant={profile.manualEditorEnabled ? 'ghost' : 'primary'}
+            onClick={toggleManualEditor}
+            loading={togglingManualEditor}
+          >
+            {profile.manualEditorEnabled ? 'غیرفعال‌سازی' : 'فعال‌سازی'}
+          </Button>
+        </div>
+        {profile.manualEditorEnabled && (
+          <Link
+            to="/dashboard/campaign/edit"
+            className="inline-flex text-sm text-brand-400 hover:text-brand-300 underline underline-offset-2"
+          >
+            رفتن به ویرایشگر دستی کمپین ←
+          </Link>
+        )}
       </Card>
 
       <Card className="p-5">
