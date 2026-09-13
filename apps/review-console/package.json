@@ -13,6 +13,8 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@ai-campaign-builder/api-client": "*",
+    "@ai-campaign-builder/campaign-editor": "*",
     "@ai-campaign-builder/ui-kit": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
