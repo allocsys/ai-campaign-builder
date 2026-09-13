@@ -323,8 +323,16 @@ reviewAdminRouter.delete("/admins/:id", async (c) => {
 // isRoot distinction for campaign access, per the full-access decision).
 // ----------------------------------------------------------------------------
 
-function serializeBusinessListItem(row: { id: string; name: string; phone: string; name_fa: string }) {
-  return { id: row.id, name: row.name, phone: row.phone, categoryLabel: row.name_fa };
+function serializeBusinessListItem(row: { id: string; name: string; phone: string; name_fa: string; manual_editor_enabled: number }) {
+  return {
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    categoryLabel: row.name_fa,
+    // plan.md Item 16 Step E -- lets the business picker show/toggle each
+    // business's "حالت حرفه‌ای" state without a separate per-business fetch.
+    manualEditorEnabled: !!row.manual_editor_enabled,
+  };
 }
 
 // Business picker for the admin campaign UI (Step D/E) -- every business in
@@ -332,13 +340,34 @@ function serializeBusinessListItem(row: { id: string; name: string; phone: strin
 // business_owner, whose JWT sub IS the business id).
 reviewAdminRouter.get("/businesses", async (c) => {
   const db = c.env.DB;
-  const rows = await queryAll<{ id: string; name: string; phone: string; name_fa: string }>(
+  const rows = await queryAll<{ id: string; name: string; phone: string; name_fa: string; manual_editor_enabled: number }>(
     db,
-    `SELECT b.id, b.name, b.phone, bc.name_fa
+    `SELECT b.id, b.name, b.phone, bc.name_fa, b.manual_editor_enabled
      FROM businesses b JOIN business_categories bc ON bc.id = b.category_id
      ORDER BY b.name ASC`
   );
   return c.json(rows.map(serializeBusinessListItem));
+});
+
+// Admin-side toggle for a business's manual-editor gate (plan.md Item 16 Step
+// E) -- the other half of the "either owner or admin can flip it" decision.
+// review_admin's OWN use of the manual editor is unconditional regardless of
+// this flag (same full-access model as the rest of this router); this only
+// controls whether the flag/editor appear in that business owner's own UI.
+reviewAdminRouter.patch("/businesses/:businessId/manual-editor", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.req.param("businessId");
+  if (!(await loadBusinessOr404(db, businessId))) return c.json({ error: "Business not found" }, 404);
+
+  const body = await c.req.json<Partial<{ enabled: boolean }>>();
+  if (body.enabled === undefined) {
+    return c.json({ error: "Missing required field: enabled" }, 400);
+  }
+  await execute(db, "UPDATE businesses SET manual_editor_enabled = ? WHERE id = ?", [
+    body.enabled ? 1 : 0,
+    businessId,
+  ]);
+  return c.json({ id: businessId, manualEditorEnabled: body.enabled });
 });
 
 async function loadBusinessOr404(db: D1Database, businessId: string): Promise<boolean> {

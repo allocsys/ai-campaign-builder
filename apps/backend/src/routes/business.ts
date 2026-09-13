@@ -36,9 +36,10 @@ async function loadProfile(db: D1Database, businessId: string) {
     sms_monthly_cap_toman: number | null;
     name_fa: string;
     address: string | null;
+    manual_editor_enabled: number;
   }>(
     db,
-    `SELECT b.name, b.phone, b.size_tier, b.sms_wallet_balance_toman, b.sms_monthly_cap_toman, bc.name_fa, b.address
+    `SELECT b.name, b.phone, b.size_tier, b.sms_wallet_balance_toman, b.sms_monthly_cap_toman, bc.name_fa, b.address, b.manual_editor_enabled
      FROM businesses b JOIN business_categories bc ON bc.id = b.category_id
      WHERE b.id = ?`,
     [businessId]
@@ -54,6 +55,10 @@ function serializeProfile(row: NonNullable<Awaited<ReturnType<typeof loadProfile
     smsWalletBalanceToman: row.sms_wallet_balance_toman,
     smsMonthlyCapToman: row.sms_monthly_cap_toman,
     address: row.address ?? "",
+    // plan.md Item 16 Step E -- "حالت حرفه‌ای" (Professional Mode). Owner-settable
+    // via PUT /profile below; also settable by review_admin on the owner's behalf
+    // (see reviewAdminRouter's PATCH /businesses/:businessId/manual-editor).
+    manualEditorEnabled: !!row.manual_editor_enabled,
   };
 }
 
@@ -74,9 +79,21 @@ businessRouter.put("/profile", async (c) => {
       sizeTier: string;
       smsMonthlyCapToman: number | null;
       address: string;
+      manualEditorEnabled: boolean;
     }>
   >();
 
+  if (body.manualEditorEnabled !== undefined) {
+    // Self-serve owner toggle for plan.md Item 16 Step E's "حالت حرفه‌ای"
+    // (Professional Mode). No eligibility check here by design -- unlike
+    // autopilot's manual-apply-count gate, this is a plain opt-in, not an
+    // earned unlock; review_admin can also flip this on the owner's behalf
+    // (see reviewAdminRouter's PATCH /businesses/:businessId/manual-editor).
+    await execute(db, "UPDATE businesses SET manual_editor_enabled = ? WHERE id = ?", [
+      body.manualEditorEnabled ? 1 : 0,
+      businessId,
+    ]);
+  }
   if (body.name !== undefined) {
     const previous = await queryFirst<{ name: string }>(db, "SELECT name FROM businesses WHERE id = ?", [
       businessId,
@@ -190,17 +207,22 @@ export async function serializeCampaign(db: D1Database, campaignId: string) {
   }>(db, "SELECT status, goal, point_multiplier, start_date, end_date FROM campaigns WHERE id = ?", [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} vanished mid-request`);
 
-  const tasks = await queryAll<{ name: string; pattern_name: string; points_value: number }>(
+  // Item 16 Step E: campaign_tasks.id/campaign_rewards.id have existed as real
+  // primary keys since migration 0001 -- they just weren't selected/returned
+  // here before, since no caller needed a stable per-row identifier until the
+  // manual editor (granular add/remove/edit of individual tasks/rewards, not
+  // just whole-array replacement) needed one.
+  const tasks = await queryAll<{ id: string; name: string; pattern_name: string; points_value: number }>(
     db,
-    `SELECT ct.name, tp.name AS pattern_name, ct.points_value
+    `SELECT ct.id, ct.name, tp.name AS pattern_name, ct.points_value
      FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
      WHERE ct.campaign_id = ? ORDER BY ct.display_order ASC`,
     [campaignId]
   );
 
-  const rewards = await queryAll<{ name: string; pattern_name: string; threshold_points: number }>(
+  const rewards = await queryAll<{ id: string; name: string; pattern_name: string; threshold_points: number }>(
     db,
-    `SELECT cr.name, rp.name AS pattern_name, cr.threshold_points
+    `SELECT cr.id, cr.name, rp.name AS pattern_name, cr.threshold_points
      FROM campaign_rewards cr JOIN reward_patterns rp ON rp.id = cr.reward_pattern_id
      WHERE cr.campaign_id = ? ORDER BY cr.threshold_points ASC`,
     [campaignId]
@@ -212,8 +234,8 @@ export async function serializeCampaign(db: D1Database, campaignId: string) {
     pointMultiplier: campaign.point_multiplier,
     startDate: campaign.start_date ?? "",
     endDate: campaign.end_date ?? "",
-    tasks: tasks.map((t) => ({ name: t.name, pattern: t.pattern_name, points: t.points_value })),
-    rewards: rewards.map((r) => ({ name: r.name, pattern: r.pattern_name, threshold: r.threshold_points })),
+    tasks: tasks.map((t) => ({ id: t.id, name: t.name, pattern: t.pattern_name, points: t.points_value })),
+    rewards: rewards.map((r) => ({ id: r.id, name: r.name, pattern: r.pattern_name, threshold: r.threshold_points })),
   };
 }
 
@@ -231,8 +253,16 @@ export type CampaignUpdateBody = Partial<{
   pointMultiplier: number;
   startDate: string;
   endDate: string;
-  tasks: { name: string; pattern: string; points: number }[];
-  rewards: { name: string; pattern: string; threshold: number }[];
+  // `id` accepted but not required -- a manual-editor client round-trips the
+  // ids it got from GET for existing rows and simply omits it for newly
+  // added ones. It's ignored on write below either way: tasks/rewards
+  // replacement is still whole-array delete-and-reinsert (unchanged
+  // behavior), which always assigns fresh generateId() ids on every save --
+  // see the Step E note in applyCampaignUpdate's tasks/rewards block for why
+  // that's fine for a manual editor built around "edit the full list, then
+  // save the full list" rather than per-row PATCH semantics.
+  tasks: { id?: string; name: string; pattern: string; points: number }[];
+  rewards: { id?: string; name: string; pattern: string; threshold: number }[];
 }>;
 
 export type CampaignUpdateResult =

@@ -121,3 +121,21 @@ export async function generateAdminBusinessCampaign(
     }
   );
 }
+
+// plan.md Item 16 Step E -- admin-side toggle for a business's manual-editor
+// gate ("حالت حرفه‌ای"). The owner can also self-toggle their own via
+// updateBusinessProfile({ manualEditorEnabled }) in resources/business.ts --
+// either one flips the same shared businesses.manual_editor_enabled column.
+export async function updateAdminBusinessManualEditor(
+  client: ApiClient,
+  businessId: string,
+  enabled: boolean
+): Promise<{ id: string; manualEditorEnabled: boolean }> {
+  return client.request<{ id: string; manualEditorEnabled: boolean }>(
+    `/api/review-admin/businesses/${encodeURIComponent(businessId)}/manual-editor`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled }),
+    }
+  );
+}
