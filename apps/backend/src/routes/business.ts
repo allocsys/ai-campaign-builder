@@ -158,7 +158,10 @@ async function generateUniqueJoinSlug(db: D1Database): Promise<string> {
   return crypto.randomUUID();
 }
 
-async function ensureCampaign(db: D1Database, businessId: string): Promise<string> {
+// Exported (plan.md Item 16 Step A) so reviewAdminRouter's businessId-route-param
+// endpoints can resolve/reuse the exact same "current campaign" model instead of
+// duplicating it.
+export async function ensureCampaign(db: D1Database, businessId: string): Promise<string> {
   const existing = await queryFirst<{ id: string }>(
     db,
     "SELECT id FROM campaigns WHERE business_id = ? ORDER BY created_at DESC LIMIT 1",
@@ -176,7 +179,8 @@ async function ensureCampaign(db: D1Database, businessId: string): Promise<strin
   return id;
 }
 
-async function serializeCampaign(db: D1Database, campaignId: string) {
+// Exported (plan.md Item 16 Step A) -- same reasoning as ensureCampaign above.
+export async function serializeCampaign(db: D1Database, campaignId: string) {
   const campaign = await queryFirst<{
     status: string;
     goal: string;
