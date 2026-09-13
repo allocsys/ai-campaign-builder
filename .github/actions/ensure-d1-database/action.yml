@@ -49,7 +49,8 @@ runs:
         " "$DB_NAME")
 
         if [ -n "$EXISTING_ID" ]; then
-          echo "D1 database '$DB_NAME' already exists (id: $EXISTING_ID) -- skipping creation."
+          echo "::add-mask::$EXISTING_ID"
+          echo "D1 database '$DB_NAME' already exists (id: [masked]) -- skipping creation."
           DB_ID="$EXISTING_ID"
         else
           echo "D1 database '$DB_NAME' not found for this account -- creating it now. This should only happen once, on the very first deploy."
@@ -71,8 +72,9 @@ runs:
             echo "::error::Created the D1 database via 'wrangler d1 create' but couldn't find it afterward via a 'wrangler d1 list --json' lookup by name '$DB_NAME'. The database now exists in Cloudflare -- check manually before retrying (the lookup branch above should find it and skip recreation on the next run)."
             exit 1
           fi
-          echo "Created D1 database '$DB_NAME' (id: $DB_ID)."
+          echo "::add-mask::$DB_ID"
+          echo "Created D1 database '$DB_NAME' (id: [masked])."
         fi
 
         sed -i "s/database_id = \".*\"/database_id = \"$DB_ID\"/" wrangler.toml
-        echo "This job's local wrangler.toml now points at database_id = $DB_ID (not committed back to the repo -- see this action's description)."
+        echo "This job's local wrangler.toml now points at the real database_id (not committed back to the repo -- see this action's description)."
