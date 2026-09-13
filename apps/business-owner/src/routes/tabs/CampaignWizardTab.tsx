@@ -235,6 +235,10 @@ export function CampaignWizardTab() {
     setStep(1)
   }
 
+  if (checkingExisting) {
+    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
+  }
+
   if (proposal) {
     return (
       <div className="flex flex-col gap-4">
