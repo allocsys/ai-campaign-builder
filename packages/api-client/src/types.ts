@@ -337,6 +337,35 @@ export interface StaffPosSyncResponse {
 }
 
 // ============================================================================
+// Staff POS firsthand screenshot verification queue -- social_proof/review_ugc
+// submissions (Instagram story/post shares, written reviews). Moved out of
+// the central review console (review.ts) so staff can verify these in person
+// while the customer is present, instead of routing them through the central
+// review team async. Shapes match staff-pos.ts's /submissions* endpoints.
+// ============================================================================
+
+export type StaffSubmissionTaskPattern = 'social_proof' | 'review_ugc';
+export type StaffSubmissionStatus = 'pending' | 'approved' | 'rejected';
+
+export interface StaffPendingSubmission {
+  id: string;
+  customerName: string;
+  taskTitle: string;
+  taskPattern: StaffSubmissionTaskPattern;
+  evidenceUrl: string | null;
+  status: StaffSubmissionStatus;
+  pointsAwarded: number | null;
+  submittedAt: string;
+  taskPointsValue: number;
+}
+
+export interface StaffResolveSubmissionResponse {
+  id: string;
+  status: 'approved' | 'rejected';
+  pointsAwarded: number;
+}
+
+// ============================================================================
 // Review Console persona
 // Shapes match apps/backend/src/routes/review.ts's JSON responses exactly.
 // ============================================================================
