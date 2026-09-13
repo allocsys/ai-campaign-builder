@@ -255,12 +255,16 @@ export type CampaignUpdateBody = Partial<{
   endDate: string;
   // `id` accepted but not required -- a manual-editor client round-trips the
   // ids it got from GET for existing rows and simply omits it for newly
-  // added ones. It's ignored on write below either way: tasks/rewards
-  // replacement is still whole-array delete-and-reinsert (unchanged
-  // behavior), which always assigns fresh generateId() ids on every save --
-  // see the Step E note in applyCampaignUpdate's tasks/rewards block for why
-  // that's fine for a manual editor built around "edit the full list, then
-  // save the full list" rather than per-row PATCH semantics.
+  // added ones. On write, a submitted row whose `id` matches an existing
+  // row is UPDATEd in place (so it keeps its id -- any task_submissions /
+  // reward_redemptions referencing it stay valid); a row with no id (or an
+  // id that doesn't match anything existing) is INSERTed fresh. An existing
+  // row that's simply missing from the submitted array is deleted -- UNLESS
+  // it has recorded customer activity, in which case the whole save is
+  // rejected with a 409 instead (see the fuller note in
+  // applyCampaignUpdate's tasks/rewards block for why: this used to be a
+  // blind delete-and-reinsert of every row on every save, which crashed
+  // with an uncaught 500 the moment any row had ever been referenced).
   tasks: { id?: string; name: string; pattern: string; points: number }[];
   rewards: { id?: string; name: string; pattern: string; threshold: number }[];
 }>;
