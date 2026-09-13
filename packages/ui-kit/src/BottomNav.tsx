@@ -5,6 +5,15 @@ import { motionDuration, motionEasing } from './animation-tokens'
 
 export interface BottomNavProps extends HTMLAttributes<HTMLElement> {
   insightsBadgeCount?: number
+  /**
+   * Overrides where the "کمپین" (Campaign) nav item points. Callers should
+   * pass '/dashboard/campaign/edit' once the business has a real campaign
+   * (active, or draft with tasks/rewards already) and '/dashboard/campaign'
+   * (the from-scratch AI wizard) otherwise -- see AppShell, which computes
+   * this from the fetched campaign, not from manualEditorEnabled/pro mode.
+   * Defaults to the wizard route for backward compatibility if omitted.
+   */
+  campaignTo?: string
 }
 
 interface NavItem {
@@ -13,7 +22,8 @@ interface NavItem {
   icon: (isActive: boolean) => React.ReactNode
 }
 
-const navItems: NavItem[] = [
+function buildNavItems(campaignTo: string): NavItem[] {
+  return [
   {
     to: '/dashboard',
     label: 'داشبورد',
@@ -35,7 +45,7 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    to: '/dashboard/campaign',
+    to: campaignTo,
     label: 'کمپین',
     icon: (isActive) => (
       <svg
@@ -91,7 +101,8 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
-]
+  ]
+}
 
 /**
  * BottomNav component for the UI kit.
