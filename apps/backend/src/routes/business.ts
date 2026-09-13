@@ -271,7 +271,7 @@ export type CampaignUpdateBody = Partial<{
 
 export type CampaignUpdateResult =
   | { ok: true; campaign: Awaited<ReturnType<typeof serializeCampaign>> }
-  | { ok: false; status: 400; error: string };
+  | { ok: false; status: 400 | 409; error: string };
 
 // Extracted from the PUT /campaign route handler (plan.md Item 16 Step A) so
 // reviewAdminRouter's businessId-route-param PUT endpoint (Step B) can reuse
