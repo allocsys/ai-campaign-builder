@@ -553,6 +553,13 @@ export type CampaignGenerateBody = Partial<{
   /** Optional (plan.md "Step 4 leads with AI deciding" decision) -- only ever feeds LLM copy, never the deterministic math, so it's not required. */
   offerDescription: string;
   rewardPatternNames: string[];
+  /**
+   * plan.md Open Item 18 -- the wizard's new opt-in checkbox. Defaults to
+   * false (not true) when omitted, since an older/未-updated client sending
+   * this body without the field should NOT silently start receiving
+   * unrequested site-address suggestions.
+   */
+  wantsSite: boolean;
 }>;
 
 export type CampaignGenerateResult =
@@ -565,9 +572,66 @@ export type CampaignGenerateResult =
         challenge: Awaited<ReturnType<typeof generateCampaignProposal>>["challenge"];
         discountClamped: Awaited<ReturnType<typeof generateCampaignProposal>>["discountClamped"];
         copyGeneratedByAi: Awaited<ReturnType<typeof generateCampaignProposal>>["copyGeneratedByAi"];
+        /**
+         * plan.md Open Item 18 -- fully resolved/validated/uniqueness-checked
+         * candidate slug, ready to hand straight to PUT /microsite as-is.
+         * Absent when wantsSite was false, the microsite's slug is already
+         * owner-set (nothing left to suggest), the LLM didn't return one, or
+         * every collision-retry attempt still collided.
+         */
+        suggestedSiteSlug?: string;
       };
     }
   | { ok: false; status: 400 | 409; error: string };
+
+// plan.md Open Item 18: turns the LLM's raw (Latin, hopefully DNS-safe-ish)
+// suggestion into something that's actually safe to hand the frontend as a
+// ready-to-save default -- reusing the exact same rules PUT /microsite
+// already enforces, rather than a parallel rule set that could drift.
+// Returns null (never throws) on any failure path -- a missing suggestion is
+// not an error, it just means the wizard shows no site-address step.
+async function resolveSuggestedMicrositeSlug(
+  db: D1Database,
+  businessId: string,
+  rawSlug: string | undefined
+): Promise<string | null> {
+  if (!rawSlug) return null;
+
+  const micrositeId = await ensureMicrosite(db, businessId);
+  const current = await queryFirst<{ subdomain_slug_set_by_owner: number }>(
+    db,
+    "SELECT subdomain_slug_set_by_owner FROM business_microsites WHERE id = ?",
+    [micrositeId]
+  );
+  // Already made their one-time choice (Item 17) -- nothing to suggest.
+  if (current?.subdomain_slug_set_by_owner) return null;
+
+  // Slugify: lowercase, transliterate spaces to hyphens, strip anything not
+  // DNS-label-safe, collapse repeat hyphens, trim leading/trailing hyphens.
+  const base = rawSlug
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!base) return null;
+
+  // Same 5-attempt numbered-suffix retry shape as generateUniqueJoinSlug
+  // above, reusing validateMicrositeSlug + PUT /microsite's own uniqueness
+  // query rather than inventing new rules.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    if (validateMicrositeSlug(candidate)) continue; // shape/reserved-word failure -- try next suffix, still worth a shot since length/charset already passed
+    const clash = await queryFirst<{ id: string }>(
+      db,
+      "SELECT id FROM business_microsites WHERE subdomain_slug = ? AND id != ?",
+      [candidate, micrositeId]
+    );
+    if (!clash) return candidate;
+  }
+  return null;
+}
 
 // Extracted from the POST /campaign/generate route handler (plan.md Item 16
 // Step A) so reviewAdminRouter's businessId-route-param equivalent (Step B)
@@ -674,7 +738,14 @@ export async function generateCampaignForBusiness(
     monthlyRevenueToman: Number(body.monthlyRevenueToman) || 0,
     rewardPatternNames: body.rewardPatternNames,
     maxDiscountPercent: constraints?.max_discount_percent ?? null,
+    wantsSuggestedSiteSlug: !!body.wantsSite,
   });
+
+  // plan.md Open Item 18 -- resolved after generation, not inside
+  // campaign-generator.ts (which has no business_microsites access).
+  const suggestedSiteSlug = body.wantsSite
+    ? await resolveSuggestedMicrositeSlug(db, businessId, proposal.suggestedSiteSlug)
+    : null;
 
   const nowMs = Date.now();
   const startDate = new Date(nowMs).toISOString();
@@ -730,6 +801,7 @@ export async function generateCampaignForBusiness(
       challenge: proposal.challenge,
       discountClamped: proposal.discountClamped,
       copyGeneratedByAi: proposal.copyGeneratedByAi,
+      ...(suggestedSiteSlug ? { suggestedSiteSlug } : {}),
     },
   };
 }
