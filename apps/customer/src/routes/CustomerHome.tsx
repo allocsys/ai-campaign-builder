@@ -23,14 +23,14 @@ import { RetroClaimModal } from './RetroClaimModal'
 // Item 14, Step D: real business subdomain routing doesn't exist in production
 // yet (plan.md Open Item 3, domain undecided; architecture.md's
 // business_microsites.subdomain_slug documents the intended shape as
-// "{slug}.ourdomain.com" once a real domain is chosen). MICROSITE_DOMAIN
-// (packages/shared-config) lets the referral link be built in the intended
-// final shape now rather than falling back to the customer-app-direct shape
-// apps/microsite's own CTA link uses -- per explicit user decision, matches
-// the documented convention even though it won't actually resolve until a
-// real domain exists. Shared with apps/business-owner's MicrositeBuilderTab.tsx
-// so this placeholder only needs updating in one place once Open Item 3 is
-// decided.
+// "{slug}.ourdomain.com" once a real domain is chosen). buildMicrositeJoinUrl()
+// (packages/shared-config) builds the link in that intended final shape once
+// a domain is live, but for now (MICROSITE_DOMAIN_LIVE = false) returns a
+// link against the actual deployed microsite Worker instead, so the referral
+// link customers copy today actually resolves rather than 404ing against a
+// domain that doesn't exist yet. Single source of truth shared with
+// apps/business-owner's MicrositeBuilderTab.tsx preview text, so both flip
+// over together once Open Item 3 is decided.
 
 function formatCountdown(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60)
