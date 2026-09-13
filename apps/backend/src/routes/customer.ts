@@ -6,6 +6,11 @@ import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { scoreTaskSubmission } from "../lib/vision";
 import { ALLOWED_EVIDENCE_CONTENT_TYPES, MAX_EVIDENCE_BYTES, uploadEvidenceImage } from "../lib/storage";
+import {
+  RETRO_CLAIM_MAX_HOURS,
+  RETRO_CLAIM_RATE_LIMIT,
+  REDEMPTION_CODE_EXPIRY_MS,
+} from "@ai-campaign-builder/shared-config";
 
 const customerRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -534,7 +539,7 @@ customerRouter.post("/rewards/:id/redeem", async (c) => {
 
   const redemptionId = generateId();
   const redemptionCode = String(Math.floor(100000 + Math.random() * 900000));
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + REDEMPTION_CODE_EXPIRY_MS).toISOString();
 
   await execute(
     db,
@@ -560,9 +565,6 @@ customerRouter.post("/rewards/:id/redeem", async (c) => {
 // RetroClaimResult union exactly so the eventual frontend wiring pass can map
 // this response directly.
 // ============================================================================
-
-const RETRO_CLAIM_RATE_LIMIT = 3;
-const RETRO_CLAIM_MAX_HOURS = 72;
 
 customerRouter.post("/retro-claims", async (c) => {
   const db = c.env.DB;
