@@ -482,3 +482,47 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
     </div>
   )
 }
+
+/**
+ * Route wrapper for `/dashboard/campaign` -- the from-scratch onboarding
+ * path DashboardIndexRoute's cover-card CTA sends a business with no real
+ * campaign to. Keeps the original guard: re-checked on every load (a direct
+ * URL nav can't bypass it) so a business that already has a real campaign
+ * doesn't land on a blank wizard here -- it's redirected to the editor tab,
+ * which itself shows CampaignWizardForm inline when pro mode is off (see
+ * CampaignEditorTab), so nothing is lost, just reached via a different
+ * route once a campaign already exists.
+ */
+export function CampaignWizardTab() {
+  const navigate = useNavigate()
+  const [checkingExisting, setCheckingExisting] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    getCampaign(apiClient)
+      .then((campaign) => {
+        if (!mounted) return
+        const hasRealCampaign =
+          campaign.status === 'active' || campaign.tasks.length > 0 || campaign.rewards.length > 0
+        if (hasRealCampaign) {
+          navigate('/dashboard/campaign/edit', { replace: true })
+          return
+        }
+        setCheckingExisting(false)
+      })
+      .catch(() => {
+        // If the check itself fails, fall back to showing the wizard rather
+        // than blocking the page entirely.
+        if (mounted) setCheckingExisting(false)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [navigate])
+
+  if (checkingExisting) {
+    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
+  }
+
+  return <CampaignWizardForm onLaunched={() => navigate('/dashboard')} />
+}
