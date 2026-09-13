@@ -223,25 +223,39 @@ businessRouter.get("/campaign", async (c) => {
   return c.json(await serializeCampaign(db, campaignId));
 });
 
-businessRouter.put("/campaign", async (c) => {
-  const db = c.env.DB;
-  const businessId = c.get("auth").sub;
+// Body shape for PUT /campaign, shared by businessRouter (businessId = auth.sub)
+// and reviewAdminRouter's businessId-route-param equivalent (plan.md Item 16 Step B).
+export type CampaignUpdateBody = Partial<{
+  status: string;
+  goal: string;
+  pointMultiplier: number;
+  startDate: string;
+  endDate: string;
+  tasks: { name: string; pattern: string; points: number }[];
+  rewards: { name: string; pattern: string; threshold: number }[];
+}>;
+
+export type CampaignUpdateResult =
+  | { ok: true; campaign: Awaited<ReturnType<typeof serializeCampaign>> }
+  | { ok: false; status: 400; error: string };
+
+// Extracted from the PUT /campaign route handler (plan.md Item 16 Step A) so
+// reviewAdminRouter's businessId-route-param PUT endpoint (Step B) can reuse
+// the EXACT same validation + side effects (join-slug generation, microsite
+// featuring, highlight defaults on activate) as an owner edit -- an admin
+// edit should behave identically to an owner edit, per the plan.md decision.
+// Returns a discriminated result instead of a Response, since this function
+// isn't bound to a Hono context and has two independent callers.
+export async function applyCampaignUpdate(
+  db: D1Database,
+  businessId: string,
+  body: CampaignUpdateBody
+): Promise<CampaignUpdateResult> {
   const campaignId = await ensureCampaign(db, businessId);
-  const body = await c.req.json<
-    Partial<{
-      status: string;
-      goal: string;
-      pointMultiplier: number;
-      startDate: string;
-      endDate: string;
-      tasks: { name: string; pattern: string; points: number }[];
-      rewards: { name: string; pattern: string; threshold: number }[];
-    }>
-  >();
 
   if (body.status !== undefined) {
     if (!["active", "draft", "ended"].includes(body.status)) {
-      return c.json({ error: "Invalid status" }, 400);
+      return { ok: false, status: 400, error: "Invalid status" };
     }
     await execute(db, "UPDATE campaigns SET status = ? WHERE id = ?", [body.status, campaignId]);
 
@@ -295,7 +309,7 @@ businessRouter.put("/campaign", async (c) => {
   }
   if (body.goal !== undefined) {
     if (!["acquisition", "retention", "acquisition_retention"].includes(body.goal)) {
-      return c.json({ error: "Invalid goal" }, 400);
+      return { ok: false, status: 400, error: "Invalid goal" };
     }
     await execute(db, "UPDATE campaigns SET goal = ? WHERE id = ?", [body.goal, campaignId]);
   }
@@ -316,7 +330,7 @@ businessRouter.put("/campaign", async (c) => {
     for (let i = 0; i < body.tasks.length; i++) {
       const t = body.tasks[i];
       const patternId = patternIdByName.get(t.pattern);
-      if (!patternId) return c.json({ error: `Unknown task pattern: ${t.pattern}` }, 400);
+      if (!patternId) return { ok: false, status: 400, error: `Unknown task pattern: ${t.pattern}` };
       await execute(
         db,
         `INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name)
@@ -338,7 +352,7 @@ businessRouter.put("/campaign", async (c) => {
     await execute(db, "DELETE FROM campaign_rewards WHERE campaign_id = ?", [campaignId]);
     for (const r of body.rewards) {
       const patternId = patternIdByName.get(r.pattern);
-      if (!patternId) return c.json({ error: `Unknown reward pattern: ${r.pattern}` }, 400);
+      if (!patternId) return { ok: false, status: 400, error: `Unknown reward pattern: ${r.pattern}` };
       await execute(
         db,
         `INSERT INTO campaign_rewards (id, campaign_id, reward_pattern_id, threshold_points, name)
@@ -348,7 +362,16 @@ businessRouter.put("/campaign", async (c) => {
     }
   }
 
-  return c.json(await serializeCampaign(db, campaignId));
+  return { ok: true, campaign: await serializeCampaign(db, campaignId) };
+}
+
+businessRouter.put("/campaign", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const body = await c.req.json<CampaignUpdateBody>();
+  const result = await applyCampaignUpdate(db, businessId, body);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json(result.campaign);
 });
 
 // ============================================================================
