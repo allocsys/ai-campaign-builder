@@ -4,6 +4,7 @@ import type { Env } from "../types";
 import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
+import { downloadEvidenceImage } from "../lib/storage";
 
 const staffPosRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -478,6 +479,168 @@ staffPosRouter.get("/activity", async (c) => {
   ].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 
   return c.json(merged.slice(0, 50));
+});
+
+// ============================================================================
+// Firsthand screenshot verification queue -- social_proof/review_ugc
+// submissions (Instagram story/post shares, written reviews) used to be
+// routed to the central review console (review.ts) alongside receipt claims,
+// but staff can check these firsthand since the customer is standing right
+// there -- no need to route them through the central team async. Scoped to
+// this business only (unlike review.ts's cross-business review_team queue),
+// same businessId-through-campaigns join pattern as the rest of this router.
+// receipt_claim submissions are NOT included here -- those still go through
+// the central review console, since a retroactive purchase claim isn't
+// something staff can verify firsthand at the point the claim is submitted.
+// ============================================================================
+
+staffPosRouter.get("/submissions", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").businessId as string;
+  const status = c.req.query("status") ?? "pending";
+
+  const rows = await queryAll<{
+    id: string;
+    customer_phone: string;
+    task_name: string;
+    task_pattern: string;
+    evidence_url: string | null;
+    status: string;
+    points_awarded: number | null;
+    submitted_at: string;
+    points_value: number;
+  }>(
+    db,
+    `SELECT ts.id, cust.phone_number AS customer_phone, ct.name AS task_name,
+            tp.name AS task_pattern, ts.evidence_url, ts.status, ts.points_awarded,
+            ts.submitted_at, ct.points_value
+     FROM task_submissions ts
+     JOIN campaign_tasks ct ON ct.id = ts.campaign_task_id
+     JOIN task_patterns tp ON tp.id = ct.task_pattern_id
+     JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
+     JOIN customers cust ON cust.id = ccc.customer_id
+     JOIN campaigns cp ON cp.id = ccc.campaign_id
+     WHERE cp.business_id = ?
+       AND ts.submission_type = 'screenshot'
+       AND tp.name IN ('social_proof', 'review_ugc')
+       AND ts.status = ?
+     ORDER BY ts.submitted_at DESC`,
+    [businessId, status]
+  );
+
+  return c.json(
+    rows.map((r) => ({
+      id: r.id,
+      customerName: r.customer_phone,
+      taskTitle: r.task_name,
+      taskPattern: r.task_pattern as "social_proof" | "review_ugc",
+      evidenceUrl: r.evidence_url,
+      status: r.status as "pending" | "approved" | "rejected",
+      pointsAwarded: r.points_awarded,
+      submittedAt: r.submitted_at,
+      taskPointsValue: r.points_value,
+    }))
+  );
+});
+
+// Same private-B2-bucket proxy pattern as review.ts's evidence endpoint, but
+// scoped to this business -- the join through campaigns.business_id is what
+// prevents one business's staff from viewing another business's evidence
+// images by guessing submission ids.
+staffPosRouter.get("/submissions/:id/evidence", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").businessId as string;
+  const id = c.req.param("id");
+
+  const row = await queryFirst<{ evidence_url: string | null }>(
+    db,
+    `SELECT ts.evidence_url
+     FROM task_submissions ts
+     JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
+     JOIN campaigns cp ON cp.id = ccc.campaign_id
+     WHERE ts.id = ? AND cp.business_id = ?`,
+    [id, businessId]
+  );
+  if (!row || !row.evidence_url) {
+    return c.json({ error: "Evidence not found" }, 404);
+  }
+
+  try {
+    const { bytes, contentType } = await downloadEvidenceImage(c.env, row.evidence_url);
+    return c.body(bytes, 200, { "Content-Type": contentType });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`evidence download failed for submission ${id}:`, message);
+    const status = message.includes("not configured") ? 503 : 502;
+    return c.json({ error: "Evidence download failed" }, status);
+  }
+});
+
+staffPosRouter.post("/submissions/:id/resolve", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").businessId as string;
+  const id = c.req.param("id");
+  const body = await c.req.json<{ decision?: "approved" | "rejected" }>();
+
+  if (body.decision !== "approved" && body.decision !== "rejected") {
+    return c.json({ error: "decision must be 'approved' or 'rejected'" }, 400);
+  }
+
+  const submission = await queryFirst<{
+    id: string;
+    status: string;
+    submission_type: string;
+    customer_campaign_code_id: string;
+    campaign_task_id: string;
+  }>(
+    db,
+    `SELECT ts.id, ts.status, ts.submission_type, ts.customer_campaign_code_id, ts.campaign_task_id
+     FROM task_submissions ts
+     JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
+     JOIN campaigns cp ON cp.id = ccc.campaign_id
+     WHERE ts.id = ? AND cp.business_id = ?`,
+    [id, businessId]
+  );
+  if (!submission) return c.json({ error: "Submission not found" }, 404);
+  if (submission.submission_type !== "screenshot") {
+    return c.json({ error: "This endpoint only resolves screenshot submissions -- receipt claims go through the central review console" }, 400);
+  }
+  if (submission.status !== "pending") {
+    return c.json({ error: `Submission is already ${submission.status}` }, 409);
+  }
+
+  const task = await queryFirst<{ points_value: number }>(
+    db,
+    "SELECT points_value FROM campaign_tasks WHERE id = ?",
+    [submission.campaign_task_id]
+  );
+  if (!task) return c.json({ error: "Task not found" }, 500);
+
+  const pointsAwarded = body.decision === "approved" ? task.points_value : 0;
+
+  // reviewed_by is a fixed-value CHECK column ('ai' | 'central_team' |
+  // 'business_owner' -- migration 0001_init.sql), with no distinct value for
+  // staff. Reusing 'business_owner' here follows the exact same convention
+  // already used a few lines up in /purchases and /sync for staff-initiated
+  // pos_scan approvals -- the real staff identity is captured in
+  // reviewed_by_user_id (auth.sub) instead, same as pos_scan does not track
+  // it at all today but review.ts's newer convention does.
+  await execute(
+    db,
+    "UPDATE task_submissions SET status = ?, reviewed_by = 'business_owner', reviewed_by_user_id = ?, reviewed_at = ?, points_awarded = ? WHERE id = ?",
+    [body.decision, c.get("auth").sub, nowIso(), pointsAwarded, id]
+  );
+
+  if (body.decision === "approved") {
+    await execute(
+      db,
+      `INSERT INTO points_ledger (id, customer_campaign_code_id, task_submission_id, entry_type, points, created_at)
+       VALUES (?, ?, ?, 'earned', ?, ?)`,
+      [generateId(), submission.customer_campaign_code_id, submission.id, pointsAwarded, nowIso()]
+    );
+  }
+
+  return c.json({ id, status: body.decision, pointsAwarded });
 });
 
 export { staffPosRouter };
