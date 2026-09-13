@@ -9,6 +9,7 @@ import type {
   RedeemRewardResponse,
   TelegramOptInResponse,
   RetroClaimResponse,
+  SubmitRetroClaimRequest,
 } from '../types';
 
 export async function getCustomerProfile(client: ApiClient): Promise<CustomerProfile> {
@@ -80,7 +81,7 @@ export async function redeemReward(
 // back into the reason the caller actually needs.
 export async function submitRetroClaim(
   client: ApiClient,
-  data: { receiptHash?: string; receiptNumber?: string; hoursAgo?: number }
+  data: SubmitRetroClaimRequest
 ): Promise<RetroClaimResponse> {
   try {
     return await client.request<RetroClaimResponse>('/api/customer/retro-claims', {
