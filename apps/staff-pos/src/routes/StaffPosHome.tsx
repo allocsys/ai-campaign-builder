@@ -8,9 +8,12 @@ import {
   fulfillRedemption,
   syncOfflineQueue,
   getActivity,
+  getPendingSubmissions,
+  resolveSubmission,
+  getSubmissionEvidenceBlob,
 } from '../lib/api-client'
 
-type Tab = 'purchase' | 'fulfill' | 'queue'
+type Tab = 'purchase' | 'fulfill' | 'queue' | 'screenshots'
 
 interface CustomerLookupData {
   personalCode: string
@@ -56,6 +59,23 @@ interface SyncResultData {
   reason: string
 }
 
+// Firsthand screenshot verification -- social_proof/review_ugc submissions
+// (Instagram story/post shares, written reviews) moved out of the central
+// review console so staff can check them in person while the customer is
+// present. Shape matches apps/backend/src/routes/staff-pos.ts's /submissions
+// response.
+interface PendingSubmissionData {
+  id: string
+  customerName: string
+  taskTitle: string
+  taskPattern: 'social_proof' | 'review_ugc'
+  evidenceUrl: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  pointsAwarded: number | null
+  submittedAt: string
+  taskPointsValue: number
+}
+
 const ACTIVE_CAMPAIGN_ID = 'c_narvan_autumn'
 
 // Estimate only, shown in the pre-submit preview line below -- there's no
@@ -95,6 +115,12 @@ export function StaffPosHome() {
   const [syncedKeys, setSyncedKeys] = useState<Set<string>>(new Set())
   const [lastSyncResults, setLastSyncResults] = useState<SyncResultData[] | null>(null)
 
+  // Screenshots tab state
+  const [pendingSubmissions, setPendingSubmissions] = useState<PendingSubmissionData[]>([])
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false)
+  const [evidenceImageUrls, setEvidenceImageUrls] = useState<Record<string, string>>({})
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
+
   // Purchase tab state
   const [customerCode, setCustomerCode] = useState('48291')
   const [foundCustomer, setFoundCustomer] = useState<CustomerLookupData | null>(null)
@@ -128,6 +154,74 @@ export function StaffPosHome() {
         // Non-fatal if offline on load
       })
   }, [])
+
+  // Load the pending screenshot queue the first time the tab is opened, and
+  // fetch each submission's evidence image as an object URL (the image is
+  // served through an authenticated proxy, not a public URL -- see
+  // getSubmissionEvidenceBlob). Object URLs are revoked on unmount to avoid
+  // leaking memory.
+  useEffect(() => {
+    if (tab !== 'screenshots') return
+    let cancelled = false
+    setLoadingSubmissions(true)
+    getPendingSubmissions('pending')
+      .then(async (subs: PendingSubmissionData[]) => {
+        if (cancelled) return
+        setPendingSubmissions(subs)
+        for (const s of subs) {
+          if (!s.evidenceUrl) continue
+          try {
+            const blob = await getSubmissionEvidenceBlob(s.id)
+            if (cancelled) return
+            setEvidenceImageUrls((prev) => ({ ...prev, [s.id]: URL.createObjectURL(blob) }))
+          } catch {
+            // Non-fatal per item -- the card just shows a fallback below.
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) show('خطا در بارگذاری صف بررسی اسکرین‌شات.', 'danger')
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSubmissions(false)
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab])
+
+  useEffect(() => {
+    return () => {
+      Object.values(evidenceImageUrls).forEach((url) => URL.revokeObjectURL(url))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleResolveScreenshot = async (submission: PendingSubmissionData, decision: 'approved' | 'rejected') => {
+    setResolvingId(submission.id)
+    try {
+      const result = await resolveSubmission(submission.id, decision)
+      setPendingSubmissions((prev) => prev.filter((s) => s.id !== submission.id))
+      const url = evidenceImageUrls[submission.id]
+      if (url) URL.revokeObjectURL(url)
+      if (decision === 'approved') {
+        addActivity({
+          type: 'purchase',
+          text: `تایید محتوا (${submission.taskTitle}) برای ${submission.customerName} (+${result.pointsAwarded} امتیاز)`,
+          time: 'همین الان',
+          status: 'synced',
+        })
+        show(`تایید شد — ${result.pointsAwarded} امتیاز به ${submission.customerName} اعطا شد.`, 'success')
+      } else {
+        show(`رد شد — به ${submission.customerName} اطلاع داده می‌شود که می‌تواند دوباره ارسال کند.`, 'danger')
+      }
+    } catch (err) {
+      show(err instanceof Error ? err.message : 'خطا در ثبت تصمیم. دوباره تلاش کنید.', 'danger')
+    } finally {
+      setResolvingId(null)
+    }
+  }
 
   // Listen to browser online/offline events
   useEffect(() => {
@@ -426,6 +520,9 @@ export function StaffPosHome() {
         <Button variant={tab === 'queue' ? 'primary' : 'secondary'} onClick={() => setTab('queue')} className="flex-1">
           <span aria-hidden="true">📥</span> صف ({offlineQueue.length})
         </Button>
+        <Button variant={tab === 'screenshots' ? 'primary' : 'secondary'} onClick={() => setTab('screenshots')} className="flex-1">
+          <span aria-hidden="true">📸</span> بررسی محتوا ({pendingSubmissions.length})
+        </Button>
       </div>
 
       {/* Purchase tab */}
@@ -577,6 +674,64 @@ export function StaffPosHome() {
                   </Card>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Screenshots review tab -- Instagram story/post shares & written
+          reviews, verified firsthand by staff instead of the central review
+          console. */}
+      {tab === 'screenshots' && (
+        <div className="flex flex-col gap-3">
+          <Card className="p-3">
+            <p className="text-xs text-slate-400">
+              <span aria-hidden="true">📸</span> این موارد (اشتراک‌گذاری استوری/پست اینستاگرام، ثبت نظر) دیگر توسط تیم مرکزی بررسی نمی‌شوند — کارمند فروشگاه با دیدن گوشی مشتری، صحت آن را همین‌جا تایید می‌کند.
+            </p>
+          </Card>
+          {loadingSubmissions ? (
+            <Card className="p-4 text-center text-xs text-slate-400">در حال بارگذاری…</Card>
+          ) : pendingSubmissions.length === 0 ? (
+            <Card className="p-4 text-center text-xs text-emerald-300">همه موارد بررسی شدند. <span aria-hidden="true">✓</span></Card>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {pendingSubmissions.map((s) => (
+                <Card key={s.id} className="p-3 flex flex-col gap-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <strong className="text-sm">{s.taskTitle}</strong>
+                    <Badge tone="warning">{s.taskPattern === 'social_proof' ? 'اشتراک‌گذاری استوری/پست' : 'ثبت نظر'}</Badge>
+                  </div>
+                  <div className="text-xs text-slate-400">{s.customerName} • {s.submittedAt}</div>
+                  {evidenceImageUrls[s.id] ? (
+                    <img
+                      src={evidenceImageUrls[s.id]}
+                      alt="اسکرین‌شات ارسالی مشتری"
+                      className="rounded-xl2 border border-glass-border max-h-64 w-full object-contain bg-black/20"
+                    />
+                  ) : (
+                    <div className="bg-white/5 border border-dashed border-white/15 rounded-xl2 p-4 text-center text-xs text-slate-400">
+                      <span aria-hidden="true">🖼️</span> در حال بارگذاری تصویر…
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-1">
+                    <Button
+                      variant="danger"
+                      className="flex-1"
+                      disabled={resolvingId === s.id}
+                      onClick={() => handleResolveScreenshot(s, 'rejected')}
+                    >
+                      <span aria-hidden="true">✕</span> رد کردن
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      disabled={resolvingId === s.id}
+                      onClick={() => handleResolveScreenshot(s, 'approved')}
+                    >
+                      <span aria-hidden="true">✓</span> تایید (+{s.taskPointsValue} امتیاز)
+                    </Button>
+                  </div>
+                </Card>
+              ))}
             </div>
           )}
         </div>
