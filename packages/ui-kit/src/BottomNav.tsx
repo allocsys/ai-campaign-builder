@@ -109,7 +109,8 @@ function buildNavItems(campaignTo: string): NavItem[] {
  * Fixed position bottom tab bar with 4 primary destinations, active-route highlighting,
  * glass/dark aesthetic matching Drawer.tsx and Card.tsx.
  */
-export function BottomNav({ className = '', insightsBadgeCount, ...rest }: BottomNavProps) {
+export function BottomNav({ className = '', insightsBadgeCount, campaignTo = '/dashboard/campaign', ...rest }: BottomNavProps) {
+  const navItems = buildNavItems(campaignTo)
   return (
     <motion.nav
       initial={{ y: 50, opacity: 0 }}
@@ -124,9 +125,9 @@ export function BottomNav({ className = '', insightsBadgeCount, ...rest }: Botto
           const showBadge = item.to === '/dashboard/insights' && count > 0
           return (
             <NavLink
-              key={item.to}
+              key={item.label}
               to={item.to}
-              end={item.to === '/dashboard'}
+              end={item.to === '/dashboard' || item.to === campaignTo}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all duration-200 ${
                   isActive
