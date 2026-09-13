@@ -361,5 +361,14 @@ packages/
 
 ---
 
+18. **Revisiting Item 17's "not in the wizard for now" call -- owners want a site-address suggestion during onboarding, not only in Settings afterward.** Decided 2026-09-14: rather than a separate suggestion flow (a dedicated live-as-you-type endpoint was considered and rejected), the suggested slug rides along in the **existing** campaign-generation LLM call -- no new/separate LLM call needed.
+    - **Opt-in, not forced.** Wizard Step 1 gets a new checkbox ("می‌خوای یک آدرس/صفحه اختصاصی برای کسب‌وکارت داشته باشی؟", default checked) -- some owners won't want a microsite at all, so the suggestion flow is skippable up front rather than assumed.
+    - **Folded into `campaign-generator.ts`'s existing copy prompt.** When the owner opted in, `buildCopyPrompt` asks the same Google->OpenAI cascade call (Item 8's pipeline) to also return `suggestedSiteSlug` in its one JSON response, alongside the existing proposal/task/reward copy -- not a second model call.
+    - **Server-side sanity pass reuses Item 17's rules exactly**, not a parallel rule set: the LLM's raw suggestion is run through `validateMicrositeSlug` (slugify-and-retry on shape failure) and the same uniqueness query `PUT /microsite` already uses (numbered-suffix retries on collision, matching `generateUniqueJoinSlug`'s existing retry pattern). If opted out, or the LLM omits the field, or every retry still collides, `suggestedSiteSlug` is simply absent from the response -- no site-address step shown.
+    - **Shown after generation, not live in Step 1** -- alongside the campaign proposal result, with the same two-step "ذخیره" -> "تأیید نهایی" permanent-choice confirm Item 17 already built for `MicrositeBuilderTab.tsx`, plus a "بعداً تنظیم می‌کنم" skip (microsite keeps its auto-generated `biz-xxxx` placeholder slug either way, still editable later from Settings exactly as Item 17 left it).
+    - **Status: design agreed, not yet built** -- implementation to follow on its own branch.
+
+---
+
 ## Architecture reference
 Full DB schema (35 tables) lives in `architecture.md`, not duplicated here.
