@@ -464,6 +464,19 @@ export interface ReviewAdminAccount {
   createdBy: string;
 }
 
+/**
+ * plan.md Item 16 Step B -- business picker for the admin campaign UI.
+ * Shape matches review-admin.ts's GET /businesses response. review_admin has
+ * no per-business scoping (unlike business_owner, whose JWT sub IS the
+ * business id), so this lists every business in the system.
+ */
+export interface AdminBusinessListItem {
+  id: string;
+  name: string;
+  phone: string;
+  categoryLabel: string;
+}
+
 export type StaffPosActivityEntry =
   | {
       id: string;
