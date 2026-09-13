@@ -8,6 +8,8 @@ import type {
   StaffPosSyncRequest,
   StaffPosSyncResponse,
   StaffPosActivityEntry,
+  StaffPendingSubmission,
+  StaffResolveSubmissionResponse,
 } from '../types';
 
 export async function getCustomerByCode(
@@ -64,4 +66,43 @@ export async function getActivity(
   client: ApiClient
 ): Promise<StaffPosActivityEntry[]> {
   return client.request<StaffPosActivityEntry[]>('/api/staff/activity');
+}
+
+// ============================================================================
+// Firsthand screenshot verification queue -- see staff-pos.ts backend and
+// types.ts for full context.
+// ============================================================================
+
+export async function getPendingSubmissions(
+  client: ApiClient,
+  status: string = 'pending'
+): Promise<StaffPendingSubmission[]> {
+  return client.request<StaffPendingSubmission[]>(
+    `/api/staff/submissions?status=${encodeURIComponent(status)}`
+  );
+}
+
+export async function resolveSubmission(
+  client: ApiClient,
+  id: string,
+  decision: 'approved' | 'rejected'
+): Promise<StaffResolveSubmissionResponse> {
+  return client.request<StaffResolveSubmissionResponse>(
+    `/api/staff/submissions/${encodeURIComponent(id)}/resolve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ decision }),
+    }
+  );
+}
+
+// Returns a Blob rather than a URL -- the evidence image is served through
+// an authenticated proxy route (private B2 bucket), not a public URL, so the
+// caller must fetch it with the auth token and turn it into an object URL
+// (URL.createObjectURL) for display.
+export async function getSubmissionEvidenceBlob(
+  client: ApiClient,
+  id: string
+): Promise<Blob> {
+  return client.requestBlob(`/api/staff/submissions/${encodeURIComponent(id)}/evidence`);
 }
