@@ -3,8 +3,7 @@ import { AuthScreen } from './routes/AuthScreen'
 import { LandingPage } from './routes/LandingPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { AppShell } from './routes/AppShell'
-import { OnboardingBanner } from './routes/OnboardingBanner'
-import { DashboardTab } from './routes/tabs/DashboardTab'
+import { DashboardIndexRoute } from './routes/DashboardIndexRoute'
 import { CampaignWizardTab } from './routes/tabs/CampaignWizardTab'
 import { CampaignEditorTab } from './routes/tabs/CampaignEditorTab'
 import { InsightsAndSuggestionsTab } from './routes/tabs/InsightsAndSuggestionsTab'
@@ -24,8 +23,7 @@ function App() {
         element={
           <ProtectedRoute>
             <AppShell>
-              <OnboardingBanner />
-              <DashboardTab />
+              <DashboardIndexRoute />
             </AppShell>
           </ProtectedRoute>
         }
