@@ -355,5 +355,25 @@ packages/
 
 ---
 
+---
+
+20. **Natural-language campaign editing (chat-driven) + wizard "thinking" polish -- decided 2026-09-14, NOT YET STARTED.** Two related but separately-scoped pieces, both grounded in infra that already exists (`ai-models.config.ts`'s free-tier Gemini-Flash-first cascade, and the `suggested_changes` table + `SuggestionsTab.tsx` Apply/Dismiss flow). Nothing below is built yet -- this entry exists so the two pieces can be picked up and executed step by step without re-deriving the design decisions.
+
+    **Part A -- shared NL request-parsing engine (backend, build first, both Part B and Part C depend on it).**
+    - New function, e.g. `parseNaturalLanguageCampaignRequest(text, currentCampaignState)` in a new `apps/backend/src/lib/campaign-agent.ts`, using the *existing* `CAMPAIGN_COPY_CASCADE` cascade from `ai-models.config.ts` -- no new model/provider/infra, this is a second call site on the same cascade `campaign-generator.ts` already uses.
+    - Prompted to return strict JSON matching the **same shape as a `suggested_changes` row** (`changeType`, `currentValue`, `suggestedValue`, `rationale` in Persian, `riskTier`), plus a `confidence` field.
+    - If the model isn't confident or the request is ambiguous (e.g. "بهترش کن"), it must return `{ needsClarification: true, clarifyingQuestion: "..." }` instead of guessing at a value -- guessing is explicitly rejected as a design choice since these changes touch real discounts/points.
+    - `riskTier` heuristic: date/duration extension = low; anything touching percentage/points/reward structure = high (mirrors the existing high/low badge distinction `SuggestionsTab.tsx` already renders).
+    - **Safety decision, load-bearing:** the engine only ever *proposes* -- it writes a `pending` row into the existing `suggested_changes` table and never calls `applyCampaignUpdate` directly. Reuses the human-in-the-loop confirmation step that already exists, rather than adding a second, riskier direct-write path. Same reasoning as the vision-scoring pipeline's "never hard-fail silently" pattern, applied to money-affecting fields instead of AI confidence scores.
+    - **Open question, not yet decided:** where multi-turn conversation state/history lives. Workers are stateless per-request (same constraint noted for `pickKey`'s random-vs-round-robin choice) -- a follow-up clarifying question needs the prior turns persisted somewhere (new table vs. reusing an existing one) before Part C's chat UI can be built. Needs a decision before Part C starts.
+
+    **Part B -- entry point placement (decided, not built).** Rejected: a new top-level tab (unjustified nav overhead for what's fundamentally an alternate way to edit the campaign), and bundling into `InsightsAndSuggestionsTab`/`InsightsTab` (those are for data-driven proposals generated *from* analysis, not user-initiated requests made *before* analysis exists). Decided: a chat entry point lives inside `CampaignEditorTab.tsx` (the tab an owner already goes to when they want to change something), full agentic back-and-forth -- type a request, model may ask a clarifying question before proposing anything, then the proposal surfaces as a `pending` row in the existing `SuggestionsTab` for the normal Apply/Dismiss confirmation. One unified place changes get confirmed, regardless of whether they originated from analysis or from a free-text request.
+
+    **Part C -- wizard "thinking" transition (decided, scoped small, no dependency on Parts A/B).** Explicitly decided **against** converting `CampaignWizardTab.tsx`'s 5-step form into a real per-step AI Q&A -- the wizard's fields feed a deterministic calculation (`campaign-generator.ts`), turning it into literal chat would be theatre (fake "thinking" about answers that don't change the question sequence) while adding real cost/latency/failure risk (5+ LLM calls per onboarding instead of today's 1, with no fallback if one fails mid-flow, unlike the copy-generation call's existing "never hard-fail, fall back to static copy" behavior). Decided instead: keep every slider/input/step exactly as-is, and add a purely cosmetic transition -- a `thinking` boolean state in `CampaignWizardForm`, set true in `goNext()`, a short `setTimeout` (~700ms) showing a typing-indicator-style card, then reveal the next step. Copy for the thinking message should stay honest: where a step's content genuinely already varies by a prior answer (e.g. step 1's category-conditional question), the message can reference that (e.g. "دارم بر اساس [دسته] بهترین سؤال بعدی رو آماده می‌کنم") since it's true; it should not imply deeper personalization than the deterministic logic actually does.
+
+    **Suggested build order:** Part C first (no dependencies, purely cosmetic, ships same day). Then Part A (backend engine + the stateful-history decision). Then Part B (wires Part A into `CampaignEditorTab.tsx` + `SuggestionsTab.tsx`).
+
+---
+
 ## Architecture reference
 Full DB schema (35 tables) lives in `architecture.md`, not duplicated here.
