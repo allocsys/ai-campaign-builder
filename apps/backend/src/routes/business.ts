@@ -5,6 +5,7 @@ import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { generateCampaignProposal } from "../lib/campaign-generator";
+import { validateMicrositeSlug } from "@ai-campaign-builder/shared-config";
 
 const businessRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -1245,9 +1246,14 @@ async function ensureMicrosite(db: D1Database, businessId: string): Promise<stri
 }
 
 async function serializeMicrosite(db: D1Database, micrositeId: string) {
-  const site = await queryFirst<{ published: number; subdomain_slug: string; template_name: string }>(
+  const site = await queryFirst<{
+    published: number;
+    subdomain_slug: string;
+    template_name: string;
+    subdomain_slug_set_by_owner: number;
+  }>(
     db,
-    `SELECT bm.published, bm.subdomain_slug, wt.name AS template_name
+    `SELECT bm.published, bm.subdomain_slug, wt.name AS template_name, bm.subdomain_slug_set_by_owner
      FROM business_microsites bm JOIN website_templates wt ON wt.id = bm.website_template_id
      WHERE bm.id = ?`,
     [micrositeId]
@@ -1267,6 +1273,10 @@ async function serializeMicrosite(db: D1Database, micrositeId: string) {
     published: !!site.published,
     templateName: site.template_name,
     subdomainSlug: site.subdomain_slug,
+    // plan.md Item 17 -- once true (owner has made their one-time slug
+    // choice), PUT /microsite's subdomainSlug field is locked; the frontend
+    // uses this to switch from an editable field to read-only display.
+    subdomainSlugEditable: !site.subdomain_slug_set_by_owner,
     modules: modules.map((m) => ({ key: m.key, labelFa: m.name_fa, enabled: !!m.enabled })),
   };
 }
@@ -1298,17 +1308,36 @@ businessRouter.put("/microsite", async (c) => {
     ]);
   }
   if (body.subdomainSlug !== undefined) {
+    // plan.md Item 17: the owner gets exactly one chance to pick a real
+    // slug -- once subdomain_slug_set_by_owner is 1, further changes are
+    // rejected outright rather than silently 404ing an already-shared/
+    // printed referral link later. A brand-new (still-auto-generated)
+    // microsite has this at 0 (both freshly created ones, and every
+    // pre-existing row per migration 0014's default), so it's still
+    // editable until the owner's first real choice.
+    const current = await queryFirst<{ subdomain_slug: string; subdomain_slug_set_by_owner: number }>(
+      db,
+      "SELECT subdomain_slug, subdomain_slug_set_by_owner FROM business_microsites WHERE id = ?",
+      [micrositeId]
+    );
+    if (current?.subdomain_slug_set_by_owner && body.subdomainSlug !== current.subdomain_slug) {
+      return c.json({ error: "Subdomain slug has already been set and cannot be changed" }, 409);
+    }
+
+    const validationError = validateMicrositeSlug(body.subdomainSlug);
+    if (validationError) return c.json({ error: validationError }, 400);
+
     const clash = await queryFirst<{ id: string }>(
       db,
       "SELECT id FROM business_microsites WHERE subdomain_slug = ? AND id != ?",
       [body.subdomainSlug, micrositeId]
     );
     if (clash) return c.json({ error: "Subdomain slug already taken" }, 409);
-    await execute(db, "UPDATE business_microsites SET subdomain_slug = ?, updated_at = ? WHERE id = ?", [
-      body.subdomainSlug,
-      nowIso(),
-      micrositeId,
-    ]);
+    await execute(
+      db,
+      "UPDATE business_microsites SET subdomain_slug = ?, subdomain_slug_set_by_owner = 1, updated_at = ? WHERE id = ?",
+      [body.subdomainSlug, nowIso(), micrositeId]
+    );
   }
   if (body.templateName !== undefined) {
     const tpl = await queryFirst<{ id: string }>(db, "SELECT id FROM website_templates WHERE name = ?", [

@@ -50,6 +50,35 @@ export function buildMicrositeJoinUrl(params: { micrositeSlug: string; joinSlug:
   return `${MICROSITE_DEV_WORKER_URL}/join/${encodeURIComponent(joinSlug)}?business=${encodeURIComponent(micrositeSlug)}${refQuery}`;
 }
 
+// Microsite subdomain slug rules (plan.md Open Item 17). Reserved words guard
+// against a business claiming a slug that collides with one of the
+// platform's own reserved subdomain prefixes -- Open Item 3's app./staff./
+// review./www. are already decided; customer/backend/api are reserved
+// pre-emptively even though Item 3 hasn't picked a final prefix for those
+// two yet, specifically so that eventual decision can never retroactively
+// collide with a slug a business has already claimed. Shared between the
+// backend's authoritative validation (routes/business.ts) and the
+// business-owner frontend's client-side pre-check (MicrositeBuilderTab.tsx)
+// so the two rule sets can never drift apart -- same reasoning as every
+// other constant in this file.
+export const RESERVED_MICROSITE_SLUGS = ['app', 'staff', 'review', 'www', 'api', 'customer', 'backend'];
+
+// DNS-label-safe shape: lowercase letters/digits/hyphens only, 3-63 chars
+// total, must start and end with a letter or digit (a leading/trailing
+// hyphen is invalid in a real DNS label).
+export const MICROSITE_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
+
+/** Returns a human-readable error string, or null if the slug is valid. */
+export function validateMicrositeSlug(slug: string): string | null {
+  if (!MICROSITE_SLUG_PATTERN.test(slug)) {
+    return 'Slug must be 3-63 characters, lowercase letters/numbers/hyphens only, and cannot start or end with a hyphen.';
+  }
+  if (RESERVED_MICROSITE_SLUGS.includes(slug)) {
+    return `"${slug}" is a reserved word and cannot be used as a subdomain slug.`;
+  }
+  return null;
+}
+
 // Accepted evidence upload formats -- matches what a phone camera/screenshot
 // realistically produces. apps/backend/src/lib/storage.ts uses the
 // mime-type -> file-extension mapping to name the uploaded B2 object;

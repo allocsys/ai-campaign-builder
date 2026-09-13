@@ -163,6 +163,8 @@ export interface MicrositeState {
   published: boolean;
   templateName: string;
   subdomainSlug: string;
+  /** plan.md Item 17 -- false once the owner has made their one-time slug choice (backend then rejects further PUT changes to it). */
+  subdomainSlugEditable: boolean;
   modules: MicrositeModule[];
 }
 
