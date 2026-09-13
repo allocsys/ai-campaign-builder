@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Badge, useToast } from '@ai-campaign-builder/ui-kit'
 import { getBusinessProfile, getCampaign, updateBusinessProfile, updateCampaign } from '@ai-campaign-builder/api-client'
 import type { BusinessProfile, Campaign } from '@ai-campaign-builder/api-client'
 import { CampaignEditor } from '@ai-campaign-builder/campaign-editor'
+import { CampaignWizardForm } from './CampaignWizardTab'
 import apiClient from '../../lib/api-client'
 
 /**
@@ -15,18 +17,21 @@ import apiClient from '../../lib/api-client'
  *
  * `manualEditorEnabled` ("حالت حرفه‌ای") no longer gates ACCESS to this page --
  * the bottom-nav Campaign button now routes here for any business with a
- * real campaign regardless of pro mode (see AppShell/BottomNav), since
- * bouncing every non-pro-mode business back to /dashboard the moment they
- * tap the main Campaign nav item is worse than just showing them a
- * read-only view of their own tasks/rewards. It still gates EDITING: this
- * is re-checked on every load so a direct URL nav can't grant edit access,
- * only view access.
+ * real campaign regardless of pro mode (see AppShell/BottomNav). It gates
+ * which UI shows: pro mode on renders the manual field-level `CampaignEditor`
+ * below; pro mode off renders `CampaignWizardForm` inline instead (2026-09-13
+ * -- a disabled/read-only dump of the manual editor's own fields turned out
+ * to be redundant with the dashboard's existing summary and gave non-pro
+ * owners no way to actually do anything here; the AI wizard lets them
+ * regenerate/relaunch instead). This is re-checked on every load so a
+ * direct URL nav can't grant manual-edit access, only the wizard.
  *
  * The top-right pill doubles as the toggle for pro mode itself (added so
  * owners don't have to detour through Settings just to flip it -- same
  * `updateBusinessProfile({ manualEditorEnabled })` call SettingsTab uses).
  */
 export function CampaignEditorTab() {
+  const navigate = useNavigate()
   const { show: showToast } = useToast()
   const [profile, setProfile] = useState<BusinessProfile | null>(null)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
@@ -114,7 +119,7 @@ export function CampaignEditorTab() {
       </div>
       {readOnly ? (
         <p className="text-xs text-slate-400 -mt-2">
-          این فقط نمایش تسک‌ها و پاداش‌های کمپین فعلیته. برای ویرایش مستقیم، روی «فعال‌سازی حالت حرفه‌ای» بالا بزن.
+          از دستیار هوشمند زیر برای ساخت یا بازسازی خودکار کمپین استفاده کن. برای ویرایش دستی تسک‌ها و پاداش‌ها، روی «فعال‌سازی حالت حرفه‌ای» بالا بزن.
         </p>
       ) : (
         <p className="text-xs text-slate-400 -mt-2">
@@ -122,12 +127,15 @@ export function CampaignEditorTab() {
         </p>
       )}
 
-      <CampaignEditor
-        key="own"
-        campaign={campaign}
-        onSave={(data) => updateCampaign(apiClient, data)}
-        readOnly={readOnly}
-      />
+      {readOnly ? (
+        <CampaignWizardForm key="wizard" onLaunched={() => navigate('/dashboard')} />
+      ) : (
+        <CampaignEditor
+          key="own"
+          campaign={campaign}
+          onSave={(data) => updateCampaign(apiClient, data)}
+        />
+      )}
     </div>
   )
 }
