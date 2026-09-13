@@ -3,6 +3,7 @@ import type { D1Database } from "@cloudflare/workers-types";
 import type { Env } from "../types";
 import type { JWTPayload } from "../middleware/auth";
 import { requireAuth, signJWT } from "../middleware/auth";
+import { getJwtSecret } from "../lib/jwt-config";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { hashPassword, verifyPassword } from "../lib/password";
 import {
@@ -42,7 +43,7 @@ reviewAdminRouter.post("/login", async (c) => {
     return c.json({ error: "Missing required fields: username and password" }, 400);
   }
 
-  const secret = c.env.JWT_SECRET || "default-dev-secret-key-change-in-production";
+  const secret = getJwtSecret(c.env);
 
   // Root identity check first -- env-configured, no DB row. See plan.md
   // "Admin storage + bootstrap" for why this sidesteps the roster table.
