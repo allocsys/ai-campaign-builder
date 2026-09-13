@@ -1,5 +1,13 @@
 import { ApiClient } from '../client';
-import type { AdminLoginResponse, ReviewTeamMember, ReviewAdminAccount } from '../types';
+import type {
+  AdminLoginResponse,
+  ReviewTeamMember,
+  ReviewAdminAccount,
+  AdminBusinessListItem,
+  Campaign,
+  GenerateCampaignRequest,
+  GeneratedCampaignProposal,
+} from '../types';
 
 export async function adminLogin(
   client: ApiClient,
@@ -72,4 +80,44 @@ export async function removeReviewAdmin(client: ApiClient, id: string): Promise<
   return client.request<{ ok: boolean; id: string }>(`/api/review-admin/admins/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
+}
+
+// ----------------------------------------------------------------------------
+// Campaign access (plan.md Item 16 Step C). Mirrors resources/business.ts's
+// getCampaign/updateCampaign/generateCampaign, but businessId-scoped -- the
+// backend endpoints (Step B) reuse the exact same validation/side effects as
+// the owner's own campaign endpoints, so the same response shapes apply.
+// ----------------------------------------------------------------------------
+
+export async function getAdminBusinesses(client: ApiClient): Promise<AdminBusinessListItem[]> {
+  return client.request<AdminBusinessListItem[]>('/api/review-admin/businesses');
+}
+
+export async function getAdminBusinessCampaign(client: ApiClient, businessId: string): Promise<Campaign> {
+  return client.request<Campaign>(`/api/review-admin/businesses/${encodeURIComponent(businessId)}/campaign`);
+}
+
+export async function updateAdminBusinessCampaign(
+  client: ApiClient,
+  businessId: string,
+  data: Partial<Campaign>
+): Promise<Campaign> {
+  return client.request<Campaign>(`/api/review-admin/businesses/${encodeURIComponent(businessId)}/campaign`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function generateAdminBusinessCampaign(
+  client: ApiClient,
+  businessId: string,
+  data: GenerateCampaignRequest
+): Promise<GeneratedCampaignProposal> {
+  return client.request<GeneratedCampaignProposal>(
+    `/api/review-admin/businesses/${encodeURIComponent(businessId)}/campaign/generate`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  );
 }
