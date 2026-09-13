@@ -566,8 +566,6 @@ export async function deleteCampaignForBusiness(db: D1Database, businessId: stri
     campaignId,
   ]);
   const codeIds = codes.map((r) => r.id);
-Placeholders = codeIds.map(() => "?").join(",");
-
 
   let submissionIds: string[] = [];
   if (codeIds.length > 0) {
