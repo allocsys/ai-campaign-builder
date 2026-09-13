@@ -1,9 +1,17 @@
 import { Hono } from "hono";
+import type { D1Database } from "@cloudflare/workers-types";
 import type { Env } from "../types";
 import type { JWTPayload } from "../middleware/auth";
 import { requireAuth, signJWT } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { hashPassword, verifyPassword } from "../lib/password";
+import {
+  ensureCampaign,
+  serializeCampaign,
+  applyCampaignUpdate,
+  generateCampaignForBusiness,
+} from "./business";
+import type { CampaignUpdateBody, CampaignGenerateBody } from "./business";
 
 const reviewAdminRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -299,6 +307,81 @@ reviewAdminRouter.delete("/admins/:id", async (c) => {
 
   await execute(db, "DELETE FROM review_admins WHERE id = ?", [id]);
   return c.json({ ok: true, id });
+});
+
+// ----------------------------------------------------------------------------
+// Campaign access (plan.md Item 16 Step B). Gives review_admin FULL PARITY
+// with a business owner's own campaign access ("I'm the one making changes
+// so it's full access" -- user's decision, no partial/read-only subset).
+// Reuses business.ts's Step A exports (ensureCampaign, serializeCampaign,
+// applyCampaignUpdate, generateCampaignForBusiness) so an admin edit goes
+// through the EXACT same validation and side effects as an owner edit
+// (join-slug generation, microsite featuring, campaign_highlight defaults
+// on activate, single-active-campaign guard, AI-constraints clamping, etc.)
+// -- nothing here reimplements that logic separately. No additional auth
+// restriction beyond the router-wide review_admin role check above (no
+// isRoot distinction for campaign access, per the full-access decision).
+// ----------------------------------------------------------------------------
+
+function serializeBusinessListItem(row: { id: string; name: string; phone: string; name_fa: string }) {
+  return { id: row.id, name: row.name, phone: row.phone, categoryLabel: row.name_fa };
+}
+
+// Business picker for the admin campaign UI (Step D/E) -- every business in
+// the system, since review_admin has no per-business scoping (unlike
+// business_owner, whose JWT sub IS the business id).
+reviewAdminRouter.get("/businesses", async (c) => {
+  const db = c.env.DB;
+  const rows = await queryAll<{ id: string; name: string; phone: string; name_fa: string }>(
+    db,
+    `SELECT b.id, b.name, b.phone, bc.name_fa
+     FROM businesses b JOIN business_categories bc ON bc.id = b.category_id
+     ORDER BY b.name ASC`
+  );
+  return c.json(rows.map(serializeBusinessListItem));
+});
+
+async function loadBusinessOr404(db: D1Database, businessId: string): Promise<boolean> {
+  const exists = await queryFirst<{ id: string }>(db, "SELECT id FROM businesses WHERE id = ?", [businessId]);
+  return !!exists;
+}
+
+// businessId-route-param equivalent of business.ts's GET /campaign.
+reviewAdminRouter.get("/businesses/:businessId/campaign", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.req.param("businessId");
+  if (!(await loadBusinessOr404(db, businessId))) return c.json({ error: "Business not found" }, 404);
+
+  const campaignId = await ensureCampaign(db, businessId);
+  return c.json(await serializeCampaign(db, campaignId));
+});
+
+// businessId-route-param equivalent of business.ts's PUT /campaign --
+// delegates to applyCampaignUpdate for identical validation/side effects.
+reviewAdminRouter.put("/businesses/:businessId/campaign", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.req.param("businessId");
+  if (!(await loadBusinessOr404(db, businessId))) return c.json({ error: "Business not found" }, 404);
+
+  const body = await c.req.json<CampaignUpdateBody>();
+  const result = await applyCampaignUpdate(db, businessId, body);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json(result.campaign);
+});
+
+// businessId-route-param equivalent of business.ts's POST /campaign/generate
+// (the full onboarding-wizard generation flow) -- delegates to
+// generateCampaignForBusiness for identical validation/side effects,
+// including the single-active-campaign guard and AI-constraints clamping.
+reviewAdminRouter.post("/businesses/:businessId/campaign/generate", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.req.param("businessId");
+  if (!(await loadBusinessOr404(db, businessId))) return c.json({ error: "Business not found" }, 404);
+
+  const body = await c.req.json<CampaignGenerateBody>();
+  const result = await generateCampaignForBusiness(db, c.env, businessId, body);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json(result.result);
 });
 
 export { reviewAdminRouter };
