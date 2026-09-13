@@ -17,7 +17,14 @@ app.use(
   "/*",
   cors({
     origin: "*",
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    // PATCH was missing here -- every frontend app is a separate Cloudflare
+    // Worker (different origin from the backend), so any PATCH call (staff
+    // toggle, review-team-member toggle, review-admin's manual-editor
+    // toggle, etc.) triggered a CORS preflight that the browser then
+    // rejected outright since PATCH wasn't an allowed method -- surfaced to
+    // the user as a generic "Failed to fetch" with no server-side trace at
+    // all (the real request never left the browser).
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
