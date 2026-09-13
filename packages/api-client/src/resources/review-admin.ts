@@ -108,6 +108,21 @@ export async function updateAdminBusinessCampaign(
   });
 }
 
+// Hard cascade delete -- see backend's deleteCampaignForBusiness for exactly
+// what this removes. "Pause" is intentionally NOT a separate function here:
+// it's just updateAdminBusinessCampaign(businessId, { status: 'draft' }).
+export async function deleteAdminBusinessCampaign(
+  client: ApiClient,
+  businessId: string
+): Promise<{ ok: boolean; deletedCampaignId: string }> {
+  return client.request<{ ok: boolean; deletedCampaignId: string }>(
+    `/api/review-admin/businesses/${encodeURIComponent(businessId)}/campaign`,
+    {
+      method: 'DELETE',
+    }
+  );
+}
+
 export async function generateAdminBusinessCampaign(
   client: ApiClient,
   businessId: string,
