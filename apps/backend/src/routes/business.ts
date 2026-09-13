@@ -555,9 +555,9 @@ export type CampaignGenerateBody = Partial<{
   rewardPatternNames: string[];
   /**
    * plan.md Open Item 18 -- the wizard's new opt-in checkbox. Defaults to
-   * false (not true) when omitted, since an older/未-updated client sending
-   * this body without the field should NOT silently start receiving
-   * unrequested site-address suggestions.
+   * false (not true) when omitted, since an older/not-yet-updated client
+   * sending this body without the field should NOT silently start
+   * receiving unrequested site-address suggestions.
    */
   wantsSite: boolean;
 }>;
