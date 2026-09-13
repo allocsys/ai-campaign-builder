@@ -11,6 +11,12 @@ interface AdminAuthContextValue {
   username: string | null
   isRoot: boolean
   isAuthenticated: boolean
+  /** True until the initial synchronous read of localStorage/sessionStorage
+   * has completed. AdminProtectedRoute must wait for this before deciding
+   * whether to redirect -- otherwise a page refresh with a valid stored
+   * session still bounces to /admin/login for one render, because `auth`
+   * starts null and isAuthenticated is false until the useEffect below runs. */
+  loading: boolean
   /** Calls the real backend: POST /api/review-admin/login (username+password,
    *  not phone+OTP -- see plan.md "Admin login mechanism"). `remember`
    *  (default true) controls where the session is persisted: true ->
@@ -36,9 +42,11 @@ function readStoredAdminAuth(): StoredAdminAuth | null {
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAdminAuth | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setAuth(readStoredAdminAuth())
+    setLoading(false)
   }, [])
 
   const login = async (username: string, password: string, remember = true) => {
@@ -70,6 +78,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         username: auth?.username ?? null,
         isRoot: auth?.isRoot ?? false,
         isAuthenticated: !!auth,
+        loading,
         login,
         logout,
       }}

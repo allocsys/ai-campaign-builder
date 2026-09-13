@@ -31,6 +31,12 @@ interface StoredAuth {
 interface AuthContextValue {
   phone: string | null
   isAuthenticated: boolean
+  /** True until the initial synchronous read of localStorage has completed.
+   * ProtectedRoute must wait for this before deciding whether to redirect --
+   * otherwise a page refresh with a valid stored session still bounces to
+   * /login for one render, because `auth` starts null and isAuthenticated
+   * is false until the useEffect below runs. */
+  loading: boolean
   referralCodeUsed: string | null
   /** Requests an OTP code from the backend. Returns the TEMPORARY dev-mode
    * OTP code (see packages/api-client's RequestOtpResponse.devOtp) so the
@@ -47,6 +53,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAuth | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -57,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(STORAGE_KEY)
       }
     }
+    setLoading(false)
   }, [])
 
   const requestOtp = async (phone: string) => {
@@ -117,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         phone: auth?.phone ?? null,
         isAuthenticated: !!auth,
+        loading,
         referralCodeUsed: auth?.referralCodeUsed ?? null,
         requestOtp,
         verifyOtp,

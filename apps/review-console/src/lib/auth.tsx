@@ -15,6 +15,12 @@ interface AuthContextValue {
    *  'central_team' string. See plan.md "Review Console authentication". */
   phone: string | null
   isAuthenticated: boolean
+  /** True until the initial synchronous read of localStorage/sessionStorage
+   * has completed. ProtectedRoute must wait for this before deciding
+   * whether to redirect -- otherwise a page refresh with a valid stored
+   * session still bounces to /login for one render, because `auth` starts
+   * null and isAuthenticated is false until the useEffect below runs. */
+  loading: boolean
   /** Calls the real backend: POST /api/auth/request-otp with role='review_team'.
    * Returns the TEMPORARY dev-mode OTP code (see packages/api-client's
    * RequestOtpResponse.devOtp) so the caller can surface it to the user until
@@ -45,9 +51,11 @@ function readStoredAuth(): StoredAuth | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAuth | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setAuth(readStoredAuth())
+    setLoading(false)
   }, [])
 
   const requestOtp = async (phone: string) => {
@@ -79,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ phone: auth?.phone ?? null, isAuthenticated: !!auth, requestOtp, verifyOtp, logout }}>
+    <AuthContext.Provider value={{ phone: auth?.phone ?? null, isAuthenticated: !!auth, loading, requestOtp, verifyOtp, logout }}>
       {children}
     </AuthContext.Provider>
   )
