@@ -7,6 +7,14 @@ export interface BusinessProfile {
   smsMonthlyCapToman: number | null;
   /** plan.md Open Item 9 -- auto-fills the microsite Contact module when set. */
   address: string;
+  /**
+   * plan.md Item 16 Step E -- "حالت حرفه‌ای" (Professional Mode). Gates the
+   * owner's own access to the manual campaign editor. Self-serve toggle via
+   * PUT /profile, OR settable by review_admin on the owner's behalf (see
+   * AdminBusinessListItem.manualEditorEnabled). review_admin's own editor
+   * access is unconditional regardless of this flag.
+   */
+  manualEditorEnabled: boolean;
 }
 
 /**
@@ -30,12 +38,22 @@ export interface ChecklistItem {
 }
 
 export interface CampaignTask {
+  /**
+   * plan.md Item 16 Step E -- always present on a GET response (the DB row's
+   * real primary key). Optional on a PUT body: the manual editor round-trips
+   * existing ids and omits it for newly-added rows; the backend ignores
+   * whatever id is sent either way, since tasks/rewards are still saved as a
+   * whole-array replace (fresh ids assigned server-side on every save).
+   */
+  id?: string;
   name: string;
   pattern: string;
   points: number;
 }
 
 export interface CampaignReward {
+  /** Same id semantics as CampaignTask.id -- see that field's doc comment. */
+  id?: string;
   name: string;
   pattern: string;
   threshold: number;
@@ -475,6 +493,12 @@ export interface AdminBusinessListItem {
   name: string;
   phone: string;
   categoryLabel: string;
+  /**
+   * plan.md Item 16 Step E -- lets the business picker show each business's
+   * "حالت حرفه‌ای" state and toggle it via
+   * updateAdminBusinessManualEditor(), without a separate per-business fetch.
+   */
+  manualEditorEnabled: boolean;
 }
 
 export type StaffPosActivityEntry =
