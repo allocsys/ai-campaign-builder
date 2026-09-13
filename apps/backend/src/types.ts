@@ -41,4 +41,14 @@ export interface Env {
   B2_APPLICATION_KEY?: string;
   B2_BUCKET_ID?: string;
   B2_BUCKET_NAME?: string;
+
+  // Chat-history storage for lib/campaign-agent.ts's multi-turn NL
+  // campaign-editing flow (plan.md Open Item 20 Part A/B). Workers KV,
+  // decided over Durable Objects/a new D1 table -- see plan.md's "Chat
+  // history storage" decision. Keyed `chat:{campaignId}:{sessionId}`, short
+  // TTL (CHAT_HISTORY_TTL_SECONDS in routes/business.ts) so old sessions
+  // self-clean with no manual cleanup job. Not optional/skippable the way
+  // VISION_*/B2_* are -- routes/business.ts's POST /campaign/chat can't
+  // hold a multi-turn conversation without it.
+  CHAT_HISTORY: KVNamespace;
 }
