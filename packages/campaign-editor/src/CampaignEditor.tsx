@@ -310,21 +310,23 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
         </div>
       </Card>
 
-      {saveError && (
+      {!readOnly && saveError && (
         <p role="alert" className="text-xs text-red-400">
           {saveError}
         </p>
       )}
 
-      <div className="flex items-center gap-2">
-        <Button onClick={handleSave} loading={saving} disabled={!dirty}>
-          ذخیره تغییرات
-        </Button>
-        <Button variant="ghost" onClick={discardChanges} disabled={saving || !dirty}>
-          انصراف از تغییرات
-        </Button>
-        {dirty && <Badge tone="warning">تغییرات ذخیره‌نشده</Badge>}
-      </div>
+      {!readOnly && (
+        <div className="flex items-center gap-2">
+          <Button onClick={handleSave} loading={saving} disabled={!dirty}>
+            ذخیره تغییرات
+          </Button>
+          <Button variant="ghost" onClick={discardChanges} disabled={saving || !dirty}>
+            انصراف از تغییرات
+          </Button>
+          {dirty && <Badge tone="warning">تغییرات ذخیره‌نشده</Badge>}
+        </div>
+      )}
     </div>
   )
 }
