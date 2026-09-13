@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button, Modal, useToast } from '@ai-campaign-builder/ui-kit'
 import type { CustomerTask } from '@ai-campaign-builder/api-client'
 import { uploadEvidence, ApiError } from '@ai-campaign-builder/api-client'
+import { EVIDENCE_ACCEPTED_MIME_TYPES } from '@ai-campaign-builder/shared-config'
 import apiClient from '../lib/api-client'
 
 interface TaskSubmitModalProps {
@@ -10,7 +11,10 @@ interface TaskSubmitModalProps {
   onSubmit: (evidenceUrl: string) => void
 }
 
-const ACCEPTED_MIME_TYPES = 'image/jpeg,image/png,image/webp'
+// Derived from packages/shared-config so this stays in sync with the
+// backend's actual allowlist (apps/backend/src/lib/storage.ts) instead of a
+// second hardcoded copy that could silently drift from it.
+const ACCEPTED_MIME_TYPES = EVIDENCE_ACCEPTED_MIME_TYPES.join(',')
 
 /**
  * Evidence upload modal for screenshot_ai-verified tasks (mirrors mockup/customer.html's
