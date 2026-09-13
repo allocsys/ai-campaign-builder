@@ -13,6 +13,7 @@ import {
   getAdminBusinesses as _getAdminBusinesses,
   getAdminBusinessCampaign as _getAdminBusinessCampaign,
   updateAdminBusinessCampaign as _updateAdminBusinessCampaign,
+  deleteAdminBusinessCampaign as _deleteAdminBusinessCampaign,
   updateAdminBusinessManualEditor as _updateAdminBusinessManualEditor,
 } from '@ai-campaign-builder/api-client'
 
@@ -59,6 +60,7 @@ export const getAdminBusinesses = () => _getAdminBusinesses(adminApiClient)
 export const getAdminBusinessCampaign = (businessId: string) => _getAdminBusinessCampaign(adminApiClient, businessId)
 export const updateAdminBusinessCampaign = (businessId: string, data: Partial<Campaign>) =>
   _updateAdminBusinessCampaign(adminApiClient, businessId, data)
+export const deleteAdminBusinessCampaign = (businessId: string) => _deleteAdminBusinessCampaign(adminApiClient, businessId)
 export const updateAdminBusinessManualEditor = (businessId: string, enabled: boolean) =>
   _updateAdminBusinessManualEditor(adminApiClient, businessId, enabled)
 

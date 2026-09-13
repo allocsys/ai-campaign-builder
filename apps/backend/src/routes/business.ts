@@ -525,6 +525,136 @@ businessRouter.put("/campaign", async (c) => {
   return c.json(result.campaign);
 });
 
+export type DeleteCampaignResult =
+  | { ok: true; deletedCampaignId: string }
+  | { ok: false; status: 404; error: string };
+
+// ----------------------------------------------------------------------------
+// Hard delete of a business's current campaign (review_admin only -- no
+// business_owner-facing route calls this; see reviewAdminRouter's DELETE
+// /businesses/:businessId/campaign). This is a genuine, irreversible cascade
+// delete: every row in the DB that references this campaign (directly or
+// transitively through customer_campaign_codes/task_submissions/
+// reward_redemptions) is removed too -- deliberately NOT the same
+// referenced-rows-block-the-save guard that applyCampaignUpdate's
+// tasks/rewards block uses. D1 runs with foreign_keys=ON, so deletes below
+// are ordered children-before-parents to avoid FK violations; nothing here
+// is wrapped in a D1 transaction (same as applyCampaignUpdate -- see its own
+// comment on why), so a mid-sequence failure could in principle leave a
+// partially-deleted campaign. Two edge cases get special handling rather
+// than an outright block, per the "hard-delete everything" decision:
+//   - points_ledger rows crediting a *different* campaign's customer from a
+//     point_carryovers row sourced in this campaign are deleted too (the
+//     carryover's origin is gone, so the credit's provenance is gone with it).
+//   - point_carryovers rows *sourced in another still-live campaign* but
+//     *consumed into* this one only get their consumed_in_campaign_id
+//     cleared, not deleted -- that carryover's source campaign is untouched
+//     and its row still has a reason to exist.
+// After this runs, ensureCampaign()'s auto-provision-a-draft behavior means
+// the next GET /campaign (owner or admin) simply sees a brand-new empty
+// draft, same as a business that never had a campaign at all.
+export async function deleteCampaignForBusiness(db: D1Database, businessId: string): Promise<DeleteCampaignResult> {
+  const current = await queryFirst<{ id: string }>(
+    db,
+    "SELECT id FROM campaigns WHERE business_id = ? ORDER BY created_at DESC LIMIT 1",
+    [businessId]
+  );
+  if (!current) return { ok: false, status: 404, error: "No campaign found for this business" };
+  const campaignId = current.id;
+
+  const codes = await queryAll<{ id: string }>(db, "SELECT id FROM customer_campaign_codes WHERE campaign_id = ?", [
+    campaignId,
+  ]);
+  const codeIds = codes.map((r) => r.id);
+
+  let submissionIds: string[] = [];
+  if (codeIds.length > 0) {
+    const placeholders = codeIds.map(() => "?").join(",");
+    const subs = await queryAll<{ id: string }>(
+      db,
+      `SELECT id FROM task_submissions WHERE customer_campaign_code_id IN (${placeholders})`,
+      codeIds
+    );
+    submissionIds = subs.map((r) => r.id);
+  }
+
+  // task_submissions.qualifying_purchase_id <-> purchase_logs.task_submission_id
+  // is a forward-reference cycle (see migration 0001's comment) -- null the
+  // former before deleting purchase_logs, so neither delete violates the FK
+  // the other side still holds.
+  if (submissionIds.length > 0) {
+    const placeholders = submissionIds.map(() => "?").join(",");
+    await execute(db, `UPDATE task_submissions SET qualifying_purchase_id = NULL WHERE id IN (${placeholders})`, submissionIds);
+    await execute(db, `DELETE FROM purchase_logs WHERE task_submission_id IN (${placeholders})`, submissionIds);
+  }
+
+  // points_ledger.customer_campaign_code_id is NOT NULL, so every ledger row
+  // tied to this campaign's codes (whether via a task_submission or a
+  // reward_redemption) is covered by this one delete.
+  if (codeIds.length > 0) {
+    const placeholders = codeIds.map(() => "?").join(",");
+    await execute(db, `DELETE FROM points_ledger WHERE customer_campaign_code_id IN (${placeholders})`, codeIds);
+  }
+  // Cross-campaign edge case: a ledger entry on a DIFFERENT campaign's code
+  // can credit points via a point_carryovers row sourced in this campaign --
+  // must go before the point_carryovers delete below, or that delete would
+  // violate points_ledger.point_carryover_id's FK.
+  await execute(
+    db,
+    "DELETE FROM points_ledger WHERE point_carryover_id IN (SELECT id FROM point_carryovers WHERE source_campaign_id = ?)",
+    [campaignId]
+  );
+
+  if (codeIds.length > 0) {
+    const placeholders = codeIds.map(() => "?").join(",");
+    await execute(db, `DELETE FROM reward_redemptions WHERE customer_campaign_code_id IN (${placeholders})`, codeIds);
+  }
+
+  if (submissionIds.length > 0) {
+    const placeholders = submissionIds.map(() => "?").join(",");
+    await execute(db, `DELETE FROM task_submissions WHERE id IN (${placeholders})`, submissionIds);
+  }
+
+  if (codeIds.length > 0) {
+    const placeholders = codeIds.map(() => "?").join(",");
+    await execute(db, `DELETE FROM referral_flags WHERE referrer_customer_campaign_code_id IN (${placeholders})`, codeIds);
+    // Self-referential FK (a code can be another code's referrer) -- clear
+    // before deleting the codes themselves.
+    await execute(
+      db,
+      `UPDATE customer_campaign_codes SET referred_by_code_id = NULL WHERE referred_by_code_id IN (${placeholders})`,
+      codeIds
+    );
+    await execute(db, `DELETE FROM notifications_log WHERE customer_campaign_code_id IN (${placeholders})`, codeIds);
+  }
+  await execute(db, "DELETE FROM notifications_log WHERE campaign_id = ?", [campaignId]);
+
+  await execute(db, "DELETE FROM customer_campaign_codes WHERE campaign_id = ?", [campaignId]);
+
+  // Carryovers sourced in this campaign are fully removed (any ledger rows
+  // referencing them were already cleared above); carryovers merely consumed
+  // into this campaign but sourced elsewhere keep their row, just lose the
+  // now-dangling reference.
+  await execute(db, "DELETE FROM point_carryovers WHERE source_campaign_id = ?", [campaignId]);
+  await execute(db, "UPDATE point_carryovers SET consumed_in_campaign_id = NULL WHERE consumed_in_campaign_id = ?", [
+    campaignId,
+  ]);
+
+  await execute(db, "DELETE FROM suggested_changes WHERE campaign_id = ?", [campaignId]);
+  await execute(db, "DELETE FROM insights WHERE campaign_id = ?", [campaignId]);
+
+  await execute(db, "UPDATE business_microsites SET featured_campaign_id = NULL WHERE featured_campaign_id = ?", [
+    campaignId,
+  ]);
+
+  await execute(db, "DELETE FROM campaign_tasks WHERE campaign_id = ?", [campaignId]);
+  await execute(db, "DELETE FROM campaign_rewards WHERE campaign_id = ?", [campaignId]);
+
+  await execute(db, "DELETE FROM campaigns WHERE id = ?", [campaignId]);
+
+  return { ok: true, deletedCampaignId: campaignId };
+}
+
 // ============================================================================
 // Campaign generation (onboarding wizard, plan.md Open Item 8). Takes the
 // wizard's 5 steps of answers, resolves the business's real name/category

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, Card, useToast } from '@ai-campaign-builder/ui-kit'
+import { Badge, Button, Card, Modal, useToast } from '@ai-campaign-builder/ui-kit'
 import { CampaignEditor } from '@ai-campaign-builder/campaign-editor'
 import type { AdminBusinessListItem, Campaign } from '@ai-campaign-builder/api-client'
 import { AdminAppShell } from './AdminAppShell'
@@ -7,6 +7,7 @@ import {
   getAdminBusinesses,
   getAdminBusinessCampaign,
   updateAdminBusinessCampaign,
+  deleteAdminBusinessCampaign,
   updateAdminBusinessManualEditor,
 } from '../lib/admin-api-client'
 
@@ -55,6 +56,9 @@ export function AdminCampaignsHome() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loadingCampaign, setLoadingCampaign] = useState(false)
   const [campaignError, setCampaignError] = useState<string | null>(null)
+  const [pausing, setPausing] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -91,6 +95,41 @@ export function AdminCampaignsHome() {
     setSelected(null)
     setCampaign(null)
     setCampaignError(null)
+    setDeleteModalOpen(false)
+  }
+
+  // "Pause" reuses the plain status field -- no separate DB concept, no
+  // separate endpoint, just the same PUT /campaign the manual editor already
+  // uses (see plan.md decision: pause = status -> 'draft').
+  async function handlePause() {
+    if (!selected || !campaign) return
+    setPausing(true)
+    try {
+      const updated = await updateAdminBusinessCampaign(selected.id, { status: 'draft' })
+      setCampaign(updated)
+      show('کمپین موقتاً متوقف شد (به حالت پیش‌نویس بازگشت).', 'success')
+    } catch (err) {
+      show(err instanceof Error ? err.message : String(err), 'danger')
+    } finally {
+      setPausing(false)
+    }
+  }
+
+  // Irreversible hard delete -- see deleteCampaignForBusiness on the backend
+  // for the full cascade (customer codes, submissions, redemptions, points,
+  // etc. all go with it). Confirmed via the modal below before this ever runs.
+  async function handleDeleteCampaign() {
+    if (!selected) return
+    setDeleting(true)
+    try {
+      await deleteAdminBusinessCampaign(selected.id)
+      show('کمپین برای همیشه حذف شد.', 'success')
+      backToList()
+    } catch (err) {
+      show(err instanceof Error ? err.message : String(err), 'danger')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   async function toggleManualEditor(b: AdminBusinessListItem) {
@@ -180,13 +219,25 @@ export function AdminCampaignsHome() {
 
             {campaign && (
               <>
-                <Card className="p-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                  <Badge tone={STATUS_TONE[campaign.status]}>{STATUS_LABELS_FA[campaign.status]}</Badge>
-                  <span className="text-slate-300">{GOAL_LABELS_FA[campaign.goal]}</span>
-                  <span className="text-slate-400">ضریب امتیاز: {faDigits(campaign.pointMultiplier)}×</span>
-                  <span className="text-slate-400" dir="ltr">
-                    {campaign.startDate} → {campaign.endDate}
-                  </span>
+                <Card className="p-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <Badge tone={STATUS_TONE[campaign.status]}>{STATUS_LABELS_FA[campaign.status]}</Badge>
+                    <span className="text-slate-300">{GOAL_LABELS_FA[campaign.goal]}</span>
+                    <span className="text-slate-400">ضریب امتیاز: {faDigits(campaign.pointMultiplier)}×</span>
+                    <span className="text-slate-400" dir="ltr">
+                      {campaign.startDate} → {campaign.endDate}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {campaign.status === 'active' && (
+                      <Button variant="secondary" loading={pausing} onClick={handlePause}>
+                        توقف موقت کمپین
+                      </Button>
+                    )}
+                    <Button variant="danger" onClick={() => setDeleteModalOpen(true)}>
+                      حذف کمپین
+                    </Button>
+                  </div>
                 </Card>
 
                 <CampaignEditor
@@ -200,6 +251,24 @@ export function AdminCampaignsHome() {
           </div>
         )}
       </div>
+
+      <Modal open={deleteModalOpen} onClose={() => (deleting ? undefined : setDeleteModalOpen(false))} title="حذف کمپین">
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-slate-300">
+            این عملیات کمپین فعلی <span className="font-medium text-slate-100">{selected?.name}</span> را همراه با تمام
+            کدهای مشتریان، ثبت‌های تسک، جوایز دریافت‌شده و امتیازهای مربوط به آن برای همیشه حذف می‌کند. این عملیات{' '}
+            <span className="font-medium text-red-400">غیرقابل بازگشت</span> است.
+          </p>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => setDeleteModalOpen(false)} disabled={deleting}>
+              انصراف
+            </Button>
+            <Button type="button" variant="danger" loading={deleting} onClick={handleDeleteCampaign}>
+              بله، برای همیشه حذف شود
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </AdminAppShell>
   )
 }
