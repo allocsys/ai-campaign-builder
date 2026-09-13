@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { D1Database } from "@cloudflare/workers-types";
 import type { Env } from "../types";
 import type { JWTPayload } from "../middleware/auth";
 import { requireAuth, signJWT } from "../middleware/auth";
