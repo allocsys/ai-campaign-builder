@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Badge, useToast } from '@ai-campaign-builder/ui-kit'
 import { getBusinessProfile, getCampaign, updateCampaign } from '@ai-campaign-builder/api-client'
 import type { BusinessProfile, Campaign } from '@ai-campaign-builder/api-client'
@@ -11,16 +11,20 @@ import apiClient from '../../lib/api-client'
  * (plan.md Item 16 Step G, extracted from this file into
  * packages/campaign-editor so review-console's admin campaign view -- Step
  * G's other half -- can reuse the exact same editing UI). This file's only
- * jobs: fetch the owner's own profile + campaign, enforce the
- * "حالت حرفه‌ای" (`manualEditorEnabled`) gate (re-checked here on every load
- * so a direct URL nav can't bypass it -- not just hiding the entry point on
- * SettingsTab/DashboardTab), and wire `onSave` to the owner-scoped
- * `updateCampaign`. All the actual tasks/rewards editing logic now lives in
- * the shared package.
+ * jobs: fetch the owner's own profile + campaign, wire `onSave` to the
+ * owner-scoped `updateCampaign`, and decide edit-vs-view mode.
+ *
+ * `manualEditorEnabled` ("حالت حرفه‌ای") no longer gates ACCESS to this page --
+ * the bottom-nav Campaign button now routes here for any business with a
+ * real campaign regardless of pro mode (see AppShell/BottomNav), since
+ * bouncing every non-pro-mode business back to /dashboard the moment they
+ * tap the main Campaign nav item is worse than just showing them a
+ * read-only view of their own tasks/rewards. It still gates EDITING: this
+ * is re-checked on every load so a direct URL nav can't grant edit access,
+ * only view access.
  */
 export function CampaignEditorTab() {
   const { show: showToast } = useToast()
-  const navigate = useNavigate()
 
   const [profile, setProfile] = useState<BusinessProfile | null>(null)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
@@ -32,11 +36,6 @@ export function CampaignEditorTab() {
     Promise.all([getBusinessProfile(apiClient), getCampaign(apiClient)])
       .then(([profileData, campaignData]) => {
         if (!mounted) return
-        if (!profileData.manualEditorEnabled) {
-          showToast('حالت حرفه‌ای برای این کسب‌وکار فعال نیست.', 'warning')
-          navigate('/dashboard', { replace: true })
-          return
-        }
         setProfile(profileData)
         setCampaign(campaignData)
         setLoading(false)
@@ -50,7 +49,6 @@ export function CampaignEditorTab() {
     return () => {
       mounted = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (loading) {
@@ -63,20 +61,35 @@ export function CampaignEditorTab() {
     return null
   }
 
+  const readOnly = !profile.manualEditorEnabled
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-slate-100">ویرایش دستی کمپین</h2>
-        <Badge tone="brand">حالت حرفه‌ای</Badge>
+        <h2 className="text-base font-semibold text-slate-100">
+          {readOnly ? 'کمپین' : 'ویرایش دستی کمپین'}
+        </h2>
+        {!readOnly && <Badge tone="brand">حالت حرفه‌ای</Badge>}
       </div>
-      <p className="text-xs text-slate-400 -mt-2">
-        تسک‌ها و پاداش‌های کمپین رو مستقیماً ویرایش کن. تغییرات تا وقتی «ذخیره تغییرات» رو نزنی روی کمپین واقعی اعمال نمی‌شه.
-      </p>
+      {readOnly ? (
+        <p className="text-xs text-slate-400 -mt-2">
+          این فقط نمایش تسک‌ها و پاداش‌های کمپین فعلیته. برای ویرایش مستقیم،{' '}
+          <Link to="/dashboard/settings" className="text-brand-400 hover:text-brand-300 underline underline-offset-2">
+            حالت حرفه‌ای را از تنظیمات فعال کن
+          </Link>
+          .
+        </p>
+      ) : (
+        <p className="text-xs text-slate-400 -mt-2">
+          تسک‌ها و پاداش‌های کمپین رو مستقیماً ویرایش کن. تغییرات تا وقتی «ذخیره تغییرات» رو نزنی روی کمپین واقعی اعمال نمی‌شه.
+        </p>
+      )}
 
       <CampaignEditor
         key="own"
         campaign={campaign}
         onSave={(data) => updateCampaign(apiClient, data)}
+        readOnly={readOnly}
       />
     </div>
   )
