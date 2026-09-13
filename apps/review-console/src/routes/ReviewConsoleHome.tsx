@@ -98,7 +98,9 @@ export function ReviewConsoleHome() {
           باتچ شبیه‌سازی تولید می‌شوند. این هشدارها صرفاً جنبه اطلاع‌رسانی دارند — پاداش معرفی همچنان بر اساس سه لایه
           دفاعی موجود کنترل می‌شود؛ هیچ اکشن خودکاری از این صف اجرا نمی‌شود.
         </p>
-        {flags.length === 0 ? (
+        {loading ? (
+          <Card className="text-center text-slate-400">در حال بارگذاری…</Card>
+        ) : flags.length === 0 ? (
           <Card className="text-center text-slate-400">
             <div className="text-2xl mb-2" aria-hidden="true">🛡️</div>
             <h3 className="font-medium text-slate-200 mb-1">هیچ هشدار تقلب فعالی وجود ندارد</h3>
