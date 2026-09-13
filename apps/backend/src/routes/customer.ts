@@ -6,11 +6,71 @@ import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { scoreTaskSubmission } from "../lib/vision";
 import { ALLOWED_EVIDENCE_CONTENT_TYPES, MAX_EVIDENCE_BYTES, uploadEvidenceImage } from "../lib/storage";
+import {
+  RETRO_CLAIM_MAX_HOURS,
+  RETRO_CLAIM_RATE_LIMIT,
+  REDEMPTION_CODE_EXPIRY_MS,
+} from "@ai-campaign-builder/shared-config";
 
 const customerRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+// ============================================================================
+// AI confidence gate (staff-safety-net redesign, 2026-09-13): vision scoring
+// (lib/vision.ts) used to be purely advisory -- every submission landed in a
+// manual-hold queue regardless of score. Per explicit user request, it now
+// actually gates the decision: a high-confidence score auto-approves and
+// awards points immediately (reviewed_by = 'ai'), while anything below the
+// threshold (or scoring that fails/isn't configured, which leaves
+// ai_confidence_score null) is left 'pending' so it lands in staff-pos.ts's
+// queue for the business's own staff to check firsthand -- not the central
+// review console, which has no way to recognize a given receipt/screenshot
+// out of context.
+//
+// 0.85 is a first-pass assumption, not a measured threshold -- there's no
+// real score-distribution data yet to tune it against (same gap the old
+// "Open Item 5" comment in vision.ts flagged before this redesign). Easy to
+// adjust here in one place once real distributions come in.
+// ============================================================================
+const AUTO_APPROVE_CONFIDENCE_THRESHOLD = 0.85;
+
+async function applyVisionScoreAndMaybeAutoApprove(
+  db: D1Database,
+  submissionId: string,
+  customerCampaignCodeId: string,
+  pointsValue: number,
+  confidenceScore: number
+): Promise<void> {
+  await execute(db, "UPDATE task_submissions SET ai_confidence_score = ? WHERE id = ?", [
+    confidenceScore,
+    submissionId,
+  ]);
+
+  if (confidenceScore < AUTO_APPROVE_CONFIDENCE_THRESHOLD) {
+    return; // stays 'pending' -- staff picks it up in their queue
+  }
+
+  // Guard against a race with a staff member resolving this submission
+  // manually in the tiny window before scoring finishes (waitUntil can
+  // outlive the initial response by a few seconds) -- only flip to approved
+  // if it's still pending, and only award points if that update actually
+  // took effect.
+  const result = await execute(
+    db,
+    "UPDATE task_submissions SET status = 'approved', reviewed_by = 'ai', reviewed_at = ?, points_awarded = ? WHERE id = ? AND status = 'pending'",
+    [nowIso(), pointsValue, submissionId]
+  );
+  if (!result.meta || result.meta.changes < 1) return;
+
+  await execute(
+    db,
+    `INSERT INTO points_ledger (id, customer_campaign_code_id, task_submission_id, entry_type, points, created_at)
+     VALUES (?, ?, ?, 'earned', ?, ?)`,
+    [generateId(), customerCampaignCodeId, submissionId, pointsValue, nowIso()]
+  );
 }
 
 // All routes below act on "my own customer record" -- the customer id is
@@ -359,9 +419,9 @@ customerRouter.post("/tasks/:id/submit", async (c) => {
   const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
-  const task = await queryFirst<{ id: string; name: string; verification_method: string }>(
+  const task = await queryFirst<{ id: string; name: string; verification_method: string; points_value: number }>(
     db,
-    `SELECT ct.id, ct.name, tp.verification_method
+    `SELECT ct.id, ct.name, tp.verification_method, ct.points_value
      FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
      WHERE ct.id = ?`,
     [taskId]
@@ -387,25 +447,21 @@ customerRouter.post("/tasks/:id/submit", async (c) => {
     [submissionId, code.id, taskId, evidenceUrl, nowIso()]
   );
 
-  // Vision scoring (Open Item 1, lib/vision.ts): only meaningful for
-  // screenshot_ai-verified tasks with real evidence to look at. Runs via
-  // waitUntil so it happens AFTER this response is sent -- the customer
-  // shouldn't wait on a multimodal API call just to see "submitted".
-  // Populates ai_confidence_score only; never changes `status` here (no
-  // auto-approve/reject tiers exist yet -- Item 5 is still blocked on this
-  // pipeline producing real score distributions first). Any failure
-  // (unconfigured provider, fetch error, malformed model response) is
-  // swallowed -- the submission still lands in Review Console's manual-hold
-  // queue with a null score either way, exactly as it does today.
+  // Vision scoring (lib/vision.ts): only meaningful for screenshot_ai-verified
+  // tasks with real evidence to look at. Runs via waitUntil so it happens
+  // AFTER this response is sent -- the customer shouldn't wait on a
+  // multimodal API call just to see "submitted". A high-confidence score
+  // auto-approves via applyVisionScoreAndMaybeAutoApprove (see that
+  // function's comment); anything lower, or any failure (unconfigured
+  // provider, fetch error, malformed model response), leaves the submission
+  // 'pending' with a null or low score -- it then lands in staff-pos.ts's
+  // firsthand-review queue, not the central review console.
   if (evidenceUrl && task.verification_method === "screenshot_ai") {
     c.executionCtx.waitUntil(
       scoreTaskSubmission(c.env, evidenceUrl, task.name)
         .then(async (result) => {
-          if (!result) return; // provider not configured -- leave score null
-          await execute(db, "UPDATE task_submissions SET ai_confidence_score = ? WHERE id = ?", [
-            result.confidenceScore,
-            submissionId,
-          ]);
+          if (!result) return; // provider not configured -- leave score null, stays pending
+          await applyVisionScoreAndMaybeAutoApprove(db, submissionId, code.id, task.points_value, result.confidenceScore);
         })
         .catch((err) => {
           const detail = err instanceof Error ? err.message : String(err);
@@ -483,7 +539,7 @@ customerRouter.post("/rewards/:id/redeem", async (c) => {
 
   const redemptionId = generateId();
   const redemptionCode = String(Math.floor(100000 + Math.random() * 900000));
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + REDEMPTION_CODE_EXPIRY_MS).toISOString();
 
   await execute(
     db,
@@ -510,17 +566,26 @@ customerRouter.post("/rewards/:id/redeem", async (c) => {
 // this response directly.
 // ============================================================================
 
-const RETRO_CLAIM_RATE_LIMIT = 3;
-const RETRO_CLAIM_MAX_HOURS = 72;
-
 customerRouter.post("/retro-claims", async (c) => {
   const db = c.env.DB;
   const customerId = c.get("auth").sub;
   const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
-  const body = await c.req.json<{ receiptHash?: string; receiptNumber?: string; hoursAgo?: number }>();
+  const body = await c.req.json<{
+    receiptHash?: string;
+    receiptNumber?: string;
+    hoursAgo?: number;
+    // Previously accepted by no one -- the RetroClaimModal.tsx file picker
+    // existed but its selected file was never actually uploaded/stored
+    // anywhere (only its filename was used as a receiptHash fallback). Now
+    // wired the same way TaskSubmitModal.tsx handles screenshots: the
+    // customer app uploads via POST /evidence-upload first and passes the
+    // resulting opaque key here.
+    evidenceUrl?: string;
+  }>();
   const hoursAgo = body.hoursAgo ?? 0;
+  const evidenceUrl = body.evidenceUrl ?? null;
   const receiptHash = (body.receiptHash ?? "").trim() || `hash_${Date.now()}`;
   const receiptNumber = (body.receiptNumber ?? "").trim() || `RCP-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -561,9 +626,9 @@ customerRouter.post("/retro-claims", async (c) => {
   );
   if (!campaign) return c.json({ error: "Campaign code vanished mid-request" }, 500);
 
-  const posTask = await queryFirst<{ id: string }>(
+  const posTask = await queryFirst<{ id: string; points_value: number }>(
     db,
-    `SELECT ct.id FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
+    `SELECT ct.id, ct.points_value FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
      WHERE ct.campaign_id = ? AND tp.verification_method = 'pos_scan' LIMIT 1`,
     [campaign.campaign_id]
   );
@@ -574,9 +639,9 @@ customerRouter.post("/retro-claims", async (c) => {
   const submissionId = generateId();
   await execute(
     db,
-    `INSERT INTO task_submissions (id, customer_campaign_code_id, campaign_task_id, submission_type, status, submitted_at)
-     VALUES (?, ?, ?, 'receipt_claim', 'pending', ?)`,
-    [submissionId, code.id, posTask.id, nowIso()]
+    `INSERT INTO task_submissions (id, customer_campaign_code_id, campaign_task_id, submission_type, evidence_url, status, submitted_at)
+     VALUES (?, ?, ?, 'receipt_claim', ?, 'pending', ?)`,
+    [submissionId, code.id, posTask.id, evidenceUrl, nowIso()]
   );
   await execute(
     db,
@@ -584,6 +649,27 @@ customerRouter.post("/retro-claims", async (c) => {
      VALUES (?, ?, ?, 0, ?)`,
     [generateId(), submissionId, receiptHash, nowIso()]
   );
+
+  // Same AI confidence gate as screenshot_ai tasks (see
+  // applyVisionScoreAndMaybeAutoApprove above) -- a receipt photo is scored
+  // by the same vision pipeline, just with a receipt-specific prompt context
+  // ("task name" here is really just a label for the model). Only runs when
+  // the customer actually attached a photo; a bare hoursAgo/receiptNumber
+  // claim with no image has nothing for AI to look at and goes straight to
+  // staff pending review, same as a scoring failure would.
+  if (evidenceUrl) {
+    c.executionCtx.waitUntil(
+      scoreTaskSubmission(c.env, evidenceUrl, "ادعای خرید بازگشتی (تصویر رسید)")
+        .then(async (result) => {
+          if (!result) return;
+          await applyVisionScoreAndMaybeAutoApprove(db, submissionId, code.id, posTask.points_value, result.confidenceScore);
+        })
+        .catch((err) => {
+          const detail = err instanceof Error ? err.message : String(err);
+          console.error(`vision scoring failed for retro-claim submission ${submissionId}: ${detail}`);
+        })
+    );
+  }
 
   return c.json({
     success: true,

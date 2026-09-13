@@ -1,35 +1,15 @@
 import { ApiClient } from '../client';
 import type {
-  ReviewSubmission,
-  ResolveSubmissionResponse,
   ReferrerAggregate,
   ReferralFlag,
   RunDetectionResponse,
   ResolveFlagResponse,
 } from '../types';
 
-export async function getSubmissions(
-  client: ApiClient,
-  status: string = 'pending'
-): Promise<ReviewSubmission[]> {
-  return client.request<ReviewSubmission[]>(
-    `/api/review/submissions?status=${encodeURIComponent(status)}`
-  );
-}
-
-export async function resolveSubmission(
-  client: ApiClient,
-  id: string,
-  decision: 'approved' | 'rejected'
-): Promise<ResolveSubmissionResponse> {
-  return client.request<ResolveSubmissionResponse>(
-    `/api/review/submissions/${encodeURIComponent(id)}/resolve`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ decision }),
-    }
-  );
-}
+// getSubmissions/resolveSubmission removed 2026-09-13 -- the central review
+// console's submissions queue was removed server-side (review.ts); use
+// staff-pos.ts's resource module (getPendingSubmissions/resolveStaffSubmission)
+// instead, which now covers both screenshot and receipt_claim submissions.
 
 export async function getReferrerAggregates(
   client: ApiClient

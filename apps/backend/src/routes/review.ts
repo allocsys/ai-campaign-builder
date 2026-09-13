@@ -4,7 +4,7 @@ import type { Env } from "../types";
 import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
-import { downloadEvidenceImage } from "../lib/storage";
+import { REFERRAL_VELOCITY_THRESHOLD, DEAD_REFERRAL_THRESHOLD } from "@ai-campaign-builder/shared-config";
 
 const reviewRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -24,148 +24,18 @@ reviewRouter.use("/*", async (c, next) => {
 });
 
 // ============================================================================
-// Manual review queue -- retroactive purchase claims ('receipt_claim') only.
-// Screenshot-based social_proof/review_ugc submissions (Instagram story/post
-// shares, written reviews) used to land here too, but were moved out to
-// apps/backend/src/routes/staff-pos.ts's own /submissions endpoints so
-// business staff can verify them firsthand in person instead of routing
-// through the central review team -- see staff-pos.ts's equivalent section
-// for that logic. pos_scan and referral_auto submissions are auto-approved
-// elsewhere and never land in either queue.
-
-reviewRouter.get("/submissions", async (c) => {
-  const db = c.env.DB;
-  const status = c.req.query("status") ?? "pending";
-
-  const rows = await queryAll<{
-    id: string;
-    customer_phone: string;
-    task_name: string;
-    submission_type: string;
-    evidence_url: string | null;
-    receipt_hash: string | null;
-    ai_confidence_score: number | null;
-    status: string;
-    reviewed_by: string | null;
-    points_awarded: number | null;
-    submitted_at: string;
-    points_value: number;
-  }>(
-    db,
-    `SELECT ts.id, cust.phone_number AS customer_phone, ct.name AS task_name,
-            ts.submission_type, ts.evidence_url, pl.receipt_hash,
-            ts.ai_confidence_score, ts.status, ts.reviewed_by, ts.points_awarded,
-            ts.submitted_at, ct.points_value
-     FROM task_submissions ts
-     JOIN campaign_tasks ct ON ct.id = ts.campaign_task_id
-     JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
-     JOIN customers cust ON cust.id = ccc.customer_id
-     LEFT JOIN purchase_logs pl ON pl.task_submission_id = ts.id
-     WHERE ts.submission_type = 'receipt_claim' AND ts.status = ?
-     ORDER BY ts.submitted_at DESC`,
-    [status]
-  );
-
-  return c.json(
-    rows.map((r) => ({
-      id: r.id,
-      customerName: r.customer_phone,
-      taskTitle: r.task_name,
-      submissionType: r.submission_type as "screenshot" | "receipt_claim",
-      evidenceUrl: r.evidence_url,
-      receiptNumber: r.receipt_hash,
-      aiConfidenceScore: r.ai_confidence_score,
-      status: r.status as "pending" | "approved" | "rejected",
-      reviewedBy: r.reviewed_by,
-      pointsAwarded: r.points_awarded,
-      submittedAt: r.submitted_at,
-      taskPointsValue: r.points_value,
-    }))
-  );
-});
-
+// The manual review queue for receipt_claim/screenshot submissions that used
+// to live here (GET/resolve /submissions*) has been removed (2026-09-13) --
+// per explicit user request, staff now handle ALL screenshot AND receipt_claim
+// review firsthand (apps/backend/src/routes/staff-pos.ts's /submissions*
+// endpoints), since the central review team has no way to recognize a given
+// business's receipts/products out of context the way that business's own
+// staff can. AI-scored submissions only reach staff's queue at all when
+// confidence is below the auto-approve threshold or scoring fails/isn't
+// configured -- see customer.ts's applyVisionScoreAndMaybeAutoApprove for the
+// gate. pos_scan and referral_auto submissions are auto-approved elsewhere
+// and never land in a manual queue at all.
 // ============================================================================
-// Private-bucket proxy endpoint for evidence images -- Review Console can't
-// hit B2 URLs directly anymore since the bucket is private, so it fetches
-// evidence images through this authenticated backend route instead (preparatory
-// plumbing for Review Console frontend).
-// ============================================================================
-
-reviewRouter.get("/submissions/:id/evidence", async (c) => {
-  const db = c.env.DB;
-  const id = c.req.param("id");
-
-  const row = await queryFirst<{ evidence_url: string | null }>(
-    db,
-    "SELECT evidence_url FROM task_submissions WHERE id = ?",
-    [id]
-  );
-  if (!row || !row.evidence_url) {
-    return c.json({ error: "Evidence not found" }, 404);
-  }
-
-  try {
-    const { bytes, contentType } = await downloadEvidenceImage(c.env, row.evidence_url);
-    return c.body(bytes, 200, { "Content-Type": contentType });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`evidence download failed for submission ${id}:`, message);
-    const status = message.includes("not configured") ? 503 : 502;
-    return c.json({ error: "Evidence download failed" }, status);
-  }
-});
-
-reviewRouter.post("/submissions/:id/resolve", async (c) => {
-  const db = c.env.DB;
-  const id = c.req.param("id");
-  const body = await c.req.json<{ decision?: "approved" | "rejected" }>();
-
-  if (body.decision !== "approved" && body.decision !== "rejected") {
-    return c.json({ error: "decision must be 'approved' or 'rejected'" }, 400);
-  }
-
-  const submission = await queryFirst<{
-    id: string;
-    status: string;
-    customer_campaign_code_id: string;
-    campaign_task_id: string;
-  }>(db, "SELECT id, status, customer_campaign_code_id, campaign_task_id FROM task_submissions WHERE id = ?", [id]);
-  if (!submission) return c.json({ error: "Submission not found" }, 404);
-  if (submission.status !== "pending") {
-    return c.json({ error: `Submission is already ${submission.status}` }, 409);
-  }
-
-  const task = await queryFirst<{ points_value: number }>(
-    db,
-    "SELECT points_value FROM campaign_tasks WHERE id = ?",
-    [submission.campaign_task_id]
-  );
-  if (!task) return c.json({ error: "Task not found" }, 500);
-
-  const pointsAwarded = body.decision === "approved" ? task.points_value : 0;
-
-  // reviewed_by_user_id (Open Item 2, plan.md "Resolution approach") is now
-  // a real review_team_members.id -- c.get("auth").sub is that id since the
-  // review_team roster gate landed in auth.ts. reviewed_by keeps its old
-  // fixed-string convention alongside it for now rather than being dropped,
-  // since existing rows/queries still read it.
-  await execute(
-    db,
-    "UPDATE task_submissions SET status = ?, reviewed_by = 'central_team', reviewed_by_user_id = ?, reviewed_at = ?, points_awarded = ? WHERE id = ?",
-    [body.decision, c.get("auth").sub, nowIso(), pointsAwarded, id]
-  );
-
-  if (body.decision === "approved") {
-    await execute(
-      db,
-      `INSERT INTO points_ledger (id, customer_campaign_code_id, task_submission_id, entry_type, points, created_at)
-       VALUES (?, ?, ?, 'earned', ?, ?)`,
-      [generateId(), submission.customer_campaign_code_id, submission.id, pointsAwarded, nowIso()]
-    );
-  }
-
-  return c.json({ id, status: body.decision, pointsAwarded });
-});
 
 // ============================================================================
 // Referral anomaly flags -- live aggregates computed on read, persisted flag
@@ -175,8 +45,8 @@ reviewRouter.post("/submissions/:id/resolve", async (c) => {
 // with zero approved task_submissions).
 // ============================================================================
 
-const VELOCITY_THRESHOLD = 5;
-const DEAD_REFERRAL_THRESHOLD = 5;
+const VELOCITY_THRESHOLD = REFERRAL_VELOCITY_THRESHOLD;
+// DEAD_REFERRAL_THRESHOLD used directly below, imported from shared-config.
 
 interface ReferrerAggregateRow {
   code_id: string;

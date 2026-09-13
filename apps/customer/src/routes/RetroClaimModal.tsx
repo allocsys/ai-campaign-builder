@@ -1,15 +1,22 @@
 import { useState } from 'react'
 import { Button, Input, Modal, useToast } from '@ai-campaign-builder/ui-kit'
-import { submitRetroClaim } from '@ai-campaign-builder/api-client'
+import { submitRetroClaim, uploadEvidence, ApiError } from '@ai-campaign-builder/api-client'
 import type { RetroClaim } from '@ai-campaign-builder/api-client'
+import { RETRO_CLAIM_MAX_HOURS, RETRO_CLAIM_RATE_LIMIT } from '@ai-campaign-builder/shared-config'
 import apiClient from '../lib/api-client'
+
+/** Persian digits for numbers shown in the UI -- matches DashboardTab.tsx's convention. */
+function faDigits(n: number | string): string {
+  const map: Record<string, string> = { '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴', '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹' }
+  return String(n).replace(/[0-9]/g, (d) => map[d])
+}
 
 const HOURS_OPTIONS = [
   { value: 12, label: 'امروز (۱۲ ساعت پیش)' },
   { value: 24, label: 'دیروز (۲۴ ساعت پیش)' },
   { value: 48, label: 'دو روز پیش (۴۸ ساعت پیش)' },
-  { value: 72, label: 'سه روز پیش (۷۲ ساعت پیش)' },
-  { value: 90, label: 'بیش از ۷۲ ساعت پیش (خارج از مهلت)' },
+  { value: RETRO_CLAIM_MAX_HOURS, label: `سه روز پیش (${faDigits(RETRO_CLAIM_MAX_HOURS)} ساعت پیش)` },
+  { value: 90, label: `بیش از ${faDigits(RETRO_CLAIM_MAX_HOURS)} ساعت پیش (خارج از مهلت)` },
 ]
 
 interface RetroClaimModalProps {
@@ -19,9 +26,9 @@ interface RetroClaimModalProps {
 }
 
 const REASON_MESSAGES: Record<string, string> = {
-  outside_time_window: 'خطا: مهلت ارسال ادعای خرید بازگشتی (حداکثر ۷۲ ساعت) به پایان رسیده است.',
+  outside_time_window: `خطا: مهلت ارسال ادعای خرید بازگشتی (حداکثر ${faDigits(RETRO_CLAIM_MAX_HOURS)} ساعت) به پایان رسیده است.`,
   duplicate_receipt: 'خطا: این رسید قبلاً ثبت شده است (تشخیص رسید تکراری).',
-  rate_limited: 'خطا: شما به سقف مجاز ادعای خرید بازگشتی در این کمپین (۳ بار) رسیده‌اید.',
+  rate_limited: `خطا: شما به سقف مجاز ادعای خرید بازگشتی در این کمپین (${faDigits(RETRO_CLAIM_RATE_LIMIT)} بار) رسیده‌اید.`,
 }
 
 /**
@@ -35,27 +42,49 @@ export function RetroClaimModal({ open, onClose, onClaimed }: RetroClaimModalPro
   const [receiptNumber, setReceiptNumber] = useState('')
   const [hoursAgo, setHoursAgo] = useState(12)
   const [receiptHash, setReceiptHash] = useState('')
-  const [fileName, setFileName] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const { show } = useToast()
 
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
+      // Upload the receipt photo first (same two-step pattern TaskSubmitModal.tsx
+      // uses for screenshots) -- this was previously a real gap: the file picker
+      // existed but the selected file was never actually sent anywhere, only its
+      // name was used as a receiptHash fallback. Now the real evidenceUrl is
+      // passed through, which is what lets AI confidence-score the claim and
+      // auto-approve/route it to staff instead of leaving every claim to be
+      // resolved blind.
+      let evidenceUrl: string | undefined
+      if (file) {
+        try {
+          const uploaded = await uploadEvidence(apiClient, file)
+          evidenceUrl = uploaded.evidenceUrl
+        } catch (uploadErr) {
+          if (uploadErr instanceof ApiError && uploadErr.status === 503) {
+            show('آپلود تصویر رسید در حال حاضر فعال نیست. ادعا بدون تصویر ثبت می‌شود.', 'warning')
+          } else {
+            show('آپلود تصویر رسید ناموفق بود. ادعا بدون تصویر ثبت می‌شود.', 'warning')
+          }
+        }
+      }
+
       const result = await submitRetroClaim(apiClient, {
-        receiptHash: receiptHash || fileName || undefined,
+        receiptHash: receiptHash || file?.name || undefined,
         receiptNumber: receiptNumber || undefined,
         hoursAgo,
+        evidenceUrl,
       })
       if (!result.success) {
         show(REASON_MESSAGES[result.reason], 'danger')
         return
       }
-      show('ادعای خرید بازگشتی با موفقیت ثبت شد و به صف بررسی دستی منتقل گردید.', 'success')
+      show('ادعای خرید بازگشتی با موفقیت ثبت شد.', 'success')
       onClaimed(result.claim)
       setReceiptNumber('')
       setReceiptHash('')
-      setFileName(null)
+      setFile(null)
       setHoursAgo(12)
       onClose()
     } catch (err) {
@@ -78,14 +107,14 @@ export function RetroClaimModal({ open, onClose, onClaimed }: RetroClaimModalPro
           onChange={(e) => setReceiptNumber(e.target.value)}
         />
         <label className="border-2 border-dashed border-glass-border rounded-xl2 p-5 text-center cursor-pointer hover:bg-white/5 transition-colors">
-          <input type="file" className="hidden" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} />
+          <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           <span className="block text-xl mb-1" aria-hidden="true">📷</span>
           <span className="text-sm text-slate-400">
-            {fileName ? `فایل انتخاب شد: ${fileName}` : 'انتخاب فایل رسید'}
+            {file ? `فایل انتخاب شد: ${file.name}` : 'انتخاب فایل رسید'}
           </span>
         </label>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-slate-300">زمان خرید (مهلت قانونی: ۴۸ تا ۷۲ ساعت)</label>
+          <label className="text-xs font-medium text-slate-300">{`زمان خرید (مهلت قانونی: ۴۸ تا ${faDigits(RETRO_CLAIM_MAX_HOURS)} ساعت)`}</label>
           <select
             value={hoursAgo}
             onChange={(e) => setHoursAgo(Number(e.target.value))}
@@ -105,7 +134,7 @@ export function RetroClaimModal({ open, onClose, onClaimed }: RetroClaimModalPro
           onChange={(e) => setReceiptHash(e.target.value)}
         />
         <p className="text-xs text-slate-500">
-          ادعاهای خرید بازگشتی به دلیل عدم حضور صندوق‌دار با ضریب اطمینان احتیاطی (بررسی دستی) ثبت می‌شوند.
+          تصویر رسید توسط هوش مصنوعی بررسی می‌شود؛ در صورت اطمینان بالا امتیاز بلافاصله اعطا می‌گردد، در غیر این صورت کارمند فروشگاه آن را بررسی می‌کند.
         </p>
         <div className="flex gap-2 justify-end">
           <Button variant="ghost" onClick={onClose}>

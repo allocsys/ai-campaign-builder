@@ -59,17 +59,25 @@ interface SyncResultData {
   reason: string
 }
 
-// Firsthand screenshot verification -- social_proof/review_ugc submissions
-// (Instagram story/post shares, written reviews) moved out of the central
-// review console so staff can check them in person while the customer is
-// present. Shape matches apps/backend/src/routes/staff-pos.ts's /submissions
-// response.
+// Firsthand verification queue -- social_proof/review_ugc screenshot
+// submissions (Instagram story/post shares, written reviews) AND
+// receipt_claim submissions (retroactive purchase claims) both moved out of
+// the central review console so staff can check them firsthand, instead of
+// routing through the central review team, which has no way to recognize a
+// given business's receipts/products out of context. A submission only ever
+// reaches this queue when its AI confidence score was below the auto-approve
+// threshold, or scoring failed/wasn't configured -- high-confidence ones are
+// auto-approved server-side before staff ever see them. Shape matches
+// apps/backend/src/routes/staff-pos.ts's /submissions response.
 interface PendingSubmissionData {
   id: string
   customerName: string
   taskTitle: string
-  taskPattern: 'social_proof' | 'review_ugc'
+  submissionType: 'screenshot' | 'receipt_claim'
+  taskPattern: 'social_proof' | 'review_ugc' | null
   evidenceUrl: string | null
+  receiptNumber: string | null
+  aiConfidenceScore: number | null
   status: 'pending' | 'approved' | 'rejected'
   pointsAwarded: number | null
   submittedAt: string
@@ -679,14 +687,15 @@ export function StaffPosHome() {
         </div>
       )}
 
-      {/* Screenshots review tab -- Instagram story/post shares & written
-          reviews, verified firsthand by staff instead of the central review
-          console. */}
+      {/* Content review tab -- Instagram story/post shares, written reviews,
+          AND receipt claims, all verified firsthand by staff instead of the
+          central review console. Only shows up here when AI confidence was
+          below the auto-approve threshold or scoring wasn't available. */}
       {tab === 'screenshots' && (
         <div className="flex flex-col gap-3">
           <Card className="p-3">
             <p className="text-xs text-slate-400">
-              <span aria-hidden="true">📸</span> این موارد (اشتراک‌گذاری استوری/پست اینستاگرام، ثبت نظر) دیگر توسط تیم مرکزی بررسی نمی‌شوند — کارمند فروشگاه با دیدن گوشی مشتری، صحت آن را همین‌جا تایید می‌کند.
+              <span aria-hidden="true">📸</span> این موارد (اشتراک‌گذاری استوری/پست اینستاگرام، ثبت نظر، ادعای خرید بازگشتی) دیگر توسط تیم مرکزی بررسی نمی‌شوند — فقط مواردی که هوش مصنوعی دربارهشان مطمئن نبوده اینجا می‌رسند؛ کارمند فروشگاه صحت آن را همین‌جا تایید می‌کند.
             </p>
           </Card>
           {loadingSubmissions ? (
@@ -695,43 +704,59 @@ export function StaffPosHome() {
             <Card className="p-4 text-center text-xs text-emerald-300">همه موارد بررسی شدند. <span aria-hidden="true">✓</span></Card>
           ) : (
             <div className="flex flex-col gap-3">
-              {pendingSubmissions.map((s) => (
-                <Card key={s.id} className="p-3 flex flex-col gap-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <strong className="text-sm">{s.taskTitle}</strong>
-                    <Badge tone="warning">{s.taskPattern === 'social_proof' ? 'اشتراک‌گذاری استوری/پست' : 'ثبت نظر'}</Badge>
-                  </div>
-                  <div className="text-xs text-slate-400">{s.customerName} • {s.submittedAt}</div>
-                  {evidenceImageUrls[s.id] ? (
-                    <img
-                      src={evidenceImageUrls[s.id]}
-                      alt="اسکرین‌شات ارسالی مشتری"
-                      className="rounded-xl2 border border-glass-border max-h-64 w-full object-contain bg-black/20"
-                    />
-                  ) : (
-                    <div className="bg-white/5 border border-dashed border-white/15 rounded-xl2 p-4 text-center text-xs text-slate-400">
-                      <span aria-hidden="true">🖼️</span> در حال بارگذاری تصویر…
+              {pendingSubmissions.map((s) => {
+                const badgeLabel =
+                  s.submissionType === 'receipt_claim'
+                    ? 'ادعای خرید بازگشتی (رسید)'
+                    : s.taskPattern === 'social_proof'
+                      ? 'اشتراک‌گذاری استوری/پست'
+                      : 'ثبت نظر'
+                return (
+                  <Card key={s.id} className="p-3 flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <strong className="text-sm">{s.taskTitle}</strong>
+                      <Badge tone="warning">{badgeLabel}</Badge>
                     </div>
-                  )}
-                  <div className="flex gap-2 mt-1">
-                    <Button
-                      variant="danger"
-                      className="flex-1"
-                      disabled={resolvingId === s.id}
-                      onClick={() => handleResolveScreenshot(s, 'rejected')}
-                    >
-                      <span aria-hidden="true">✕</span> رد کردن
-                    </Button>
-                    <Button
-                      className="flex-1"
-                      disabled={resolvingId === s.id}
-                      onClick={() => handleResolveScreenshot(s, 'approved')}
-                    >
-                      <span aria-hidden="true">✓</span> تایید (+{s.taskPointsValue} امتیاز)
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+                    <div className="text-xs text-slate-400">{s.customerName} • {s.submittedAt}</div>
+                    {s.receiptNumber && (
+                      <div className="text-xs text-amber-400"><strong>شماره رسید:</strong> {s.receiptNumber}</div>
+                    )}
+                    {s.aiConfidenceScore !== null && (
+                      <div className="text-xs text-slate-400">
+                        <strong className="text-slate-300">اعتماد AI:</strong> {Math.round(s.aiConfidenceScore * 100)}٪ (زیر آستانه تایید خودکار، نیاز به بررسی دستی دارد)
+                      </div>
+                    )}
+                    {evidenceImageUrls[s.id] ? (
+                      <img
+                        src={evidenceImageUrls[s.id]}
+                        alt="تصویر ارسالی مشتری"
+                        className="rounded-xl2 border border-glass-border max-h-64 w-full object-contain bg-black/20"
+                      />
+                    ) : (
+                      <div className="bg-white/5 border border-dashed border-white/15 rounded-xl2 p-4 text-center text-xs text-slate-400">
+                        <span aria-hidden="true">🖼️</span> {s.evidenceUrl ? 'در حال بارگذاری تصویر…' : 'بدون تصویر پیوست'}
+                      </div>
+                    )}
+                    <div className="flex gap-2 mt-1">
+                      <Button
+                        variant="danger"
+                        className="flex-1"
+                        disabled={resolvingId === s.id}
+                        onClick={() => handleResolveScreenshot(s, 'rejected')}
+                      >
+                        <span aria-hidden="true">✕</span> رد کردن
+                      </Button>
+                      <Button
+                        className="flex-1"
+                        disabled={resolvingId === s.id}
+                        onClick={() => handleResolveScreenshot(s, 'approved')}
+                      >
+                        <span aria-hidden="true">✓</span> تایید (+{s.taskPointsValue} امتیاز)
+                      </Button>
+                    </div>
+                  </Card>
+                )
+              })}
             </div>
           )}
         </div>

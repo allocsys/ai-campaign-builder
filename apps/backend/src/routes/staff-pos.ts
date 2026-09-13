@@ -482,16 +482,24 @@ staffPosRouter.get("/activity", async (c) => {
 });
 
 // ============================================================================
-// Firsthand screenshot verification queue -- social_proof/review_ugc
-// submissions (Instagram story/post shares, written reviews) used to be
-// routed to the central review console (review.ts) alongside receipt claims,
-// but staff can check these firsthand since the customer is standing right
-// there -- no need to route them through the central team async. Scoped to
-// this business only (unlike review.ts's cross-business review_team queue),
-// same businessId-through-campaigns join pattern as the rest of this router.
-// receipt_claim submissions are NOT included here -- those still go through
-// the central review console, since a retroactive purchase claim isn't
-// something staff can verify firsthand at the point the claim is submitted.
+// Firsthand verification queue -- social_proof/review_ugc screenshot
+// submissions (Instagram story/post shares, written reviews) AND
+// receipt_claim submissions (retroactive purchase claims) both land here now
+// instead of the central review console (review.ts) -- staff know their own
+// business's receipts/products firsthand, which the central review team
+// never could. AI-scored submissions only reach this queue at all when their
+// confidence score is below the auto-approve threshold, or scoring
+// failed/wasn't configured (see customer.ts's applyVisionScoreAndMaybeAutoApprove) --
+// high-confidence submissions are auto-approved before ever showing up here.
+// Scoped to this business only (unlike review.ts's old cross-business
+// review_team queue), same businessId-through-campaigns join pattern as the
+// rest of this router.
+//
+// receipt_claim rows aren't tied to a social_proof/review_ugc task_pattern
+// the way screenshot rows are (they're attached to the campaign's pos_scan
+// task instead -- see customer.ts's /retro-claims) -- so the two submission
+// types need separate join conditions, OR'd together, rather than one shared
+// tp.name filter.
 // ============================================================================
 
 staffPosRouter.get("/submissions", async (c) => {
@@ -503,8 +511,11 @@ staffPosRouter.get("/submissions", async (c) => {
     id: string;
     customer_phone: string;
     task_name: string;
-    task_pattern: string;
+    task_pattern: string | null;
+    submission_type: string;
     evidence_url: string | null;
+    receipt_number: string | null;
+    ai_confidence_score: number | null;
     status: string;
     points_awarded: number | null;
     submitted_at: string;
@@ -512,17 +523,21 @@ staffPosRouter.get("/submissions", async (c) => {
   }>(
     db,
     `SELECT ts.id, cust.phone_number AS customer_phone, ct.name AS task_name,
-            tp.name AS task_pattern, ts.evidence_url, ts.status, ts.points_awarded,
-            ts.submitted_at, ct.points_value
+            tp.name AS task_pattern, ts.submission_type, ts.evidence_url,
+            pl.receipt_hash AS receipt_number, ts.ai_confidence_score,
+            ts.status, ts.points_awarded, ts.submitted_at, ct.points_value
      FROM task_submissions ts
      JOIN campaign_tasks ct ON ct.id = ts.campaign_task_id
      JOIN task_patterns tp ON tp.id = ct.task_pattern_id
      JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
      JOIN customers cust ON cust.id = ccc.customer_id
      JOIN campaigns cp ON cp.id = ccc.campaign_id
+     LEFT JOIN purchase_logs pl ON pl.task_submission_id = ts.id
      WHERE cp.business_id = ?
-       AND ts.submission_type = 'screenshot'
-       AND tp.name IN ('social_proof', 'review_ugc')
+       AND (
+         (ts.submission_type = 'screenshot' AND tp.name IN ('social_proof', 'review_ugc'))
+         OR ts.submission_type = 'receipt_claim'
+       )
        AND ts.status = ?
      ORDER BY ts.submitted_at DESC`,
     [businessId, status]
@@ -533,8 +548,11 @@ staffPosRouter.get("/submissions", async (c) => {
       id: r.id,
       customerName: r.customer_phone,
       taskTitle: r.task_name,
-      taskPattern: r.task_pattern as "social_proof" | "review_ugc",
+      submissionType: r.submission_type as "screenshot" | "receipt_claim",
+      taskPattern: r.task_pattern as "social_proof" | "review_ugc" | null,
       evidenceUrl: r.evidence_url,
+      receiptNumber: r.receipt_number,
+      aiConfidenceScore: r.ai_confidence_score,
       status: r.status as "pending" | "approved" | "rejected",
       pointsAwarded: r.points_awarded,
       submittedAt: r.submitted_at,
@@ -602,8 +620,8 @@ staffPosRouter.post("/submissions/:id/resolve", async (c) => {
     [id, businessId]
   );
   if (!submission) return c.json({ error: "Submission not found" }, 404);
-  if (submission.submission_type !== "screenshot") {
-    return c.json({ error: "This endpoint only resolves screenshot submissions -- receipt claims go through the central review console" }, 400);
+  if (submission.submission_type !== "screenshot" && submission.submission_type !== "receipt_claim") {
+    return c.json({ error: "This endpoint only resolves screenshot or receipt_claim submissions" }, 400);
   }
   if (submission.status !== "pending") {
     return c.json({ error: `Submission is already ${submission.status}` }, 409);
