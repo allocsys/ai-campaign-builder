@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types";
 import { generateId, queryFirst, execute } from "../lib/db";
 import { signJWT } from "../middleware/auth";
+import { getJwtSecret } from "../lib/jwt-config";
 import { ensureCustomerCampaignCode, resolveCampaignByJoinSlug } from "./customer";
 
 const authRouter = new Hono<{ Bindings: Env }>();
@@ -241,7 +242,7 @@ authRouter.post("/verify-otp", async (c) => {
       await execute(db, "UPDATE staff SET phone_verified = 1, phone_verified_at = ? WHERE id = ?", [new Date().toISOString(), userId]);
     }
 
-    const secret = c.env.JWT_SECRET || "default-dev-secret-key-change-in-production";
+    const secret = getJwtSecret(c.env);
     const token = await signJWT(
       {
         sub: userId,
