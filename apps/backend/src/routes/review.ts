@@ -24,10 +24,14 @@ reviewRouter.use("/*", async (c, next) => {
 });
 
 // ============================================================================
-// Manual review queue -- uncertain AI submissions ('screenshot') and
-// retroactive purchase claims ('receipt_claim'). pos_scan and referral_auto
-// submissions are auto-approved elsewhere and never land in this queue.
-// ============================================================================
+// Manual review queue -- retroactive purchase claims ('receipt_claim') only.
+// Screenshot-based social_proof/review_ugc submissions (Instagram story/post
+// shares, written reviews) used to land here too, but were moved out to
+// apps/backend/src/routes/staff-pos.ts's own /submissions endpoints so
+// business staff can verify them firsthand in person instead of routing
+// through the central review team -- see staff-pos.ts's equivalent section
+// for that logic. pos_scan and referral_auto submissions are auto-approved
+// elsewhere and never land in either queue.
 
 reviewRouter.get("/submissions", async (c) => {
   const db = c.env.DB;
@@ -57,7 +61,7 @@ reviewRouter.get("/submissions", async (c) => {
      JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
      JOIN customers cust ON cust.id = ccc.customer_id
      LEFT JOIN purchase_logs pl ON pl.task_submission_id = ts.id
-     WHERE ts.submission_type IN ('screenshot', 'receipt_claim') AND ts.status = ?
+     WHERE ts.submission_type = 'receipt_claim' AND ts.status = ?
      ORDER BY ts.submitted_at DESC`,
     [status]
   );
