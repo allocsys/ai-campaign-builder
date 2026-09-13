@@ -5,6 +5,15 @@ import { motionDuration, motionEasing } from './animation-tokens'
 
 export interface BottomNavProps extends HTMLAttributes<HTMLElement> {
   insightsBadgeCount?: number
+  /**
+   * Overrides where the "کمپین" (Campaign) nav item points. Callers should
+   * pass '/dashboard/campaign/edit' once the business has a real campaign
+   * (active, or draft with tasks/rewards already) and '/dashboard/campaign'
+   * (the from-scratch AI wizard) otherwise -- see AppShell, which computes
+   * this from the fetched campaign, not from manualEditorEnabled/pro mode.
+   * Defaults to the wizard route for backward compatibility if omitted.
+   */
+  campaignTo?: string
 }
 
 interface NavItem {
@@ -13,7 +22,8 @@ interface NavItem {
   icon: (isActive: boolean) => React.ReactNode
 }
 
-const navItems: NavItem[] = [
+function buildNavItems(campaignTo: string): NavItem[] {
+  return [
   {
     to: '/dashboard',
     label: 'داشبورد',
@@ -35,7 +45,7 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    to: '/dashboard/campaign',
+    to: campaignTo,
     label: 'کمپین',
     icon: (isActive) => (
       <svg
@@ -91,14 +101,16 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
-]
+  ]
+}
 
 /**
  * BottomNav component for the UI kit.
  * Fixed position bottom tab bar with 4 primary destinations, active-route highlighting,
  * glass/dark aesthetic matching Drawer.tsx and Card.tsx.
  */
-export function BottomNav({ className = '', insightsBadgeCount, ...rest }: BottomNavProps) {
+export function BottomNav({ className = '', insightsBadgeCount, campaignTo = '/dashboard/campaign', ...rest }: BottomNavProps) {
+  const navItems = buildNavItems(campaignTo)
   return (
     <motion.nav
       initial={{ y: 50, opacity: 0 }}
@@ -113,9 +125,9 @@ export function BottomNav({ className = '', insightsBadgeCount, ...rest }: Botto
           const showBadge = item.to === '/dashboard/insights' && count > 0
           return (
             <NavLink
-              key={item.to}
+              key={item.label}
               to={item.to}
-              end={item.to === '/dashboard'}
+              end={item.to === '/dashboard' || item.to === campaignTo}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all duration-200 ${
                   isActive

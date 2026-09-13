@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
-import { generateCampaign, updateCampaign } from '@ai-campaign-builder/api-client'
+import { generateCampaign, updateCampaign, getCampaign } from '@ai-campaign-builder/api-client'
 import type {
   BusinessCategorySlug,
   GeneratedCampaignProposal,
@@ -107,6 +107,36 @@ export function CampaignWizardTab() {
   const { show: showToast } = useToast()
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
+  const [checkingExisting, setCheckingExisting] = useState(true)
+
+  // Re-checked on every load, same as CampaignEditorTab's manualEditorEnabled
+  // check -- a direct URL nav here can't bypass it. Once a business has a
+  // real campaign (active, or draft-with-content), the wizard's generate
+  // path would either 409 (if active) or silently overwrite existing
+  // tasks/rewards without the editor's safety checks (if draft-with-content),
+  // so send them to the editor instead.
+  useEffect(() => {
+    let mounted = true
+    getCampaign(apiClient)
+      .then((campaign) => {
+        if (!mounted) return
+        const hasRealCampaign =
+          campaign.status === 'active' || campaign.tasks.length > 0 || campaign.rewards.length > 0
+        if (hasRealCampaign) {
+          navigate('/dashboard/campaign/edit', { replace: true })
+          return
+        }
+        setCheckingExisting(false)
+      })
+      .catch(() => {
+        // If the check itself fails, fall back to showing the wizard rather
+        // than blocking the page entirely.
+        if (mounted) setCheckingExisting(false)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [navigate])
 
   const [businessName, setBusinessName] = useState('')
   const [businessAddress, setBusinessAddress] = useState('')
@@ -203,6 +233,10 @@ export function CampaignWizardTab() {
     setProposal(null)
     setGenerateError(null)
     setStep(1)
+  }
+
+  if (checkingExisting) {
+    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
   }
 
   if (proposal) {

@@ -1,7 +1,7 @@
 import { type ReactNode, useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { Button, AppHeader, Drawer, BottomNav } from '@ai-campaign-builder/ui-kit'
-import { getSuggestedChanges } from '@ai-campaign-builder/api-client'
+import { getSuggestedChanges, getCampaign } from '@ai-campaign-builder/api-client'
 import { useAuth } from '../lib/auth'
 import apiClient from '../lib/api-client'
 
@@ -14,6 +14,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0)
+  // Default to the wizard route until the campaign fetch resolves, and stay
+  // there if it fails -- worst case a business with a real campaign briefly
+  // sees the wizard on first paint, same as today, rather than us guessing.
+  const [campaignTo, setCampaignTo] = useState('/dashboard/campaign')
 
   useEffect(() => {
     let mounted = true
@@ -29,6 +33,28 @@ export function AppShell({ children }: { children: ReactNode }) {
         if (mounted) {
           setPendingSuggestionsCount(0)
         }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    getCampaign(apiClient)
+      .then((campaign) => {
+        if (!mounted) return
+        // Same "has this business ever actually gotten a real campaign"
+        // signal as CampaignEditorTab/CampaignWizardTab -- ensureCampaign()
+        // auto-provisions an empty draft row on first-ever GET, so row
+        // existence alone can't distinguish "fresh business" from "has a
+        // campaign".
+        const hasRealCampaign =
+          campaign.status === 'active' || campaign.tasks.length > 0 || campaign.rewards.length > 0
+        setCampaignTo(hasRealCampaign ? '/dashboard/campaign/edit' : '/dashboard/campaign')
+      })
+      .catch(() => {
+        // Silently keep the wizard default on error
       })
     return () => {
       mounted = false
@@ -120,7 +146,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className="flex-1 p-6">{children}</main>
 
-      <BottomNav insightsBadgeCount={pendingSuggestionsCount} />
+      <BottomNav insightsBadgeCount={pendingSuggestionsCount} campaignTo={campaignTo} />
     </div>
   )
 }
