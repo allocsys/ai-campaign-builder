@@ -620,8 +620,8 @@ staffPosRouter.post("/submissions/:id/resolve", async (c) => {
     [id, businessId]
   );
   if (!submission) return c.json({ error: "Submission not found" }, 404);
-  if (submission.submission_type !== "screenshot") {
-    return c.json({ error: "This endpoint only resolves screenshot submissions -- receipt claims go through the central review console" }, 400);
+  if (submission.submission_type !== "screenshot" && submission.submission_type !== "receipt_claim") {
+    return c.json({ error: "This endpoint only resolves screenshot or receipt_claim submissions" }, 400);
   }
   if (submission.status !== "pending") {
     return c.json({ error: `Submission is already ${submission.status}` }, 409);
