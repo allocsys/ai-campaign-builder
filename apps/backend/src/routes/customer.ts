@@ -414,9 +414,9 @@ customerRouter.post("/tasks/:id/submit", async (c) => {
   const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
-  const task = await queryFirst<{ id: string; name: string; verification_method: string }>(
+  const task = await queryFirst<{ id: string; name: string; verification_method: string; points_value: number }>(
     db,
-    `SELECT ct.id, ct.name, tp.verification_method
+    `SELECT ct.id, ct.name, tp.verification_method, ct.points_value
      FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
      WHERE ct.id = ?`,
     [taskId]
@@ -442,25 +442,21 @@ customerRouter.post("/tasks/:id/submit", async (c) => {
     [submissionId, code.id, taskId, evidenceUrl, nowIso()]
   );
 
-  // Vision scoring (Open Item 1, lib/vision.ts): only meaningful for
-  // screenshot_ai-verified tasks with real evidence to look at. Runs via
-  // waitUntil so it happens AFTER this response is sent -- the customer
-  // shouldn't wait on a multimodal API call just to see "submitted".
-  // Populates ai_confidence_score only; never changes `status` here (no
-  // auto-approve/reject tiers exist yet -- Item 5 is still blocked on this
-  // pipeline producing real score distributions first). Any failure
-  // (unconfigured provider, fetch error, malformed model response) is
-  // swallowed -- the submission still lands in Review Console's manual-hold
-  // queue with a null score either way, exactly as it does today.
+  // Vision scoring (lib/vision.ts): only meaningful for screenshot_ai-verified
+  // tasks with real evidence to look at. Runs via waitUntil so it happens
+  // AFTER this response is sent -- the customer shouldn't wait on a
+  // multimodal API call just to see "submitted". A high-confidence score
+  // auto-approves via applyVisionScoreAndMaybeAutoApprove (see that
+  // function's comment); anything lower, or any failure (unconfigured
+  // provider, fetch error, malformed model response), leaves the submission
+  // 'pending' with a null or low score -- it then lands in staff-pos.ts's
+  // firsthand-review queue, not the central review console.
   if (evidenceUrl && task.verification_method === "screenshot_ai") {
     c.executionCtx.waitUntil(
       scoreTaskSubmission(c.env, evidenceUrl, task.name)
         .then(async (result) => {
-          if (!result) return; // provider not configured -- leave score null
-          await execute(db, "UPDATE task_submissions SET ai_confidence_score = ? WHERE id = ?", [
-            result.confidenceScore,
-            submissionId,
-          ]);
+          if (!result) return; // provider not configured -- leave score null, stays pending
+          await applyVisionScoreAndMaybeAutoApprove(db, submissionId, code.id, task.points_value, result.confidenceScore);
         })
         .catch((err) => {
           const detail = err instanceof Error ? err.message : String(err);
