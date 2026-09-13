@@ -103,40 +103,28 @@ function selectClassName() {
   return 'bg-glass-light backdrop-blur-md border border-glass-border rounded-xl2 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-brand-500/60 transition-shadow'
 }
 
-export function CampaignWizardTab() {
+/**
+ * The actual 5-step wizard UI + generate/launch logic, extracted (2026-09-13,
+ * "bring the wizard back into the Campaign tab") so it can be embedded by
+ * TWO callers instead of living behind one route:
+ *   - CampaignWizardTab below: the from-scratch onboarding path for a
+ *     business with no real campaign yet (unchanged behavior).
+ *   - CampaignEditorTab: shown inline whenever `manualEditorEnabled` (پرو
+ *     مود) is off, replacing what used to be a disabled/read-only dump of
+ *     the manual editor's own fields -- that view was redundant with the
+ *     dashboard's existing summary and gave non-pro owners no way to act.
+ *     The wizard already tolerates being run against a business that has a
+ *     real campaign: handleGenerate below simply surfaces the backend's 409
+ *     ("campaign is active, end it first") as generateError if they try to
+ *     regenerate over a live campaign, and freely overwrites a draft
+ *     otherwise -- no separate embedded-mode branching needed here.
+ * Callers own navigation after a successful launch via `onLaunched`, since
+ * this component has no opinion on where to go next once it isn't always
+ * the whole page.
+ */
+export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) {
   const { show: showToast } = useToast()
-  const navigate = useNavigate()
   const [step, setStep] = useState(1)
-  const [checkingExisting, setCheckingExisting] = useState(true)
-
-  // Re-checked on every load, same as CampaignEditorTab's manualEditorEnabled
-  // check -- a direct URL nav here can't bypass it. Once a business has a
-  // real campaign (active, or draft-with-content), the wizard's generate
-  // path would either 409 (if active) or silently overwrite existing
-  // tasks/rewards without the editor's safety checks (if draft-with-content),
-  // so send them to the editor instead.
-  useEffect(() => {
-    let mounted = true
-    getCampaign(apiClient)
-      .then((campaign) => {
-        if (!mounted) return
-        const hasRealCampaign =
-          campaign.status === 'active' || campaign.tasks.length > 0 || campaign.rewards.length > 0
-        if (hasRealCampaign) {
-          navigate('/dashboard/campaign/edit', { replace: true })
-          return
-        }
-        setCheckingExisting(false)
-      })
-      .catch(() => {
-        // If the check itself fails, fall back to showing the wizard rather
-        // than blocking the page entirely.
-        if (mounted) setCheckingExisting(false)
-      })
-    return () => {
-      mounted = false
-    }
-  }, [navigate])
 
   const [businessName, setBusinessName] = useState('')
   const [businessAddress, setBusinessAddress] = useState('')
@@ -221,7 +209,7 @@ export function CampaignWizardTab() {
     try {
       await updateCampaign(apiClient, { status: 'active' })
       showToast('کمپین با موفقیت راه‌اندازی شد!', 'success')
-      navigate('/dashboard')
+      onLaunched?.()
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), 'danger')
     } finally {
@@ -233,10 +221,6 @@ export function CampaignWizardTab() {
     setProposal(null)
     setGenerateError(null)
     setStep(1)
-  }
-
-  if (checkingExisting) {
-    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
   }
 
   if (proposal) {
