@@ -6,6 +6,7 @@ import { AppShell } from './routes/AppShell'
 import { OnboardingBanner } from './routes/OnboardingBanner'
 import { DashboardTab } from './routes/tabs/DashboardTab'
 import { CampaignWizardTab } from './routes/tabs/CampaignWizardTab'
+import { CampaignEditorTab } from './routes/tabs/CampaignEditorTab'
 import { InsightsAndSuggestionsTab } from './routes/tabs/InsightsAndSuggestionsTab'
 import { MicrositeBuilderTab } from './routes/tabs/MicrositeBuilderTab'
 import { AutopilotTab } from './routes/tabs/AutopilotTab'
@@ -35,6 +36,16 @@ function App() {
           <ProtectedRoute>
             <AppShell>
               <CampaignWizardTab />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/campaign/edit"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <CampaignEditorTab />
             </AppShell>
           </ProtectedRoute>
         }
