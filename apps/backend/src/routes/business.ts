@@ -255,19 +255,23 @@ export type CampaignUpdateBody = Partial<{
   endDate: string;
   // `id` accepted but not required -- a manual-editor client round-trips the
   // ids it got from GET for existing rows and simply omits it for newly
-  // added ones. It's ignored on write below either way: tasks/rewards
-  // replacement is still whole-array delete-and-reinsert (unchanged
-  // behavior), which always assigns fresh generateId() ids on every save --
-  // see the Step E note in applyCampaignUpdate's tasks/rewards block for why
-  // that's fine for a manual editor built around "edit the full list, then
-  // save the full list" rather than per-row PATCH semantics.
+  // added ones. On write, a submitted row whose `id` matches an existing
+  // row is UPDATEd in place (so it keeps its id -- any task_submissions /
+  // reward_redemptions referencing it stay valid); a row with no id (or an
+  // id that doesn't match anything existing) is INSERTed fresh. An existing
+  // row that's simply missing from the submitted array is deleted -- UNLESS
+  // it has recorded customer activity, in which case the whole save is
+  // rejected with a 409 instead (see the fuller note in
+  // applyCampaignUpdate's tasks/rewards block for why: this used to be a
+  // blind delete-and-reinsert of every row on every save, which crashed
+  // with an uncaught 500 the moment any row had ever been referenced).
   tasks: { id?: string; name: string; pattern: string; points: number }[];
   rewards: { id?: string; name: string; pattern: string; threshold: number }[];
 }>;
 
 export type CampaignUpdateResult =
   | { ok: true; campaign: Awaited<ReturnType<typeof serializeCampaign>> }
-  | { ok: false; status: 400; error: string };
+  | { ok: false; status: 400 | 409; error: string };
 
 // Extracted from the PUT /campaign route handler (plan.md Item 16 Step A) so
 // reviewAdminRouter's businessId-route-param PUT endpoint (Step B) can reuse
@@ -356,17 +360,81 @@ export async function applyCampaignUpdate(
   if (body.tasks !== undefined) {
     const patternRows = await queryAll<{ id: string; name: string }>(db, "SELECT id, name FROM task_patterns");
     const patternIdByName = new Map(patternRows.map((p) => [p.name, p.id]));
-    await execute(db, "DELETE FROM campaign_tasks WHERE campaign_id = ?", [campaignId]);
-    for (let i = 0; i < body.tasks.length; i++) {
-      const t = body.tasks[i];
+
+    // Validate every submitted pattern up front, before any mutation --
+    // otherwise a bad pattern partway through the array would leave earlier
+    // deletes/updates already applied with no way to roll them back (D1's
+    // execute() calls here aren't wrapped in a transaction).
+    const resolvedTaskPatternIds: string[] = [];
+    for (const t of body.tasks) {
       const patternId = patternIdByName.get(t.pattern);
       if (!patternId) return { ok: false, status: 400, error: `Unknown task pattern: ${t.pattern}` };
-      await execute(
+      resolvedTaskPatternIds.push(patternId);
+    }
+
+    // Upsert-and-guarded-delete instead of the old blind delete-then-reinsert
+    // of every row (found 2026-09-13: task_submissions.campaign_task_id
+    // references campaign_tasks(id) with D1's foreign_keys pragma ON, so
+    // deleting a task that had ever received a real submission threw an
+    // uncaught FOREIGN KEY constraint error -- an unhandled 500 that
+    // permanently blocked ALL future saves to that campaign, not just
+    // deletion of the referenced task).
+    const existingTasks = await queryAll<{ id: string }>(db, "SELECT id FROM campaign_tasks WHERE campaign_id = ?", [
+      campaignId,
+    ]);
+    const existingTaskIds = new Set(existingTasks.map((t) => t.id));
+    const submittedTaskIds = new Set(body.tasks.filter((t) => t.id).map((t) => t.id as string));
+
+    // Rows removed from the submitted array. Only actually delete a row if
+    // it has zero referencing task_submissions; otherwise block the whole
+    // save with a clear error instead of letting the DELETE crash.
+    const taskIdsToRemove = [...existingTaskIds].filter((id) => !submittedTaskIds.has(id));
+    const blockedTaskNames: string[] = [];
+    for (const id of taskIdsToRemove) {
+      const referenced = await queryFirst<{ c: number }>(
         db,
-        `INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [generateId(), campaignId, patternId, t.points, i, t.name]
+        "SELECT COUNT(*) AS c FROM task_submissions WHERE campaign_task_id = ?",
+        [id]
       );
+      if (referenced && referenced.c > 0) {
+        const row = await queryFirst<{ name: string }>(db, "SELECT name FROM campaign_tasks WHERE id = ?", [id]);
+        blockedTaskNames.push(row?.name ?? id);
+        continue;
+      }
+      await execute(db, "DELETE FROM campaign_tasks WHERE id = ?", [id]);
+    }
+    if (blockedTaskNames.length > 0) {
+      return {
+        ok: false,
+        status: 409,
+        error: `Cannot remove task(s) that already have recorded customer activity: ${blockedTaskNames.join(
+          ", "
+        )}. Edit them instead of deleting, or leave them in place.`,
+      };
+    }
+
+    // Existing rows (matched by id) are updated in place -- keeps their id
+    // stable across saves, so any task_submissions referencing them keep
+    // pointing at a live, correctly-updated row. Rows with no id (or an id
+    // that doesn't match anything existing, e.g. a stale id from a discarded
+    // edit) are inserted fresh, same as before.
+    for (let i = 0; i < body.tasks.length; i++) {
+      const t = body.tasks[i];
+      const patternId = resolvedTaskPatternIds[i];
+      if (t.id && existingTaskIds.has(t.id)) {
+        await execute(
+          db,
+          `UPDATE campaign_tasks SET task_pattern_id = ?, points_value = ?, display_order = ?, name = ? WHERE id = ?`,
+          [patternId, t.points, i, t.name, t.id]
+        );
+      } else {
+        await execute(
+          db,
+          `INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [generateId(), campaignId, patternId, t.points, i, t.name]
+        );
+      }
     }
   }
 
@@ -379,16 +447,68 @@ export async function applyCampaignUpdate(
     // pattern-field gap, flagged in PR #27).
     const patternRows = await queryAll<{ id: string; name: string }>(db, "SELECT id, name FROM reward_patterns");
     const patternIdByName = new Map(patternRows.map((p) => [p.name, p.id]));
-    await execute(db, "DELETE FROM campaign_rewards WHERE campaign_id = ?", [campaignId]);
+
+    // Same up-front validation as campaign_tasks above.
+    const resolvedRewardPatternIds: string[] = [];
     for (const r of body.rewards) {
       const patternId = patternIdByName.get(r.pattern);
       if (!patternId) return { ok: false, status: 400, error: `Unknown reward pattern: ${r.pattern}` };
-      await execute(
+      resolvedRewardPatternIds.push(patternId);
+    }
+
+    // Same upsert-and-guarded-delete approach as campaign_tasks above --
+    // reward_redemptions.campaign_reward_id references campaign_rewards(id)
+    // with the same foreign_keys=ON constraint.
+    const existingRewards = await queryAll<{ id: string }>(
+      db,
+      "SELECT id FROM campaign_rewards WHERE campaign_id = ?",
+      [campaignId]
+    );
+    const existingRewardIds = new Set(existingRewards.map((r) => r.id));
+    const submittedRewardIds = new Set(body.rewards.filter((r) => r.id).map((r) => r.id as string));
+
+    const rewardIdsToRemove = [...existingRewardIds].filter((id) => !submittedRewardIds.has(id));
+    const blockedRewardNames: string[] = [];
+    for (const id of rewardIdsToRemove) {
+      const referenced = await queryFirst<{ c: number }>(
         db,
-        `INSERT INTO campaign_rewards (id, campaign_id, reward_pattern_id, threshold_points, name)
-         VALUES (?, ?, ?, ?, ?)`,
-        [generateId(), campaignId, patternId, r.threshold, r.name]
+        "SELECT COUNT(*) AS c FROM reward_redemptions WHERE campaign_reward_id = ?",
+        [id]
       );
+      if (referenced && referenced.c > 0) {
+        const row = await queryFirst<{ name: string }>(db, "SELECT name FROM campaign_rewards WHERE id = ?", [id]);
+        blockedRewardNames.push(row?.name ?? id);
+        continue;
+      }
+      await execute(db, "DELETE FROM campaign_rewards WHERE id = ?", [id]);
+    }
+    if (blockedRewardNames.length > 0) {
+      return {
+        ok: false,
+        status: 409,
+        error: `Cannot remove reward(s) that already have recorded customer redemptions: ${blockedRewardNames.join(
+          ", "
+        )}. Edit them instead of deleting, or leave them in place.`,
+      };
+    }
+
+    for (let i = 0; i < body.rewards.length; i++) {
+      const r = body.rewards[i];
+      const patternId = resolvedRewardPatternIds[i];
+      if (r.id && existingRewardIds.has(r.id)) {
+        await execute(
+          db,
+          `UPDATE campaign_rewards SET reward_pattern_id = ?, threshold_points = ?, name = ? WHERE id = ?`,
+          [patternId, r.threshold, r.name, r.id]
+        );
+      } else {
+        await execute(
+          db,
+          `INSERT INTO campaign_rewards (id, campaign_id, reward_pattern_id, threshold_points, name)
+           VALUES (?, ?, ?, ?, ?)`,
+          [generateId(), campaignId, patternId, r.threshold, r.name]
+        );
+      }
     }
   }
 
