@@ -1,4 +1,5 @@
 import type { Context, Next } from "hono";
+import { getJwtSecret } from "../lib/jwt-config";
 
 export interface JWTPayload {
   sub: string;
@@ -134,7 +135,7 @@ export async function requireAuth(c: Context<{ Bindings: { JWT_SECRET?: string }
   }
 
   const token = authHeader.substring(7);
-  const secret = c.env.JWT_SECRET || "default-dev-secret-key-change-in-production";
+  const secret = getJwtSecret(c.env);
 
   const payload = await verifyJWT(token, secret);
   if (!payload) {
