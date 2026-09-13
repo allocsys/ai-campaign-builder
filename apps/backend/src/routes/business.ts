@@ -386,36 +386,60 @@ businessRouter.put("/campaign", async (c) => {
 // wizard's existing "Launch" action) is what actually activates it.
 // ============================================================================
 
-businessRouter.post("/campaign/generate", async (c) => {
-  const db = c.env.DB;
-  const businessId = c.get("auth").sub;
-  const body = await c.req.json<
-    Partial<{
-      businessName: string;
-      businessAddress: string;
-      categorySlug: string;
-      goal: string;
-      audienceDescription: string;
-      dailyCustomerCount: number;
-      monthlyRevenueToman: number;
-      /** Optional -- omitted/null when the owner has no Instagram page. */
-      followerCount: number | null;
-      /** Optional (plan.md "Step 4 leads with AI deciding" decision) -- only ever feeds LLM copy, never the deterministic math, so it's not required. */
-      offerDescription: string;
-      rewardPatternNames: string[];
-    }>
-  >();
+// Body shape for POST /campaign/generate, shared by businessRouter (businessId
+// = auth.sub) and reviewAdminRouter's businessId-route-param equivalent
+// (plan.md Item 16 Step B).
+export type CampaignGenerateBody = Partial<{
+  businessName: string;
+  businessAddress: string;
+  categorySlug: string;
+  goal: string;
+  audienceDescription: string;
+  dailyCustomerCount: number;
+  monthlyRevenueToman: number;
+  /** Optional -- omitted/null when the owner has no Instagram page. */
+  followerCount: number | null;
+  /** Optional (plan.md "Step 4 leads with AI deciding" decision) -- only ever feeds LLM copy, never the deterministic math, so it's not required. */
+  offerDescription: string;
+  rewardPatternNames: string[];
+}>;
 
+export type CampaignGenerateResult =
+  | {
+      ok: true;
+      result: Awaited<ReturnType<typeof serializeCampaign>> & {
+        sizeTier: Awaited<ReturnType<typeof generateCampaignProposal>>["sizeTier"];
+        proposalTitle: Awaited<ReturnType<typeof generateCampaignProposal>>["proposalTitle"];
+        proposalNarrative: Awaited<ReturnType<typeof generateCampaignProposal>>["proposalNarrative"];
+        challenge: Awaited<ReturnType<typeof generateCampaignProposal>>["challenge"];
+        discountClamped: Awaited<ReturnType<typeof generateCampaignProposal>>["discountClamped"];
+        copyGeneratedByAi: Awaited<ReturnType<typeof generateCampaignProposal>>["copyGeneratedByAi"];
+      };
+    }
+  | { ok: false; status: 400 | 409; error: string };
+
+// Extracted from the POST /campaign/generate route handler (plan.md Item 16
+// Step A) so reviewAdminRouter's businessId-route-param equivalent (Step B)
+// can run the exact same wizard-generation flow the owner's own endpoint
+// does. Takes `env` explicitly (rather than reading c.env) since this isn't
+// bound to a Hono context and has two independent callers. Returns a
+// discriminated result instead of a Response, same pattern as
+// applyCampaignUpdate above.
+export async function generateCampaignForBusiness(
+  db: D1Database,
+  env: Env,
+  businessId: string,
+  body: CampaignGenerateBody
+): Promise<CampaignGenerateResult> {
   if (!body.businessName?.trim() || !body.categorySlug || !body.goal || !body.rewardPatternNames?.length) {
-    return c.json(
-      {
-        error: "Missing required fields: businessName, categorySlug, goal, rewardPatternNames (at least one)",
-      },
-      400
-    );
+    return {
+      ok: false,
+      status: 400,
+      error: "Missing required fields: businessName, categorySlug, goal, rewardPatternNames (at least one)",
+    };
   }
   if (!["acquisition", "retention", "acquisition_retention"].includes(body.goal)) {
-    return c.json({ error: "Invalid goal" }, 400);
+    return { ok: false, status: 400, error: "Invalid goal" };
   }
 
   const category = await queryFirst<{ id: string; name_fa: string }>(
@@ -423,7 +447,7 @@ businessRouter.post("/campaign/generate", async (c) => {
     "SELECT id, name_fa FROM business_categories WHERE slug = ?",
     [body.categorySlug]
   );
-  if (!category) return c.json({ error: `Unknown categorySlug: ${body.categorySlug}` }, 400);
+  if (!category) return { ok: false, status: 400, error: `Unknown categorySlug: ${body.categorySlug}` };
 
   // Multi-select reward types: validate every selected name up front and
   // build a name->id map, since each generated reward tier can now carry a
@@ -432,7 +456,7 @@ businessRouter.post("/campaign/generate", async (c) => {
   const rewardPatternIdByName = new Map(rewardPatternRows.map((p) => [p.name, p.id]));
   for (const name of body.rewardPatternNames) {
     if (!rewardPatternIdByName.has(name)) {
-      return c.json({ error: `Unknown rewardPatternName: ${name}` }, 400);
+      return { ok: false, status: 400, error: `Unknown rewardPatternName: ${name}` };
     }
   }
 
@@ -446,10 +470,11 @@ businessRouter.post("/campaign/generate", async (c) => {
     campaignId,
   ]);
   if (currentStatus?.status === "active") {
-    return c.json(
-      { error: "کمپین فعلی این کسب‌وکار در حال اجراست. برای ساخت کمپین جدید، ابتدا کمپین فعلی را پایان دهید." },
-      409
-    );
+    return {
+      ok: false,
+      status: 409,
+      error: "کمپین فعلی این کسب‌وکار در حال اجراست. برای ساخت کمپین جدید، ابتدا کمپین فعلی را پایان دهید.",
+    };
   }
 
   // Step 1 addition (plan.md decision): write the wizard's business name +
@@ -485,7 +510,7 @@ businessRouter.post("/campaign/generate", async (c) => {
     [businessId]
   );
 
-  const proposal = await generateCampaignProposal(db, c.env, {
+  const proposal = await generateCampaignProposal(db, env, {
     categoryId: category.id,
     categorySlug: body.categorySlug,
     categoryNameFa: category.name_fa,
@@ -544,15 +569,27 @@ businessRouter.post("/campaign/generate", async (c) => {
   }
 
   const serialized = await serializeCampaign(db, campaignId);
-  return c.json({
-    ...serialized,
-    sizeTier: proposal.sizeTier,
-    proposalTitle: proposal.proposalTitle,
-    proposalNarrative: proposal.proposalNarrative,
-    challenge: proposal.challenge,
-    discountClamped: proposal.discountClamped,
-    copyGeneratedByAi: proposal.copyGeneratedByAi,
-  });
+  return {
+    ok: true,
+    result: {
+      ...serialized,
+      sizeTier: proposal.sizeTier,
+      proposalTitle: proposal.proposalTitle,
+      proposalNarrative: proposal.proposalNarrative,
+      challenge: proposal.challenge,
+      discountClamped: proposal.discountClamped,
+      copyGeneratedByAi: proposal.copyGeneratedByAi,
+    },
+  };
+}
+
+businessRouter.post("/campaign/generate", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const body = await c.req.json<CampaignGenerateBody>();
+  const result = await generateCampaignForBusiness(db, c.env, businessId, body);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json(result.result);
 });
 
 // ============================================================================
