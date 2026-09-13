@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Badge, Card } from '@ai-campaign-builder/ui-kit'
 import { getCampaign, getBusinessProfile, getBusinessStats } from '@ai-campaign-builder/api-client'
 import type { Campaign, BusinessProfile, BusinessStats } from '@ai-campaign-builder/api-client'
@@ -112,7 +113,17 @@ export function DashboardTab() {
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-semibold text-slate-300">تسک‌های کمپین</h3>
-          <Badge tone="neutral">{faDigits(campaign.tasks.length)} تسک</Badge>
+          <div className="flex items-center gap-2">
+            {profile?.manualEditorEnabled && (
+              <Link
+                to="/dashboard/campaign/edit"
+                className="text-xs text-brand-400 hover:text-brand-300 underline underline-offset-2"
+              >
+                ویرایش دستی
+              </Link>
+            )}
+            <Badge tone="neutral">{faDigits(campaign.tasks.length)} تسک</Badge>
+          </div>
         </div>
         <div className="flex flex-col gap-2">
           {campaign.tasks.length === 0 && (
