@@ -82,7 +82,11 @@ export async function getPendingSubmissions(
   );
 }
 
-export async function resolveSubmission(
+// Named distinctly from review.ts's resolveSubmission -- packages/api-client's
+// index.ts re-exports every resource module with `export *`, so two
+// same-named exports from different resource files is an ambiguous-export
+// TS error (TS2308), not just a same-file collision.
+export async function resolveStaffSubmission(
   client: ApiClient,
   id: string,
   decision: 'approved' | 'rejected'
