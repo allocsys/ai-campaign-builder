@@ -2,14 +2,21 @@ import { useState } from 'react'
 import { Button, Input, Modal, useToast } from '@ai-campaign-builder/ui-kit'
 import { submitRetroClaim, uploadEvidence, ApiError } from '@ai-campaign-builder/api-client'
 import type { RetroClaim } from '@ai-campaign-builder/api-client'
+import { RETRO_CLAIM_MAX_HOURS, RETRO_CLAIM_RATE_LIMIT } from '@ai-campaign-builder/shared-config'
 import apiClient from '../lib/api-client'
+
+/** Persian digits for numbers shown in the UI -- matches DashboardTab.tsx's convention. */
+function faDigits(n: number | string): string {
+  const map: Record<string, string> = { '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴', '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹' }
+  return String(n).replace(/[0-9]/g, (d) => map[d])
+}
 
 const HOURS_OPTIONS = [
   { value: 12, label: 'امروز (۱۲ ساعت پیش)' },
   { value: 24, label: 'دیروز (۲۴ ساعت پیش)' },
   { value: 48, label: 'دو روز پیش (۴۸ ساعت پیش)' },
-  { value: 72, label: 'سه روز پیش (۷۲ ساعت پیش)' },
-  { value: 90, label: 'بیش از ۷۲ ساعت پیش (خارج از مهلت)' },
+  { value: RETRO_CLAIM_MAX_HOURS, label: `سه روز پیش (${faDigits(RETRO_CLAIM_MAX_HOURS)} ساعت پیش)` },
+  { value: 90, label: `بیش از ${faDigits(RETRO_CLAIM_MAX_HOURS)} ساعت پیش (خارج از مهلت)` },
 ]
 
 interface RetroClaimModalProps {
@@ -19,9 +26,9 @@ interface RetroClaimModalProps {
 }
 
 const REASON_MESSAGES: Record<string, string> = {
-  outside_time_window: 'خطا: مهلت ارسال ادعای خرید بازگشتی (حداکثر ۷۲ ساعت) به پایان رسیده است.',
+  outside_time_window: `خطا: مهلت ارسال ادعای خرید بازگشتی (حداکثر ${faDigits(RETRO_CLAIM_MAX_HOURS)} ساعت) به پایان رسیده است.`,
   duplicate_receipt: 'خطا: این رسید قبلاً ثبت شده است (تشخیص رسید تکراری).',
-  rate_limited: 'خطا: شما به سقف مجاز ادعای خرید بازگشتی در این کمپین (۳ بار) رسیده‌اید.',
+  rate_limited: `خطا: شما به سقف مجاز ادعای خرید بازگشتی در این کمپین (${faDigits(RETRO_CLAIM_RATE_LIMIT)} بار) رسیده‌اید.`,
 }
 
 /**
@@ -107,7 +114,7 @@ export function RetroClaimModal({ open, onClose, onClaimed }: RetroClaimModalPro
           </span>
         </label>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-slate-300">زمان خرید (مهلت قانونی: ۴۸ تا ۷۲ ساعت)</label>
+          <label className="text-xs font-medium text-slate-300">{`زمان خرید (مهلت قانونی: ۴۸ تا ${faDigits(RETRO_CLAIM_MAX_HOURS)} ساعت)`}</label>
           <select
             value={hoursAgo}
             onChange={(e) => setHoursAgo(Number(e.target.value))}
