@@ -207,17 +207,22 @@ export async function serializeCampaign(db: D1Database, campaignId: string) {
   }>(db, "SELECT status, goal, point_multiplier, start_date, end_date FROM campaigns WHERE id = ?", [campaignId]);
   if (!campaign) throw new Error(`Campaign ${campaignId} vanished mid-request`);
 
-  const tasks = await queryAll<{ name: string; pattern_name: string; points_value: number }>(
+  // Item 16 Step E: campaign_tasks.id/campaign_rewards.id have existed as real
+  // primary keys since migration 0001 -- they just weren't selected/returned
+  // here before, since no caller needed a stable per-row identifier until the
+  // manual editor (granular add/remove/edit of individual tasks/rewards, not
+  // just whole-array replacement) needed one.
+  const tasks = await queryAll<{ id: string; name: string; pattern_name: string; points_value: number }>(
     db,
-    `SELECT ct.name, tp.name AS pattern_name, ct.points_value
+    `SELECT ct.id, ct.name, tp.name AS pattern_name, ct.points_value
      FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
      WHERE ct.campaign_id = ? ORDER BY ct.display_order ASC`,
     [campaignId]
   );
 
-  const rewards = await queryAll<{ name: string; pattern_name: string; threshold_points: number }>(
+  const rewards = await queryAll<{ id: string; name: string; pattern_name: string; threshold_points: number }>(
     db,
-    `SELECT cr.name, rp.name AS pattern_name, cr.threshold_points
+    `SELECT cr.id, cr.name, rp.name AS pattern_name, cr.threshold_points
      FROM campaign_rewards cr JOIN reward_patterns rp ON rp.id = cr.reward_pattern_id
      WHERE cr.campaign_id = ? ORDER BY cr.threshold_points ASC`,
     [campaignId]
@@ -229,8 +234,8 @@ export async function serializeCampaign(db: D1Database, campaignId: string) {
     pointMultiplier: campaign.point_multiplier,
     startDate: campaign.start_date ?? "",
     endDate: campaign.end_date ?? "",
-    tasks: tasks.map((t) => ({ name: t.name, pattern: t.pattern_name, points: t.points_value })),
-    rewards: rewards.map((r) => ({ name: r.name, pattern: r.pattern_name, threshold: r.threshold_points })),
+    tasks: tasks.map((t) => ({ id: t.id, name: t.name, pattern: t.pattern_name, points: t.points_value })),
+    rewards: rewards.map((r) => ({ id: r.id, name: r.name, pattern: r.pattern_name, threshold: r.threshold_points })),
   };
 }
 
@@ -248,8 +253,16 @@ export type CampaignUpdateBody = Partial<{
   pointMultiplier: number;
   startDate: string;
   endDate: string;
-  tasks: { name: string; pattern: string; points: number }[];
-  rewards: { name: string; pattern: string; threshold: number }[];
+  // `id` accepted but not required -- a manual-editor client round-trips the
+  // ids it got from GET for existing rows and simply omits it for newly
+  // added ones. It's ignored on write below either way: tasks/rewards
+  // replacement is still whole-array delete-and-reinsert (unchanged
+  // behavior), which always assigns fresh generateId() ids on every save --
+  // see the Step E note in applyCampaignUpdate's tasks/rewards block for why
+  // that's fine for a manual editor built around "edit the full list, then
+  // save the full list" rather than per-row PATCH semantics.
+  tasks: { id?: string; name: string; pattern: string; points: number }[];
+  rewards: { id?: string; name: string; pattern: string; threshold: number }[];
 }>;
 
 export type CampaignUpdateResult =
