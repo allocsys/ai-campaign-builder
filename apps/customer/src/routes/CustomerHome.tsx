@@ -15,7 +15,7 @@ import type {
   CustomerReward,
   CustomerNotification,
 } from '@ai-campaign-builder/api-client'
-import { MICROSITE_DOMAIN } from '@ai-campaign-builder/shared-config'
+import { buildMicrositeJoinUrl } from '@ai-campaign-builder/shared-config'
 import apiClient from '../lib/api-client'
 import { TaskSubmitModal } from './TaskSubmitModal'
 import { RetroClaimModal } from './RetroClaimModal'
@@ -144,7 +144,11 @@ export function CustomerHome() {
       show('کسب‌وکار شما هنوز میکروسایت ندارد؛ لینک دعوت هنوز آماده نیست.', 'danger')
       return
     }
-    const url = `https://${encodeURIComponent(profile.micrositeSlug)}.${MICROSITE_DOMAIN}/join/${encodeURIComponent(profile.joinSlug)}?ref=${encodeURIComponent(profile.personalCode)}`
+    const url = buildMicrositeJoinUrl({
+      micrositeSlug: profile.micrositeSlug,
+      joinSlug: profile.joinSlug,
+      ref: profile.personalCode,
+    })
     try {
       await navigator.clipboard.writeText(url)
       show(`لینک دعوت (سقف پاداش ${profile.maxReferralCap} معرفی) کپی شد.`, 'success')
