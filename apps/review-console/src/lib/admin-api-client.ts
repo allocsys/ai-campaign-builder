@@ -22,7 +22,11 @@ export const adminApiClient = new ApiClient({
   baseUrl: import.meta.env.VITE_API_BASE_URL || '',
   getToken: () => {
     try {
-      const raw = localStorage.getItem(ADMIN_AUTH_STORAGE_KEY)
+      // Check both -- a remember=false login lands in sessionStorage
+      // (see lib/admin-auth.tsx's readStoredAdminAuth, which already checks
+      // both); this only checked localStorage, so a "don't remember me"
+      // session could read fine on mount but fail every subsequent API request.
+      const raw = localStorage.getItem(ADMIN_AUTH_STORAGE_KEY) ?? sessionStorage.getItem(ADMIN_AUTH_STORAGE_KEY)
       if (!raw) return null
       const parsed = JSON.parse(raw)
       return parsed?.token || null
