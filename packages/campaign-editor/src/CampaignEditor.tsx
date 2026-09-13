@@ -183,9 +183,11 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-300">تسک‌ها</h3>
-          <Button variant="ghost" onClick={addTask} disabled={saving}>
-            + افزودن تسک
-          </Button>
+          {!readOnly && (
+            <Button variant="ghost" onClick={addTask} disabled={saving}>
+              + افزودن تسک
+            </Button>
+          )}
         </div>
         <div className="flex flex-col gap-3">
           {tasks.length === 0 && (
@@ -202,14 +204,16 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                     disabled={saving}
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeTask(t.clientKey)}
-                  disabled={saving}
-                  className="text-xs text-red-400 hover:text-red-300 shrink-0 py-2.5"
-                >
-                  حذف
-                </button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => removeTask(t.clientKey)}
+                    disabled={saving}
+                    className="text-xs text-red-400 hover:text-red-300 shrink-0 py-2.5"
+                  >
+                    حذف
+                  </button>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1.5">
