@@ -82,10 +82,20 @@ export interface CampaignEditorProps {
   onSave: (data: Partial<Campaign>) => Promise<Campaign>
   /** Called after a successful save with the server's response. */
   onSaved?: (updated: Campaign) => void
+  /**
+   * View-only mode -- disables every input, hides add/remove controls and
+   * the save/discard row entirely. Used by business-owner's CampaignEditorTab
+   * when the business's manualEditorEnabled is off but they still reached
+   * this page (e.g. via the bottom-nav Campaign button once a real campaign
+   * exists) -- lets them see current tasks/rewards without being able to
+   * change anything. review-console's admin view never sets this (admin
+   * access is unconditional).
+   */
+  readOnly?: boolean
   className?: string
 }
 
-export function CampaignEditor({ campaign, onSave, onSaved, className }: CampaignEditorProps) {
+export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, className }: CampaignEditorProps) {
   const { show: showToast } = useToast()
 
   const [baseline, setBaseline] = useState<Campaign>(campaign)
