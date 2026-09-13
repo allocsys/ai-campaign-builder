@@ -1,7 +1,5 @@
 import { ApiClient } from '@ai-campaign-builder/api-client'
 import {
-  getSubmissions as _getSubmissions,
-  resolveSubmission as _resolveSubmission,
   getReferrerAggregates as _getReferrerAggregates,
   getReferralFlags as _getReferralFlags,
   runReferralDetection as _runReferralDetection,
@@ -26,9 +24,6 @@ export const apiClient = new ApiClient({
   },
 })
 
-export const getSubmissions = (status?: string) => _getSubmissions(apiClient, status)
-export const resolveSubmission = (id: string, decision: 'approved' | 'rejected') =>
-  _resolveSubmission(apiClient, id, decision)
 export const getReferrerAggregates = () => _getReferrerAggregates(apiClient)
 export const getReferralFlags = () => _getReferralFlags(apiClient)
 export const runReferralDetection = () => _runReferralDetection(apiClient)
