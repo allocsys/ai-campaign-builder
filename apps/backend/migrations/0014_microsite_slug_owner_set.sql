@@ -1,0 +1,20 @@
+-- plan.md Item 17: business_microsites.subdomain_slug was always the
+-- auto-generated `biz-<id prefix>` shape with no way to tell "still the
+-- auto default" apart from "the owner deliberately chose this slug".
+--
+-- subdomain_slug_set_by_owner tracks that distinction: 0 (default, and the
+-- value every pre-existing row gets from this ALTER TABLE) means the slug
+-- is still whatever ensureMicrosite() auto-generated and PUT /microsite is
+-- free to accept a new value for it; 1 means the owner has already made
+-- their one-time choice and the backend will reject any further change
+-- (see routes/business.ts's PUT /microsite) -- a deliberate decision so an
+-- already-shared/printed referral link never silently 404s later, without
+-- needing to build any redirect/reservation infrastructure for old slugs.
+--
+-- This also IS this item's migration-path decision for existing
+-- auto-generated slugs (currently just کافه تایم's biz-5bf8e0b2, per Item
+-- 13's cleanup): since every existing row defaults to 0 here, the
+-- business-owner UI will treat it exactly like a brand-new business's
+-- microsite -- still-editable, with the frontend prompting the owner to
+-- pick a real one -- rather than needing a separate backfill/prompt script.
+ALTER TABLE business_microsites ADD COLUMN subdomain_slug_set_by_owner INTEGER NOT NULL DEFAULT 0;
