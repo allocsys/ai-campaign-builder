@@ -6,6 +6,9 @@ import {
   fulfillRedemption as _fulfillRedemption,
   syncOfflineQueue as _syncOfflineQueue,
   getActivity as _getActivity,
+  getPendingSubmissions as _getPendingSubmissions,
+  resolveSubmission as _resolveSubmission,
+  getSubmissionEvidenceBlob as _getSubmissionEvidenceBlob,
 } from '@ai-campaign-builder/api-client'
 
 export const apiClient = new ApiClient({
@@ -28,5 +31,9 @@ export const getRedemptionByCode = (code: string) => _getRedemptionByCode(apiCli
 export const fulfillRedemption = (code: string) => _fulfillRedemption(apiClient, code)
 export const syncOfflineQueue = (data: any) => _syncOfflineQueue(apiClient, data)
 export const getActivity = () => _getActivity(apiClient)
+export const getPendingSubmissions = (status?: string) => _getPendingSubmissions(apiClient, status)
+export const resolveSubmission = (id: string, decision: 'approved' | 'rejected') =>
+  _resolveSubmission(apiClient, id, decision)
+export const getSubmissionEvidenceBlob = (id: string) => _getSubmissionEvidenceBlob(apiClient, id)
 
 export default apiClient
