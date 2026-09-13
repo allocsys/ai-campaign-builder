@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@ai-campaign-builder/api-client": "*",
+    "@ai-campaign-builder/campaign-editor": "*",
     "@ai-campaign-builder/shared-config": "*",
     "@ai-campaign-builder/ui-kit": "*",
     "react": "^18.3.1",
