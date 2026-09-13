@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
 import { generateCampaign, updateCampaign, updateMicrositeState, getCampaign, addStaff } from '@ai-campaign-builder/api-client'
@@ -108,6 +108,38 @@ const REWARD_PATTERN_OPTIONS: { value: RewardPatternName; labelFa: string }[] = 
 const STEP_TITLES = ['صنف کسب‌وکار', 'هدف کمپین', 'مخاطب هدف و سیگنال اندازه', 'آفر و پاداش', 'مرور و تایید']
 const TOTAL_STEPS = STEP_TITLES.length
 
+/**
+ * plan.md Item 20, Part C -- purely cosmetic "thinking" transition between
+ * wizard steps. Keyed by the step being LEFT (i.e. THINKING_MESSAGES[1] is
+ * what shows while moving from step 1 to step 2). A small pool per step
+ * (rather than one fixed line) so repeat visits to the wizard don't show
+ * identical copy every time -- one is picked at random per transition in
+ * goNext(). Step 1's pool references the chosen category since that step's
+ * conditional question genuinely already varies by category (honest copy,
+ * not implying deeper personalization than the deterministic logic does).
+ * Steps 2-4 have no such per-answer variation, so their pools are generic.
+ */
+const THINKING_MESSAGES: Record<number, string[]> = {
+  1: [
+    'دارم بر اساس {category} بهترین سؤال بعدی رو آماده می‌کنم...',
+    'در حال تنظیم مراحل بعدی بر اساس صنف انتخابی...',
+  ],
+  2: [
+    'در حال آماده‌سازی سؤال بعدی...',
+    'یک لحظه، می‌رم سراغ مرحله بعد...',
+    'دارم مرحله بعد رو آماده می‌کنم...',
+  ],
+  3: [
+    'در حال ثبت سیگنال‌های اندازه کسب‌وکار...',
+    'یک لحظه، می‌رم سراغ آفر و پاداش...',
+  ],
+  4: [
+    'در حال آماده‌سازی صفحه مرور نهایی...',
+    'یک لحظه، همه‌چیز رو برای مرور نهایی جمع‌بندی می‌کنم...',
+  ],
+}
+const THINKING_TRANSITION_MS = 700
+
 /** select styled to match Input's glass surface -- ui-kit has no Select component yet. */
 function selectClassName() {
   return 'bg-glass-light backdrop-blur-md border border-glass-border rounded-xl2 px-3.5 py-2.5 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-brand-500/60 transition-shadow'
@@ -135,6 +167,14 @@ function selectClassName() {
 export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) {
   const { show: showToast } = useToast()
   const [step, setStep] = useState(1)
+
+  // plan.md Item 20, Part C -- cosmetic step-transition state. thinkingTimeoutRef
+  // holds the in-flight setTimeout id so a rapid back-then-forward nav (or an
+  // unmount mid-transition) can cancel it instead of letting a stale timer
+  // land the wizard on the wrong step after the fact.
+  const [thinking, setThinking] = useState(false)
+  const [thinkingMessage, setThinkingMessage] = useState('')
+  const thinkingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [businessName, setBusinessName] = useState('')
   const [businessAddress, setBusinessAddress] = useState('')
@@ -202,14 +242,49 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
     })
   }
 
+  function clearPendingThinkingTransition() {
+    if (thinkingTimeoutRef.current !== null) {
+      clearTimeout(thinkingTimeoutRef.current)
+      thinkingTimeoutRef.current = null
+    }
+  }
+
+  // Unmount cleanup -- if the owner navigates away from the wizard entirely
+  // mid-transition, don't let the timeout fire setState on an unmounted
+  // component.
+  useEffect(() => clearPendingThinkingTransition, [])
+
   function goNext() {
     if (step === 1 && !businessName.trim()) {
       showToast('لطفاً نام کسب‌وکار را وارد کنید.', 'warning')
       return
     }
-    if (step < TOTAL_STEPS) setStep(step + 1)
+    if (step >= TOTAL_STEPS) return
+
+    // A stale timer from a previous goNext() (e.g. the owner tapped "بعد"
+    // twice fast, or went back then forward again before the first
+    // transition finished) must be cancelled here -- otherwise two
+    // transitions can resolve out of order and briefly show a thinking
+    // card stacked on top of the step it already advanced past.
+    clearPendingThinkingTransition()
+
+    const pool = THINKING_MESSAGES[step] ?? THINKING_MESSAGES[2]
+    const template = pool[Math.floor(Math.random() * pool.length)]
+    setThinkingMessage(template.replace('{category}', selectedCategory.labelFa))
+    setThinking(true)
+
+    thinkingTimeoutRef.current = setTimeout(() => {
+      thinkingTimeoutRef.current = null
+      setThinking(false)
+      setStep((s) => Math.min(s + 1, TOTAL_STEPS))
+    }, THINKING_TRANSITION_MS)
   }
+
   function goBack() {
+    // Cancel any pending forward transition so it can't land on the wrong
+    // step after the owner backs out mid-"thinking".
+    clearPendingThinkingTransition()
+    setThinking(false)
     if (step > 1) setStep(step - 1)
   }
 
@@ -503,6 +578,17 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
       </div>
 
       <Card className="p-5">
+        {thinking ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-10 text-sm text-slate-300" role="status" aria-live="polite">
+            <div className="flex gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-brand-400 animate-bounce [animation-delay:-0.3s]" />
+              <span className="h-2 w-2 rounded-full bg-brand-400 animate-bounce [animation-delay:-0.15s]" />
+              <span className="h-2 w-2 rounded-full bg-brand-400 animate-bounce" />
+            </div>
+            <p>{thinkingMessage}</p>
+          </div>
+        ) : (
+          <>
         {step === 1 && (
           <div className="flex flex-col gap-3">
             <Input
@@ -695,6 +781,8 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
             </Button>
           )}
         </div>
+          </>
+        )}
       </Card>
     </div>
   )
