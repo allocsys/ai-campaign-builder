@@ -36,9 +36,10 @@ async function loadProfile(db: D1Database, businessId: string) {
     sms_monthly_cap_toman: number | null;
     name_fa: string;
     address: string | null;
+    manual_editor_enabled: number;
   }>(
     db,
-    `SELECT b.name, b.phone, b.size_tier, b.sms_wallet_balance_toman, b.sms_monthly_cap_toman, bc.name_fa, b.address
+    `SELECT b.name, b.phone, b.size_tier, b.sms_wallet_balance_toman, b.sms_monthly_cap_toman, bc.name_fa, b.address, b.manual_editor_enabled
      FROM businesses b JOIN business_categories bc ON bc.id = b.category_id
      WHERE b.id = ?`,
     [businessId]
@@ -54,6 +55,10 @@ function serializeProfile(row: NonNullable<Awaited<ReturnType<typeof loadProfile
     smsWalletBalanceToman: row.sms_wallet_balance_toman,
     smsMonthlyCapToman: row.sms_monthly_cap_toman,
     address: row.address ?? "",
+    // plan.md Item 16 Step E -- "حالت حرفه‌ای" (Professional Mode). Owner-settable
+    // via PUT /profile below; also settable by review_admin on the owner's behalf
+    // (see reviewAdminRouter's PATCH /businesses/:businessId/manual-editor).
+    manualEditorEnabled: !!row.manual_editor_enabled,
   };
 }
 
@@ -74,9 +79,21 @@ businessRouter.put("/profile", async (c) => {
       sizeTier: string;
       smsMonthlyCapToman: number | null;
       address: string;
+      manualEditorEnabled: boolean;
     }>
   >();
 
+  if (body.manualEditorEnabled !== undefined) {
+    // Self-serve owner toggle for plan.md Item 16 Step E's "حالت حرفه‌ای"
+    // (Professional Mode). No eligibility check here by design -- unlike
+    // autopilot's manual-apply-count gate, this is a plain opt-in, not an
+    // earned unlock; review_admin can also flip this on the owner's behalf
+    // (see reviewAdminRouter's PATCH /businesses/:businessId/manual-editor).
+    await execute(db, "UPDATE businesses SET manual_editor_enabled = ? WHERE id = ?", [
+      body.manualEditorEnabled ? 1 : 0,
+      businessId,
+    ]);
+  }
   if (body.name !== undefined) {
     const previous = await queryFirst<{ name: string }>(db, "SELECT name FROM businesses WHERE id = ?", [
       businessId,
