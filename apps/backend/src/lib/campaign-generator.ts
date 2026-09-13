@@ -176,6 +176,16 @@ export interface GenerateCampaignInput {
   monthlyRevenueToman: number;
   rewardPatternNames: string[]; // owner-selected from the Step 4 multi-select (at least 1)
   maxDiscountPercent: number | null; // business_ai_constraints.max_discount_percent, null if unset
+  /**
+   * plan.md Open Item 18 -- true when the owner checked the wizard's new
+   * "می‌خوای یک آدرس/صفحه اختصاصی داشته باشی؟" opt-in. When true, the SAME
+   * copy-generation LLM call below is also asked to propose a microsite
+   * subdomain slug -- no separate/new LLM call. When false, the prompt
+   * omits the ask entirely and the returned proposal's suggestedSiteSlug is
+   * always undefined, regardless of what the LLM might have said anyway on
+   * a stale/cached response.
+   */
+  wantsSuggestedSiteSlug: boolean;
 }
 
 export interface GeneratedCampaignProposal {
@@ -188,6 +198,16 @@ export interface GeneratedCampaignProposal {
   challenge: GeneratedChallenge;
   discountClamped: boolean;
   copyGeneratedByAi: boolean;
+  /**
+   * plan.md Open Item 18 -- the LLM's raw, UNVALIDATED microsite-slug
+   * suggestion (only requested/present when input.wantsSuggestedSiteSlug is
+   * true and the copy cascade succeeded). Deliberately not slugified or
+   * checked for uniqueness here -- campaign-generator.ts has no DB access to
+   * business_microsites, so routes/business.ts's generateCampaignForBusiness
+   * runs it through validateMicrositeSlug + the same uniqueness/retry logic
+   * PUT /microsite already uses before this ever reaches the frontend.
+   */
+  suggestedSiteSlug?: string;
 }
 
 // ============================================================================
@@ -332,6 +352,22 @@ interface CopyGenerationResult {
   taskNames: Record<string, string>; // keyed by patternName
   rewardNames: string[]; // one per reward tier, in tier order (length varies -- see buildRewards)
   challengeDescription: string;
+  /** plan.md Open Item 18 -- present only when the prompt asked for it (see buildCopyPrompt). Raw LLM string, not yet validated/slugified. */
+  suggestedSiteSlug?: string;
+}
+
+// plan.md Open Item 18: appended only when the owner opted in, so an
+// opted-out generation never even asks the model for this -- keeps the
+// prompt/response shape identical to before Item 18 for the common
+// opted-out case, and avoids the model inventing a slug nobody wanted.
+function buildSiteSlugPromptFragment(): string {
+  return (
+    ` Also propose a short, catchy website-address slug for this business's ` +
+    `microsite, transliterated into Latin/English characters (Finglish-style) ` +
+    `from the business name and category -- lowercase letters, digits and ` +
+    `hyphens only, no spaces, 3-30 characters, e.g. "cafe-narvan" for "کافه نارون". ` +
+    `Include it as "suggestedSiteSlug" in the JSON object below.`
+  );
 }
 
 function buildCopyPrompt(input: GenerateCampaignInput, tier: SizeTier, tasks: GeneratedTask[], rewards: GeneratedRewardTier[]): string {
@@ -357,11 +393,15 @@ function buildCopyPrompt(input: GenerateCampaignInput, tier: SizeTier, tasks: Ge
           `tier ${i + 1} at ${r.threshold} points, type ${r.patternName}${r.description ? ` (${r.description})` : ""}`
       )
       .join("; ")}. ` +
-    `Write everything in Persian. Respond with ONLY a JSON object and nothing else, in this exact shape: ` +
+    `Write everything in Persian (except suggestedSiteSlug, which must stay Latin/English). ` +
+    (input.wantsSuggestedSiteSlug ? buildSiteSlugPromptFragment() : "") +
+    ` Respond with ONLY a JSON object and nothing else, in this exact shape: ` +
     `{"proposalTitle": "<short catchy campaign name>", "proposalNarrative": "<1-2 sentence pitch>", ` +
     `"taskNames": {${tasks.map((t) => `"${t.patternName}": "<short action name for this task>"`).join(", ")}}, ` +
     `"rewardNames": [${rewards.map((_, i) => `"<short name for reward tier ${i + 1}>"`).join(", ")}], ` +
-    `"challengeDescription": "<1 sentence describing a bonus challenge: complete 3 actions during the campaign for extra points>"}`
+    `"challengeDescription": "<1 sentence describing a bonus challenge: complete 3 actions during the campaign for extra points>"` +
+    (input.wantsSuggestedSiteSlug ? `, "suggestedSiteSlug": "<latin slug>"` : "") +
+    `}`
   );
 }
 
@@ -386,6 +426,12 @@ function parseCopyResponse(text: string): CopyGenerationResult {
     taskNames: parsed.taskNames as Record<string, string>,
     rewardNames: parsed.rewardNames.map((n) => String(n)),
     challengeDescription: parsed.challengeDescription,
+    // Optional -- absent entirely when wantsSuggestedSiteSlug was false (the
+    // prompt never asked), and not required even when it was true (a
+    // malformed/omitted value here shouldn't fail the whole copy response --
+    // it just means no suggestion reaches the frontend, same as any other
+    // cascade-failure fallback in this file).
+    suggestedSiteSlug: typeof parsed.suggestedSiteSlug === "string" && parsed.suggestedSiteSlug.trim() ? parsed.suggestedSiteSlug.trim() : undefined,
   };
 }
 
@@ -460,6 +506,7 @@ export async function generateCampaignProposal(db: D1Database, env: Env, input: 
   return {
     sizeTier: tier,
     durationDays: tier.suggestedDurationDays,
+    suggestedSiteSlug: input.wantsSuggestedSiteSlug ? copy?.suggestedSiteSlug : undefined,
     proposalTitle:
       copy?.proposalTitle ??
       `کمپین ${

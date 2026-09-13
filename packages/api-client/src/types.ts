@@ -108,6 +108,13 @@ export interface GenerateCampaignRequest {
   offerDescription: string;
   /** At least one reward_pattern; one reward tier is generated per selected pattern (min 2 tiers). */
   rewardPatternNames: RewardPatternName[];
+  /**
+   * plan.md Open Item 18 -- wizard's new opt-in checkbox ("می‌خوای یک آدرس/
+   * صفحه اختصاصی داشته باشی؟"), default true client-side. Optional here since
+   * it's a new field on an existing request shape -- omitted means false
+   * server-side (see CampaignGenerateBody's doc comment in business.ts).
+   */
+  wantsSite?: boolean;
 }
 
 export interface GeneratedSizeTier {
@@ -131,6 +138,14 @@ export interface GeneratedCampaignProposal extends Campaign {
   challenge: GeneratedChallenge;
   discountClamped: boolean;
   copyGeneratedByAi: boolean;
+  /**
+   * plan.md Open Item 18 -- already validated + uniqueness-checked server-side
+   * (safe to hand straight to updateMicrositeState({ subdomainSlug }) as a
+   * pre-filled default). Absent when wantsSite was false/omitted, the
+   * microsite's slug is already owner-set, or no clean suggestion could be
+   * resolved.
+   */
+  suggestedSiteSlug?: string;
 }
 
 export interface Insight {

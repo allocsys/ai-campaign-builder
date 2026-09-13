@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
-import { generateCampaign, updateCampaign, getCampaign } from '@ai-campaign-builder/api-client'
+import { generateCampaign, updateCampaign, updateMicrositeState, getCampaign } from '@ai-campaign-builder/api-client'
 import type {
   BusinessCategorySlug,
   GeneratedCampaignProposal,
   RewardPatternName,
 } from '@ai-campaign-builder/api-client'
+import { MICROSITE_DOMAIN, validateMicrositeSlug } from '@ai-campaign-builder/shared-config'
 import apiClient from '../../lib/api-client'
 
 /**
@@ -37,6 +38,14 @@ import apiClient from '../../lib/api-client'
  *     deterministic size-tier math), and follower count is a separate,
  *     optional field only shown once the owner checks "has an Instagram
  *     page" (plan.md, "Signal model revised again", 2026-09-12).
+ *   - Step 1 also gets an opt-in "want a site" checkbox (plan.md Open Item
+ *     18). When checked, the SAME generate-campaign LLM call is also asked
+ *     to propose a microsite subdomain slug -- no separate/new LLM call.
+ *     The result (already validated + uniqueness-checked server-side, see
+ *     business.ts's resolveSuggestedMicrositeSlug) is shown after
+ *     generation as an editable, skippable, one-time-permanent confirm step
+ *     -- same "ذخیره" -> "تأیید نهایی" pattern MicrositeBuilderTab.tsx already
+ *     uses for the exact same permanent choice, reached from Settings.
  */
 
 function formatCustomerCount(v: number) {
@@ -141,11 +150,23 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
   const [offerDescription, setOfferDescription] = useState('')
   const [showOfferDetail, setShowOfferDetail] = useState(false)
   const [rewardPatternNames, setRewardPatternNames] = useState<RewardPatternName[]>(['percentage_discount'])
+  const [wantsSite, setWantsSite] = useState(true)
 
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [proposal, setProposal] = useState<GeneratedCampaignProposal | null>(null)
   const [launching, setLaunching] = useState(false)
+
+  // plan.md Open Item 18 -- suggested site-address confirm/skip state. Kept
+  // separate from `proposal` (same reasoning as MicrositeBuilderTab's own
+  // slugInput vs server-confirmed MicrositeState) so the owner can edit
+  // freely before saving.
+  const [siteSlugInput, setSiteSlugInput] = useState('')
+  const [siteSlugSaving, setSiteSlugSaving] = useState(false)
+  const [siteSlugError, setSiteSlugError] = useState<string | null>(null)
+  const [siteSlugConfirming, setSiteSlugConfirming] = useState(false)
+  const [siteSlugSaved, setSiteSlugSaved] = useState(false)
+  const [siteSlugSkipped, setSiteSlugSkipped] = useState(false)
 
   const selectedCategory = CATEGORY_OPTIONS.find((c) => c.slug === categorySlug) ?? CATEGORY_OPTIONS[0]
 
@@ -194,13 +215,50 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
         followerCount: hasInstagramPage ? Number(followerCount) || 0 : null,
         offerDescription: offerDescription.trim(),
         rewardPatternNames,
+        wantsSite,
       })
       setProposal(result)
+      setSiteSlugInput(result.suggestedSiteSlug ?? '')
+      setSiteSlugSaved(false)
+      setSiteSlugSkipped(false)
+      setSiteSlugConfirming(false)
+      setSiteSlugError(null)
       showToast('پیشنهاد کمپین با موفقیت تولید شد!', 'success')
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : String(err))
     } finally {
       setGenerating(false)
+    }
+  }
+
+  // plan.md Open Item 18 -- same two-step "ذخیره" -> "تأیید نهایی" confirm
+  // as MicrositeBuilderTab.tsx's saveSlug (the choice is permanent, so a
+  // typo needs a second explicit confirmation, not just an undo option).
+  async function saveSiteSlug() {
+    const trimmed = siteSlugInput.trim().toLowerCase()
+    const validationError = validateMicrositeSlug(trimmed)
+    if (validationError) {
+      setSiteSlugError(validationError)
+      return
+    }
+    if (!siteSlugConfirming) {
+      setSiteSlugError(null)
+      setSiteSlugConfirming(true)
+      return
+    }
+    setSiteSlugSaving(true)
+    setSiteSlugError(null)
+    try {
+      await updateMicrositeState(apiClient, { subdomainSlug: trimmed })
+      setSiteSlugInput(trimmed)
+      setSiteSlugSaved(true)
+      setSiteSlugConfirming(false)
+      showToast('آدرس سایت با موفقیت ثبت شد!', 'success')
+    } catch (err) {
+      setSiteSlugError(err instanceof Error ? err.message : String(err))
+      setSiteSlugConfirming(false)
+    } finally {
+      setSiteSlugSaving(false)
     }
   }
 
@@ -221,6 +279,11 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
     setProposal(null)
     setGenerateError(null)
     setStep(1)
+    setSiteSlugInput('')
+    setSiteSlugSaved(false)
+    setSiteSlugSkipped(false)
+    setSiteSlugConfirming(false)
+    setSiteSlugError(null)
   }
 
   if (proposal) {
@@ -269,6 +332,51 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
             🏆 <strong>چالش تکمیلی:</strong> {proposal.challenge.description} ({proposal.challenge.requiredActions} فعالیت ← +{proposal.challenge.bonusPoints} امتیاز)
           </div>
         </Card>
+
+        {proposal.suggestedSiteSlug && !siteSlugSaved && !siteSlugSkipped && (
+          <Card className="p-4 flex flex-col gap-2">
+            <p className="text-sm font-medium">آدرس سایت پیشنهادی</p>
+            <p className="text-xs text-slate-500">
+              هوش مصنوعی این آدرس رو برای میکروسایتت پیشنهاد داده. می‌تونی ویرایشش کنی. توجه: این آدرس فقط یک بار قابل تنظیمه و بعد از ذخیره، دیگه قابل تغییر نیست.
+            </p>
+            <div className="flex items-end gap-2">
+              <div className="flex-1" dir="ltr">
+                <Input
+                  value={siteSlugInput}
+                  onChange={(e) => {
+                    setSiteSlugInput(e.target.value)
+                    setSiteSlugConfirming(false)
+                    setSiteSlugError(null)
+                  }}
+                  error={siteSlugError ?? undefined}
+                  placeholder="cafe-narvan"
+                />
+                <p className="text-xs text-slate-500 mt-1">{siteSlugInput || '...'}.{MICROSITE_DOMAIN}</p>
+              </div>
+              <Button onClick={saveSiteSlug} loading={siteSlugSaving}>
+                {siteSlugConfirming ? 'تأیید نهایی' : 'ذخیره'}
+              </Button>
+            </div>
+            {siteSlugConfirming && !siteSlugError && (
+              <p className="text-xs text-amber-400">
+                آدرس «{siteSlugInput.trim().toLowerCase()}» برای همیشه ثبت خواهد شد و دیگر قابل تغییر نیست. برای تأیید دوباره روی «تأیید نهایی» کلیک کن.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setSiteSlugSkipped(true)}
+              className="self-start text-xs text-slate-500 hover:text-brand-300 underline underline-offset-2"
+            >
+              بعداً از تنظیمات انجامش می‌دم
+            </button>
+          </Card>
+        )}
+        {siteSlugSaved && (
+          <Card className="p-4 flex flex-col gap-1">
+            <p className="text-sm font-medium">آدرس سایت</p>
+            <p className="text-xs text-slate-500" dir="ltr">{siteSlugInput}.{MICROSITE_DOMAIN}</p>
+          </Card>
+        )}
 
         <div className="flex items-center gap-2">
           <Button onClick={handleLaunch} loading={launching}>
@@ -325,6 +433,15 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
                 ))}
               </select>
             </div>
+            <label className="flex items-center gap-2 text-xs text-slate-300">
+              <input
+                type="checkbox"
+                checked={wantsSite}
+                onChange={(e) => setWantsSite(e.target.checked)}
+                className="rounded border-glass-border bg-glass-light accent-brand-500"
+              />
+              می‌خوام یک آدرس/صفحه اختصاصی (میکروسایت) برای کسب‌وکارم داشته باشم
+            </label>
           </div>
         )}
 
