@@ -370,5 +370,24 @@ packages/
 
 ---
 
+16. **`review_admin` has account-administration access only (manage `review_team_members`/`review_admins`) but no campaign access at all** -- flagged 2026-09-12/13. Business owners are currently the only role that can view/edit a business's campaign. User wants `review_admin` to have **full parity** with a business owner's campaign access ("I'm the one making changes so it's full access" -- no partial/read-only subset), plus a redesigned `apps/review-console` admin UI to use it, modeled loosely on the business-owner app's campaign UI.
+
+    Design decisions confirmed 2026-09-12/13 (re-verified against current `main` -- `business.ts`/`review-admin.ts` unchanged since investigation):
+    - **Validation/side-effects parity:** admin edits reuse business.ts's exact existing logic (join-slug generation, microsite featuring, highlight defaults on activate) via exporting its currently-private helpers -- not reimplemented separately.
+    - **No audit trail for now:** no `updated_at`/`last_edited_by` column, no migration for this item.
+    - **Scope:** full parity, not just view/edit -- also add the businessId-route-param equivalent of the campaign-generation wizard endpoint (`POST /campaign/generate`) under `reviewAdminRouter`, not just `GET`/`PUT /campaign`.
+    - **Frontend in scope too:** `apps/review-console`'s admin page(s) get redesigned/extended to support this, not just backend endpoints.
+
+    **Built as a sequential chain, each step its own branch/PR, no step starting before the previous merges** (same convention as Items 13/14):
+    - **Step A -- backend: export/refactor business.ts's campaign logic for reuse.** Export `ensureCampaign`, `serializeCampaign`; refactor `PUT /campaign`'s body-handling (status/goal/pointMultiplier/dates/tasks/rewards + activate-time side effects) and `POST /campaign/generate`'s body-handling into exported functions taking `businessId` as an explicit param, so `businessRouter` (from `auth.sub`) and `reviewAdminRouter` (from a route param) call identical underlying logic. Not started.
+    - **Step B -- backend: new review-admin routes.** In `review-admin.ts`: `GET /businesses` (list/picker), `GET/PUT /businesses/:businessId/campaign`, `POST /businesses/:businessId/campaign/generate`. Reuses Step A's exported functions. No new auth restriction beyond the existing `role==='review_admin'` check (per the full-access decision -- no `isRoot` distinction needed here). Not started.
+    - **Step C -- `packages/api-client`: new review-admin resource methods** mirroring `resources/business.ts`'s campaign methods, pointed at Step B's endpoints. Not started.
+    - **Step D -- investigate the frontend model before building.** Read `apps/review-console/src/routes/AdminHome.tsx` + `src/lib/admin-api-client.ts` (current admin page/client) and `apps/business-owner/src/routes/tabs/CampaignWizardTab.tsx` + the post-Item-12 dashboard routes (business-owner's campaign UI no longer lives in `BusinessOwnerHome.tsx`/`DashboardTab.tsx` post-nav-rewrite -- confirm current file locations under `/dashboard/*` before treating those two names as current). Not started.
+    - **Step E -- build the review-console admin campaign UI**, informed by Step D, using Step C's client methods. Not started.
+
+    **Process note:** branch/PR-vs-direct-commit flow for this item has not been asked yet this session -- confirm before Step A starts (last precedent on this repo was direct-commit-to-branch-no-PR for one item, but PR flow for most others; don't assume).
+
+---
+
 ## Architecture reference
 Full DB schema (35 tables) lives in `architecture.md`, not duplicated here.
