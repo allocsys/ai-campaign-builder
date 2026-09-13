@@ -1,4 +1,5 @@
 import { ApiClient } from '@ai-campaign-builder/api-client'
+import type { Campaign } from '@ai-campaign-builder/api-client'
 import {
   adminLogin as _adminLogin,
   changeAdminPassword as _changeAdminPassword,
@@ -9,6 +10,10 @@ import {
   getReviewAdmins as _getReviewAdmins,
   addReviewAdmin as _addReviewAdmin,
   removeReviewAdmin as _removeReviewAdmin,
+  getAdminBusinesses as _getAdminBusinesses,
+  getAdminBusinessCampaign as _getAdminBusinessCampaign,
+  updateAdminBusinessCampaign as _updateAdminBusinessCampaign,
+  updateAdminBusinessManualEditor as _updateAdminBusinessManualEditor,
 } from '@ai-campaign-builder/api-client'
 
 // Separate token storage key from the review_team auth in lib/api-client.ts
@@ -48,6 +53,14 @@ export const removeReviewTeamMember = (id: string) => _removeReviewTeamMember(ad
 export const getReviewAdmins = () => _getReviewAdmins(adminApiClient)
 export const addReviewAdmin = (input: { username: string; password: string }) => _addReviewAdmin(adminApiClient, input)
 export const removeReviewAdmin = (id: string) => _removeReviewAdmin(adminApiClient, id)
+
+// plan.md Item 16 Step G -- business picker + campaign view + manual editor.
+export const getAdminBusinesses = () => _getAdminBusinesses(adminApiClient)
+export const getAdminBusinessCampaign = (businessId: string) => _getAdminBusinessCampaign(adminApiClient, businessId)
+export const updateAdminBusinessCampaign = (businessId: string, data: Partial<Campaign>) =>
+  _updateAdminBusinessCampaign(adminApiClient, businessId, data)
+export const updateAdminBusinessManualEditor = (businessId: string, enabled: boolean) =>
+  _updateAdminBusinessManualEditor(adminApiClient, businessId, enabled)
 
 export { ADMIN_AUTH_STORAGE_KEY }
 export default adminApiClient

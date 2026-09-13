@@ -5,6 +5,7 @@ import { ReviewConsoleHome } from './routes/ReviewConsoleHome'
 import { AdminLoginScreen } from './routes/AdminLoginScreen'
 import { AdminProtectedRoute } from './routes/AdminProtectedRoute'
 import { AdminHome } from './routes/AdminHome'
+import { AdminCampaignsHome } from './routes/AdminCampaignsHome'
 
 function App() {
   return (
@@ -28,6 +29,14 @@ function App() {
         element={
           <AdminProtectedRoute>
             <AdminHome />
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/campaigns"
+        element={
+          <AdminProtectedRoute>
+            <AdminCampaignsHome />
           </AdminProtectedRoute>
         }
       />

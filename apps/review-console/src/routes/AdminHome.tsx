@@ -230,6 +230,9 @@ export function AdminHome() {
           <p className="text-slate-400 text-sm mt-1">مدیریت اعضای تیم مرکزی و ادمین‌ها</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link to="/admin/campaigns" className="text-sm text-brand-400 hover:underline">
+            کمپین‌های کسب‌وکارها
+          </Link>
           <Link to="/" className="text-sm text-brand-400 hover:underline">
             کنسول بررسی
           </Link>
