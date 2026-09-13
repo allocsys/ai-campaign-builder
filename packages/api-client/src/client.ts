@@ -69,4 +69,46 @@ export class ApiClient {
 
     return JSON.parse(text) as T;
   }
+
+  // Same auth/error handling as request(), but returns a Blob instead of
+  // parsing JSON -- for endpoints that proxy binary content (e.g. evidence
+  // images served through review.ts / staff-pos.ts's private-bucket proxy
+  // routes) rather than JSON bodies.
+  async requestBlob(path: string, options: RequestInit = {}): Promise<Blob> {
+    const url = `${this.baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+    const headers = new Headers(options.headers || {});
+
+    if (this.getToken) {
+      const token = this.getToken();
+      if (token && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData && typeof errorData === 'object') {
+          if ('error' in errorData && typeof errorData.error === 'string') {
+            errorMessage = errorData.error;
+          } else if ('message' in errorData && typeof errorData.message === 'string') {
+            errorMessage = errorData.message;
+          }
+        }
+      } catch {
+        if (response.statusText) {
+          errorMessage = response.statusText;
+        }
+      }
+      throw new ApiError(response.status, errorMessage);
+    }
+
+    return response.blob();
+  }
 }
