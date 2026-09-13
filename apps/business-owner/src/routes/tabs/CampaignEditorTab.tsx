@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Badge, useToast } from '@ai-campaign-builder/ui-kit'
+import { Badge } from '@ai-campaign-builder/ui-kit'
 import { getBusinessProfile, getCampaign, updateCampaign } from '@ai-campaign-builder/api-client'
 import type { BusinessProfile, Campaign } from '@ai-campaign-builder/api-client'
 import { CampaignEditor } from '@ai-campaign-builder/campaign-editor'
@@ -24,8 +24,6 @@ import apiClient from '../../lib/api-client'
  * only view access.
  */
 export function CampaignEditorTab() {
-  const { show: showToast } = useToast()
-
   const [profile, setProfile] = useState<BusinessProfile | null>(null)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
