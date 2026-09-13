@@ -253,6 +253,18 @@ export interface TelegramOptInResponse {
 
 export type RetroClaimFailureReason = 'outside_time_window' | 'duplicate_receipt' | 'rate_limited';
 
+export interface SubmitRetroClaimRequest {
+  receiptHash?: string;
+  receiptNumber?: string;
+  hoursAgo?: number;
+  /**
+   * Opaque storage key from uploadEvidence(), same pattern TaskSubmitModal.tsx
+   * uses for screenshots. Previously the retro-claim modal's file picker was
+   * never actually uploaded anywhere -- this was a real gap, now fixed.
+   */
+  evidenceUrl?: string;
+}
+
 export interface RetroClaim {
   id: string;
   receiptHash: string;
@@ -337,13 +349,19 @@ export interface StaffPosSyncResponse {
 }
 
 // ============================================================================
-// Staff POS firsthand screenshot verification queue -- social_proof/review_ugc
-// submissions (Instagram story/post shares, written reviews). Moved out of
-// the central review console (review.ts) so staff can verify these in person
-// while the customer is present, instead of routing them through the central
-// review team async. Shapes match staff-pos.ts's /submissions* endpoints.
+// Staff POS firsthand verification queue -- social_proof/review_ugc
+// screenshot submissions (Instagram story/post shares, written reviews) AND
+// receipt_claim submissions (retroactive purchase claims). Both moved out of
+// the central review console (review.ts, 2026-09-13) so staff can verify
+// these firsthand instead of routing them through the central review team,
+// which has no way to recognize a given business's receipts/products out of
+// context. Submissions only land here at all when AI confidence scored below
+// the auto-approve threshold or scoring failed/wasn't configured -- see
+// customer.ts's applyVisionScoreAndMaybeAutoApprove. Shapes match
+// staff-pos.ts's /submissions* endpoints.
 // ============================================================================
 
+export type StaffSubmissionType = 'screenshot' | 'receipt_claim';
 export type StaffSubmissionTaskPattern = 'social_proof' | 'review_ugc';
 export type StaffSubmissionStatus = 'pending' | 'approved' | 'rejected';
 
@@ -351,8 +369,13 @@ export interface StaffPendingSubmission {
   id: string;
   customerName: string;
   taskTitle: string;
-  taskPattern: StaffSubmissionTaskPattern;
+  submissionType: StaffSubmissionType;
+  /** null for receipt_claim rows (they aren't tied to a social_proof/review_ugc task_pattern). */
+  taskPattern: StaffSubmissionTaskPattern | null;
   evidenceUrl: string | null;
+  /** Only present on receipt_claim rows. */
+  receiptNumber: string | null;
+  aiConfidenceScore: number | null;
   status: StaffSubmissionStatus;
   pointsAwarded: number | null;
   submittedAt: string;
@@ -368,31 +391,11 @@ export interface StaffResolveSubmissionResponse {
 // ============================================================================
 // Review Console persona
 // Shapes match apps/backend/src/routes/review.ts's JSON responses exactly.
+// The submissions queue (uncertain-AI screenshots + receipt claims) that
+// used to live here was removed 2026-09-13 -- see staff-pos.ts's
+// StaffPendingSubmission/StaffResolveSubmissionResponse types instead, which
+// now cover both submission types.
 // ============================================================================
-
-export type ReviewSubmissionType = 'screenshot' | 'receipt_claim';
-export type ReviewSubmissionStatus = 'pending' | 'approved' | 'rejected';
-
-export interface ReviewSubmission {
-  id: string;
-  customerName: string;
-  taskTitle: string;
-  submissionType: ReviewSubmissionType;
-  evidenceUrl: string | null;
-  receiptNumber: string | null;
-  aiConfidenceScore: number | null;
-  status: ReviewSubmissionStatus;
-  reviewedBy: string | null;
-  pointsAwarded: number | null;
-  submittedAt: string;
-  taskPointsValue: number;
-}
-
-export interface ResolveSubmissionResponse {
-  id: string;
-  status: 'approved' | 'rejected';
-  pointsAwarded: number;
-}
 
 export interface ReferrerAggregate {
   codeId: string;
