@@ -570,8 +570,20 @@ customerRouter.post("/retro-claims", async (c) => {
   const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
-  const body = await c.req.json<{ receiptHash?: string; receiptNumber?: string; hoursAgo?: number }>();
+  const body = await c.req.json<{
+    receiptHash?: string;
+    receiptNumber?: string;
+    hoursAgo?: number;
+    // Previously accepted by no one -- the RetroClaimModal.tsx file picker
+    // existed but its selected file was never actually uploaded/stored
+    // anywhere (only its filename was used as a receiptHash fallback). Now
+    // wired the same way TaskSubmitModal.tsx handles screenshots: the
+    // customer app uploads via POST /evidence-upload first and passes the
+    // resulting opaque key here.
+    evidenceUrl?: string;
+  }>();
   const hoursAgo = body.hoursAgo ?? 0;
+  const evidenceUrl = body.evidenceUrl ?? null;
   const receiptHash = (body.receiptHash ?? "").trim() || `hash_${Date.now()}`;
   const receiptNumber = (body.receiptNumber ?? "").trim() || `RCP-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -612,9 +624,9 @@ customerRouter.post("/retro-claims", async (c) => {
   );
   if (!campaign) return c.json({ error: "Campaign code vanished mid-request" }, 500);
 
-  const posTask = await queryFirst<{ id: string }>(
+  const posTask = await queryFirst<{ id: string; points_value: number }>(
     db,
-    `SELECT ct.id FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
+    `SELECT ct.id, ct.points_value FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
      WHERE ct.campaign_id = ? AND tp.verification_method = 'pos_scan' LIMIT 1`,
     [campaign.campaign_id]
   );
@@ -625,9 +637,9 @@ customerRouter.post("/retro-claims", async (c) => {
   const submissionId = generateId();
   await execute(
     db,
-    `INSERT INTO task_submissions (id, customer_campaign_code_id, campaign_task_id, submission_type, status, submitted_at)
-     VALUES (?, ?, ?, 'receipt_claim', 'pending', ?)`,
-    [submissionId, code.id, posTask.id, nowIso()]
+    `INSERT INTO task_submissions (id, customer_campaign_code_id, campaign_task_id, submission_type, evidence_url, status, submitted_at)
+     VALUES (?, ?, ?, 'receipt_claim', ?, 'pending', ?)`,
+    [submissionId, code.id, posTask.id, evidenceUrl, nowIso()]
   );
   await execute(
     db,
@@ -635,6 +647,27 @@ customerRouter.post("/retro-claims", async (c) => {
      VALUES (?, ?, ?, 0, ?)`,
     [generateId(), submissionId, receiptHash, nowIso()]
   );
+
+  // Same AI confidence gate as screenshot_ai tasks (see
+  // applyVisionScoreAndMaybeAutoApprove above) -- a receipt photo is scored
+  // by the same vision pipeline, just with a receipt-specific prompt context
+  // ("task name" here is really just a label for the model). Only runs when
+  // the customer actually attached a photo; a bare hoursAgo/receiptNumber
+  // claim with no image has nothing for AI to look at and goes straight to
+  // staff pending review, same as a scoring failure would.
+  if (evidenceUrl) {
+    c.executionCtx.waitUntil(
+      scoreTaskSubmission(c.env, evidenceUrl, "ادعای خرید بازگشتی (تصویر رسید)")
+        .then(async (result) => {
+          if (!result) return;
+          await applyVisionScoreAndMaybeAutoApprove(db, submissionId, code.id, posTask.points_value, result.confidenceScore);
+        })
+        .catch((err) => {
+          const detail = err instanceof Error ? err.message : String(err);
+          console.error(`vision scoring failed for retro-claim submission ${submissionId}: ${detail}`);
+        })
+    );
+  }
 
   return c.json({
     success: true,
