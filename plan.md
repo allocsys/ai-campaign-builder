@@ -354,5 +354,12 @@ packages/
 
 ---
 
+17. **Microsite subdomain slugs are auto-generated and not human-readable -- `business_microsites.subdomain_slug` is always `biz-<first 8 chars of businessId>` (e.g. `biz-5bf8e0b2`), never something clean like `cafetime`.** Found 2026-09-13 while testing a real referral link -- traced to `ensureMicrosite()` (`apps/backend/src/routes/business.ts`): `const slug = \`biz-${businessId.slice(0, 8)}\`;` runs the first time a business's microsite is auto-created, with no owner-facing way to set or change it afterward (`MicrositeBuilderTab.tsx` only *displays* `{subdomainSlug}.{MICROSITE_DOMAIN}` as read-only text). Decided: needs a real owner-chosen slug before the domain purchase (Item 3) makes these links customer-facing for real. Scope, not yet started:
+    - Add an owner-editable slug field (likely in the onboarding wizard and/or `MicrositeBuilderTab.tsx`'s Settings), with server-side validation: uniqueness against every other business's `subdomain_slug`, a charset/length rule suitable for a DNS label, and a **reserved-word list** so nobody can claim a slug that collides with a platform subdomain -- at minimum `app`, `staff`, `review`, `www`, plus whatever Item 3 eventually decides for `customer`'s and `backend`'s prefixes (e.g. `api`).
+    - Decide the migration path for businesses that already have an auto-generated `biz-...` slug live (currently just کافه تایم, `biz-5bf8e0b2`, per Item 13's cleanup) -- backfill/prompt them to pick a real one, vs. leaving existing slugs as permanent once set.
+    - Decide what happens on slug change for a business with an already-shared/printed referral link (old QR codes/links would 404) -- e.g. keep old slugs reserved-but-redirecting for some period, or treat it as a one-time-only choice.
+
+---
+
 ## Architecture reference
 Full DB schema (35 tables) lives in `architecture.md`, not duplicated here.
