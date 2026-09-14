@@ -820,9 +820,11 @@ export async function deleteCampaignForBusiness(db: D1Database, businessId: stri
 // wizard's existing "Launch" action) is what actually activates it.
 // ============================================================================
 
-// Body shape for POST /campaign/generate, shared by businessRouter (businessId
+// Body shape shared by POST /campaigns (create-new-campaign flow, businessId
 // = auth.sub) and reviewAdminRouter's businessId-route-param equivalent
-// (plan.md Item 16 Step B).
+// (plan.md Item 16 Step B). The legacy POST /campaign/generate route this
+// body originally described was removed 2026-09-15 (dead code -- no live
+// caller once ensureCampaign's auto-create-on-write behavior went away).
 export type CampaignGenerateBody = Partial<{
   businessName: string;
   businessAddress: string;
@@ -878,7 +880,7 @@ export type CampaignGenerateResult =
         suggestedSiteSlug?: string;
       };
     }
-  | { ok: false; status: 400 | 404 | 409; error: string };
+  | { ok: false; status: 400 | 409; error: string };
 
 // plan.md Open Item 18: turns the LLM's raw (Latin, hopefully DNS-safe-ish)
 // suggestion into something that's actually safe to hand the frontend as a
