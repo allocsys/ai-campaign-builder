@@ -246,38 +246,6 @@ export async function findCurrentCampaignId(db: D1Database, businessId: string):
   return existing?.id ?? null;
 }
 
-// Create-on-write resolver -- for routes that are actually about to WRITE
-// into "the" campaign (PUT /campaign, POST /campaign/generate, and their
-// review-admin equivalents, via applyCampaignUpdate/generateCampaignForBusiness's
-// fallback further down). A brand-new business genuinely needs a row to
-// save/generate into on its first real write, so auto-creating here is
-// legitimate -- unlike the old GET /campaign, this now only ever runs as
-// part of an owner- or admin-initiated write, never a passive page load.
-export async function ensureCampaign(db: D1Database, businessId: string): Promise<string> {
-  const existing = await resolveCurrentCampaignRow(db, businessId);
-  if (existing) return existing.id;
-
-  // Guard the insert with WHERE NOT EXISTS in the same statement so a
-  // concurrent request that raced past the SELECT above can't also insert
-  // a duplicate row for this business_id -- D1 serializes writes to the
-  // primary, so this check-and-insert is effectively atomic even without
-  // a DB-level unique constraint on business_id.
-  const id = generateId();
-  await execute(
-    db,
-    `INSERT INTO campaigns (id, business_id, goal, status, point_multiplier, created_at)
-     SELECT ?, ?, 'acquisition', 'draft', 1, ?
-     WHERE NOT EXISTS (SELECT 1 FROM campaigns WHERE business_id = ?)`,
-    [id, businessId, nowIso(), businessId]
-  );
-
-  // Re-select rather than assuming `id` won: if a concurrent request won
-  // the race, our insert above was a no-op and we need to return the row
-  // that actually landed.
-  const row = await resolveCurrentCampaignRow(db, businessId);
-  return row!.id;
-}
-
 // plan.md Item 21 -- unconditionally creates a brand-new campaign row for a
 // business (always `draft`, never reuses/overwrites an existing row), for
 // the new "ایجاد کمپین" (create campaign) entry point on the campaign list
