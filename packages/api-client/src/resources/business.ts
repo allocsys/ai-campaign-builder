@@ -76,8 +76,11 @@ export async function generateCampaign(
 // Campaign list + :campaignId-scoped endpoints (plan.md Item 21). The legacy
 // single-campaign functions above (getCampaign/updateCampaign/generateCampaign)
 // remain in place unchanged for callers not yet migrated -- see business.ts
-// backend's ensureCampaign comment for their active-first/newest-else
-// fallback order.
+// backend's findCurrentCampaignId comment for their active-first/newest-else
+// fallback order. Decided 2026-09-15: these legacy endpoints no longer
+// auto-create a campaign on write (ensureCampaign was removed) -- a business
+// with no campaign yet gets a 404 from getCampaign/updateCampaign/
+// generateCampaign; createCampaign (below) is the only way to make one.
 // ============================================================================
 
 export async function getCampaignSummaries(client: ApiClient): Promise<CampaignSummary[]> {
