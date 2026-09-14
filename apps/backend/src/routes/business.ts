@@ -193,12 +193,39 @@ async function generateUniqueJoinSlug(db: D1Database): Promise<string> {
 // instead of duplicating it. See the section comment above for the
 // active-first / newest-else resolution order (changed from oldest-first
 // as part of plan.md Item 21).
-export async function ensureCampaign(db: D1Database, businessId: string): Promise<string> {
-  const existing = await queryFirst<{ id: string }>(
+async function resolveCurrentCampaignRow(db: D1Database, businessId: string): Promise<{ id: string } | null> {
+  return queryFirst<{ id: string }>(
     db,
     "SELECT id FROM campaigns WHERE business_id = ? ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT 1",
     [businessId]
   );
+}
+
+// Read-only counterpart to ensureCampaign below -- resolves the business's
+// current campaign (same active-first/newest-else order) WITHOUT ever
+// creating one. Root-cause fix for the 2026-09-14 phantom-campaign bug:
+// GET-only endpoints (GET /campaign, GET /stats, and review-admin's
+// businessId-scoped GET /campaign) do no writing, so simply loading a page
+// must never have the side effect of inserting a real campaign row for a
+// business that hasn't gone through the wizard yet. Returns null (never a
+// fabricated row) when the business has no campaign -- each caller decides
+// what "no campaign yet" means for its own response shape. Exported so
+// review-admin.ts's GET /businesses/:businessId/campaign can reuse the same
+// non-creating resolution.
+export async function findCurrentCampaignId(db: D1Database, businessId: string): Promise<string | null> {
+  const existing = await resolveCurrentCampaignRow(db, businessId);
+  return existing?.id ?? null;
+}
+
+// Create-on-write resolver -- for routes that are actually about to WRITE
+// into "the" campaign (PUT /campaign, POST /campaign/generate, and their
+// review-admin equivalents, via applyCampaignUpdate/generateCampaignForBusiness's
+// fallback further down). A brand-new business genuinely needs a row to
+// save/generate into on its first real write, so auto-creating here is
+// legitimate -- unlike the old GET /campaign, this now only ever runs as
+// part of an owner- or admin-initiated write, never a passive page load.
+export async function ensureCampaign(db: D1Database, businessId: string): Promise<string> {
+  const existing = await resolveCurrentCampaignRow(db, businessId);
   if (existing) return existing.id;
 
   // Guard the insert with WHERE NOT EXISTS in the same statement so a
@@ -218,11 +245,7 @@ export async function ensureCampaign(db: D1Database, businessId: string): Promis
   // Re-select rather than assuming `id` won: if a concurrent request won
   // the race, our insert above was a no-op and we need to return the row
   // that actually landed.
-  const row = await queryFirst<{ id: string }>(
-    db,
-    "SELECT id FROM campaigns WHERE business_id = ? ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT 1",
-    [businessId]
-  );
+  const row = await resolveCurrentCampaignRow(db, businessId);
   return row!.id;
 }
 
