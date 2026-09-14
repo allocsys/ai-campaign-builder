@@ -26,6 +26,30 @@ businessRouter.use("/*", async (c, next) => {
   await next();
 });
 
+// Bug found 2026-09-14: deleting a business (review_admin's DELETE
+// /businesses/:businessId) does NOT revoke that owner's existing JWT --
+// there's no session/token registry to revoke against, the token just
+// keeps verifying fine until it expires on its own. A tab that was already
+// logged in as that owner can keep making requests here with a valid token
+// whose `sub` now points at a business_id that no longer exists in
+// `businesses`. Several handlers below lazily INSERT a new row keyed by
+// business_id on first access (ensureMicrosite, ensureSubscription, and
+// previously ensureCampaign) -- with the parent business gone, that INSERT
+// trips a foreign-key violation and D1 throws, surfacing as an opaque 500
+// (e.g. GET /microsite -> ensureMicrosite's INSERT). Checking existence
+// once here, for every route in this router, turns that into a clean 401
+// instead of a different raw DB error depending on which lazy-create
+// function happened to run first.
+businessRouter.use("/*", async (c, next) => {
+  const exists = await queryFirst<{ id: string }>(c.env.DB, "SELECT id FROM businesses WHERE id = ?", [
+    c.get("auth").sub,
+  ]);
+  if (!exists) {
+    return c.json({ error: "This business account no longer exists." }, 401);
+  }
+  await next();
+});
+
 // ============================================================================
 // Profile
 // ============================================================================
