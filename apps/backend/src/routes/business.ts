@@ -355,7 +355,8 @@ export async function serializeCampaign(db: D1Database, campaignId: string) {
 
 businessRouter.get("/campaign", async (c) => {
   const db = c.env.DB;
-  const campaignId = await ensureCampaign(db, c.get("auth").sub);
+  const campaignId = await findCurrentCampaignId(db, c.get("auth").sub);
+  if (!campaignId) return c.json({ error: "No campaign found for this business" }, 404);
   return c.json(await serializeCampaign(db, campaignId));
 });
 
@@ -1305,7 +1306,12 @@ async function loadBusinessStats(db: D1Database, campaignId: string) {
 
 businessRouter.get("/stats", async (c) => {
   const db = c.env.DB;
-  const campaignId = await ensureCampaign(db, c.get("auth").sub);
+  const campaignId = await findCurrentCampaignId(db, c.get("auth").sub);
+  if (!campaignId) {
+    // No campaign yet -- zeroed stats rather than a 404, since this is a
+    // routine "nothing has happened yet" state, not an error.
+    return c.json({ totalMembers: 0, totalPointsIssued: 0, rewardsRedeemed: 0, conversionRatePercent: 0 });
+  }
   return c.json(await loadBusinessStats(db, campaignId));
 });
 
