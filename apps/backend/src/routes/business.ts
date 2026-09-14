@@ -26,32 +26,45 @@ businessRouter.use("/*", async (c, next) => {
   await next();
 });
 
-// Bug found 2026-09-14: deleting a business (review_admin's DELETE
-// /businesses/:businessId) does NOT revoke that owner's existing JWT --
-// there's no session/token registry to revoke against, the token just
-// keeps verifying fine until it expires on its own. A tab that was already
-// logged in as that owner can keep making requests here with a valid token
-// whose `sub` now points at a business_id that no longer exists in
-// `businesses`. Several handlers below lazily INSERT a new row keyed by
-// business_id on first access (ensureMicrosite, ensureSubscription, and
-// previously ensureCampaign) -- with the parent business gone, that INSERT
-// trips a foreign-key violation and D1 throws, surfacing as an opaque 500
-// (e.g. GET /microsite -> ensureMicrosite's INSERT). Checking existence
-// once here, for every route in this router, turns that into a clean 401
-// instead of a different raw DB error depending on which lazy-create
-// function happened to run first.
+// plan.md Item 23 (2026-09-15, "business_owners / businesses split"): the
+// JWT's `sub` for a business_owner is now the OWNER's id (business_owners.id),
+// not necessarily a businesses.id -- a brand-new owner who hasn't completed
+// the wizard's first campaign yet has no businesses row at all. Rather than
+// touch every one of this file's ~40 routes (all written against
+// `c.get("auth").sub` as "my business id", the pre-split convention), this
+// single middleware resolves the owner's current business (if any) and
+// REMAPS `sub` to that businessId for the rest of the request -- every
+// existing route below keeps working completely unchanged. The real
+// ownerId is preserved under a new `ownerId` field for the few call sites
+// that need it (currently just POST /campaigns' ensureBusinessForOwner,
+// and loadProfile's owner-identity fields via a join). When no businesses
+// row exists yet, `sub` simply stays the ownerId -- every other route's
+// businessId-keyed queries then match nothing and fall through to their
+// existing "not found"/zeroed-state responses (see loadProfile, GET
+// /campaign, GET /stats, etc.), which is the correct, expected behavior for
+// a brand-new owner who hasn't created a business yet -- not an error.
+//
+// This also replaces the old "business account deleted" existence check
+// (bug found 2026-09-14: a review_admin-deleted business's JWT kept
+// verifying fine, causing lazy-create handlers like ensureMicrosite to trip
+// an opaque FK-violation 500). That check now looks at business_owners
+// (deleting a business no longer implies deleting the owner account, now
+// that they're separate entities -- see plan.md Item 23's follow-up note on
+// review-admin.ts's deleteBusinessCompletely). A business_owners row is not
+// currently deletable from anywhere in the app, so this 403 branch is
+// defensive/future-proofing rather than reachable today.
 businessRouter.use("/*", async (c, next) => {
-  const exists = await queryFirst<{ id: string }>(c.env.DB, "SELECT id FROM businesses WHERE id = ?", [
-    c.get("auth").sub,
+  const auth = c.get("auth");
+  const ownerExists = await queryFirst<{ id: string }>(c.env.DB, "SELECT id FROM business_owners WHERE id = ?", [
+    auth.sub,
   ]);
-  if (!exists) {
-    // 403 + a distinguishing `code` (not 401) -- requireAuth above already
-    // uses 401 for a missing/malformed header or an invalid/expired token,
-    // neither of which mean the account was deleted. A distinct status +
-    // code lets the frontend tell the two apart without parsing the error
-    // message text (see apps/business-owner's AccountDeletedScreen).
-    return c.json({ error: "This business account no longer exists.", code: "business_account_deleted" }, 403);
+  if (!ownerExists) {
+    return c.json({ error: "This account no longer exists.", code: "business_account_deleted" }, 403);
   }
+  const business = await queryFirst<{ id: string }>(c.env.DB, "SELECT id FROM businesses WHERE owner_id = ?", [
+    auth.sub,
+  ]);
+  c.set("auth", { ...auth, ownerId: auth.sub, sub: business?.id ?? auth.sub });
   await next();
 });
 
@@ -64,6 +77,9 @@ businessRouter.use("/*", async (c, next) => {
 // has no category until the wizard's first campaign creation sets one), so
 // an inner JOIN here would silently 404 ("Business not found") a real,
 // freshly-signed-up business just because it hasn't picked a category yet.
+// plan.md Item 23: phone/sms-wallet fields now live on business_owners, not
+// businesses -- INNER JOIN (not LEFT) is safe here since businesses.owner_id
+// is NOT NULL, every businesses row has exactly one owner.
 async function loadProfile(db: D1Database, businessId: string) {
   return queryFirst<{
     name: string;
@@ -76,8 +92,10 @@ async function loadProfile(db: D1Database, businessId: string) {
     manual_editor_enabled: number;
   }>(
     db,
-    `SELECT b.name, b.phone, b.size_tier, b.sms_wallet_balance_toman, b.sms_monthly_cap_toman, bc.name_fa, b.address, b.manual_editor_enabled
-     FROM businesses b LEFT JOIN business_categories bc ON bc.id = b.category_id
+    `SELECT b.name, bo.phone, b.size_tier, bo.sms_wallet_balance_toman, bo.sms_monthly_cap_toman, bc.name_fa, b.address, b.manual_editor_enabled
+     FROM businesses b
+     JOIN business_owners bo ON bo.id = b.owner_id
+     LEFT JOIN business_categories bc ON bc.id = b.category_id
      WHERE b.id = ?`,
     [businessId]
   );
@@ -150,10 +168,13 @@ businessRouter.put("/profile", async (c) => {
     await execute(db, "UPDATE businesses SET size_tier = ? WHERE id = ?", [body.sizeTier, businessId]);
   }
   if (body.smsMonthlyCapToman !== undefined) {
-    await execute(db, "UPDATE businesses SET sms_monthly_cap_toman = ? WHERE id = ?", [
-      body.smsMonthlyCapToman,
-      businessId,
-    ]);
+    // plan.md Item 23: sms_monthly_cap_toman now lives on business_owners --
+    // updated via businesses.owner_id rather than businesses.id directly.
+    await execute(
+      db,
+      "UPDATE business_owners SET sms_monthly_cap_toman = ? WHERE id = (SELECT owner_id FROM businesses WHERE id = ?)",
+      [body.smsMonthlyCapToman, businessId]
+    );
   }
   if (body.categoryLabel !== undefined) {
     const cat = await queryFirst<{ id: string }>(db, "SELECT id FROM business_categories WHERE name_fa = ?", [
