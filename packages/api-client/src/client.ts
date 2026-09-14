@@ -1,5 +1,5 @@
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public code?: string) {
     super(message);
     this.name = 'ApiError';
   }
@@ -8,15 +8,23 @@ export class ApiError extends Error {
 export interface ApiClientConfig {
   baseUrl: string;
   getToken?: () => string | null;
+  /** Called with every ApiError this client produces, right before it's
+   * thrown -- lets an app react to a specific backend error `code` (e.g.
+   * "business_account_deleted") from one place instead of every call site
+   * having to inspect err.message. Optional; never affects control flow
+   * here (the error is thrown either way). */
+  onError?: (error: ApiError) => void;
 }
 
 export class ApiClient {
   private baseUrl: string;
   private getToken?: () => string | null;
+  private onError?: (error: ApiError) => void;
 
   constructor(config: ApiClientConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, '');
     this.getToken = config.getToken;
+    this.onError = config.onError;
   }
 
   async request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -41,6 +49,7 @@ export class ApiClient {
 
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
+      let errorCode: string | undefined;
       try {
         const errorData = await response.json();
         if (errorData && typeof errorData === 'object') {
@@ -49,13 +58,18 @@ export class ApiClient {
           } else if ('message' in errorData && typeof errorData.message === 'string') {
             errorMessage = errorData.message;
           }
+          if ('code' in errorData && typeof errorData.code === 'string') {
+            errorCode = errorData.code;
+          }
         }
       } catch {
         if (response.statusText) {
           errorMessage = response.statusText;
         }
       }
-      throw new ApiError(response.status, errorMessage);
+      const apiError = new ApiError(response.status, errorMessage, errorCode);
+      this.onError?.(apiError);
+      throw apiError;
     }
 
     if (response.status === 204) {
@@ -92,6 +106,7 @@ export class ApiClient {
 
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
+      let errorCode: string | undefined;
       try {
         const errorData = await response.json();
         if (errorData && typeof errorData === 'object') {
@@ -100,13 +115,18 @@ export class ApiClient {
           } else if ('message' in errorData && typeof errorData.message === 'string') {
             errorMessage = errorData.message;
           }
+          if ('code' in errorData && typeof errorData.code === 'string') {
+            errorCode = errorData.code;
+          }
         }
       } catch {
         if (response.statusText) {
           errorMessage = response.statusText;
         }
       }
-      throw new ApiError(response.status, errorMessage);
+      const apiError = new ApiError(response.status, errorMessage, errorCode);
+      this.onError?.(apiError);
+      throw apiError;
     }
 
     return response.blob();

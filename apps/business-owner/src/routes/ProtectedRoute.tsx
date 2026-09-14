@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { AccountDeletedScreen } from './AccountDeletedScreen'
 
 /**
  * Redirects to /login if not authenticated. Wraps the whole authenticated app shell.
@@ -10,8 +11,13 @@ import { useAuth } from '../lib/auth'
  * already-logged-in user to /login before that read completes.
  */
 export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading, accountDeleted } = useAuth()
   if (loading) return null
+  // Checked before isAuthenticated: the account-deleted bus subscriber
+  // clears the stored session as soon as it fires, so isAuthenticated is
+  // already false here too -- without this ordering, every route would
+  // just silently bounce to /login instead of showing AccountDeletedScreen.
+  if (accountDeleted) return <AccountDeletedScreen />
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return <>{children}</>
 }

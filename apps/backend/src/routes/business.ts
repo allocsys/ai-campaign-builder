@@ -45,7 +45,12 @@ businessRouter.use("/*", async (c, next) => {
     c.get("auth").sub,
   ]);
   if (!exists) {
-    return c.json({ error: "This business account no longer exists." }, 401);
+    // 403 + a distinguishing `code` (not 401) -- requireAuth above already
+    // uses 401 for a missing/malformed header or an invalid/expired token,
+    // neither of which mean the account was deleted. A distinct status +
+    // code lets the frontend tell the two apart without parsing the error
+    // message text (see apps/business-owner's AccountDeletedScreen).
+    return c.json({ error: "This business account no longer exists.", code: "business_account_deleted" }, 403);
   }
   await next();
 });
