@@ -87,9 +87,8 @@ authRouter.post("/verify-otp", async (c) => {
       joinSlug?: string;
       ownerFirstName?: string;
       ownerLastName?: string;
-      businessName?: string;
     }>();
-    const { phone, otp, role, referralCode, joinSlug, ownerFirstName, ownerLastName, businessName } = body;
+    const { phone, otp, role, referralCode, joinSlug, ownerFirstName, ownerLastName } = body;
 
     if (!phone || !otp || !role) {
       return c.json({ error: "Missing required fields: phone, otp, role" }, 400);
@@ -123,22 +122,17 @@ authRouter.post("/verify-otp", async (c) => {
       );
 
       if (!business) {
-        // Brand-new signup -- owner's first + last name AND the business's
-        // own name are all required at this step (product decision: blocks
-        // OTP verification if any is missing). Business name used to fall
-        // back to a hardcoded placeholder ("کسب‌وکار جدید") here, fixed up
-        // later in the onboarding wizard's Step 1 -- changed 2026-09-14: the
-        // placeholder auto-created a visibly-broken-looking business record
-        // (and, transitively, a same-named microsite) for the entire window
-        // between signup and whenever/if the owner ever reaches the wizard.
-        // Checked here (not earlier) so the phone/otp/role presence check
-        // above still fires first for a malformed request in general.
+        // Brand-new signup -- owner's first + last name are the ONLY two
+        // fields required at this step (product decision, revised
+        // 2026-09-14: signup asks for name, last name, and phone -- nothing
+        // else. No separate business-name field). Checked here (not earlier)
+        // so the phone/otp/role presence check above still fires first for a
+        // malformed request in general.
         const trimmedFirstName = ownerFirstName?.trim();
         const trimmedLastName = ownerLastName?.trim();
-        const trimmedBusinessName = businessName?.trim();
-        if (!trimmedFirstName || !trimmedLastName || !trimmedBusinessName) {
+        if (!trimmedFirstName || !trimmedLastName) {
           return c.json(
-            { error: "برای ثبت‌نام، لطفاً نام و نام‌خانوادگی خود و نام کسب‌وکار را وارد کنید." },
+            { error: "برای ثبت‌نام، لطفاً نام و نام‌خانوادگی خود را وارد کنید." },
             400
           );
         }
@@ -159,15 +153,20 @@ authRouter.post("/verify-otp", async (c) => {
         }
 
         const nowIso = new Date().toISOString();
-        // Business name is now the owner's real answer, not a placeholder --
-        // category is still an arbitrary first row, still fixed later via the
-        // wizard's Step 1 (per business.ts's generateCampaignForBusiness
-        // comment), since there's no category picker on the signup screen.
+        // No business-name field exists on signup -- `businesses.name` (NOT
+        // NULL, no DB default) has to hold SOMETHING until the owner sets a
+        // real one via the wizard's Step 1 (business.ts's
+        // generateCampaignForBusiness) or Settings. Using the owner's own
+        // real name here (not a generic placeholder string like the old
+        // "کسب‌وکار جدید") means this interim value is at least real data the
+        // owner actually typed, not a fabricated record. Category is still
+        // an arbitrary first row, same as before -- no category picker on
+        // signup either.
         await execute(
           db,
           `INSERT INTO businesses (id, name, category_id, phone, phone_verified, phone_verified_at, sms_wallet_balance_toman, autopilot_enabled, size_tier, owner_first_name, owner_last_name, created_at)
            VALUES (?, ?, ?, ?, 1, ?, 0, 0, 'small', ?, ?, ?)`,
-          [userId, trimmedBusinessName, categoryId, phone, nowIso, trimmedFirstName, trimmedLastName, nowIso]
+          [userId, `${trimmedFirstName} ${trimmedLastName}`, categoryId, phone, nowIso, trimmedFirstName, trimmedLastName, nowIso]
         );
       } else {
         userId = business.id;
