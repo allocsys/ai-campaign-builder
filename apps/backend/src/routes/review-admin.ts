@@ -8,6 +8,7 @@ import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { hashPassword, verifyPassword } from "../lib/password";
 import {
   ensureCampaign,
+  findCurrentCampaignId,
   serializeCampaign,
   applyCampaignUpdate,
   generateCampaignForBusiness,
@@ -377,13 +378,18 @@ async function loadBusinessOr404(db: D1Database, businessId: string): Promise<bo
   return !!exists;
 }
 
-// businessId-route-param equivalent of business.ts's GET /campaign.
+// businessId-route-param equivalent of business.ts's GET /campaign. Uses the
+// read-only findCurrentCampaignId (not ensureCampaign) so an admin merely
+// viewing a business that hasn't been through the wizard yet can't silently
+// create a phantom campaign for them -- same root-cause fix as the owner-
+// facing GET /campaign.
 reviewAdminRouter.get("/businesses/:businessId/campaign", async (c) => {
   const db = c.env.DB;
   const businessId = c.req.param("businessId");
   if (!(await loadBusinessOr404(db, businessId))) return c.json({ error: "Business not found" }, 404);
 
-  const campaignId = await ensureCampaign(db, businessId);
+  const campaignId = await findCurrentCampaignId(db, businessId);
+  if (!campaignId) return c.json({ error: "No campaign found for this business" }, 404);
   return c.json(await serializeCampaign(db, campaignId));
 });
 
