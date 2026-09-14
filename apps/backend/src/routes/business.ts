@@ -184,19 +184,34 @@ async function generateUniqueJoinSlug(db: D1Database): Promise<string> {
 export async function ensureCampaign(db: D1Database, businessId: string): Promise<string> {
   const existing = await queryFirst<{ id: string }>(
     db,
-    "SELECT id FROM campaigns WHERE business_id = ? ORDER BY created_at DESC LIMIT 1",
+    "SELECT id FROM campaigns WHERE business_id = ? ORDER BY created_at ASC, id ASC LIMIT 1",
     [businessId]
   );
   if (existing) return existing.id;
 
+  // Guard the insert with WHERE NOT EXISTS in the same statement so a
+  // concurrent request that raced past the SELECT above can't also insert
+  // a duplicate row for this business_id -- D1 serializes writes to the
+  // primary, so this check-and-insert is effectively atomic even without
+  // a DB-level unique constraint on business_id.
   const id = generateId();
   await execute(
     db,
     `INSERT INTO campaigns (id, business_id, goal, status, point_multiplier, created_at)
-     VALUES (?, ?, 'acquisition', 'draft', 1, ?)`,
-    [id, businessId, nowIso()]
+     SELECT ?, ?, 'acquisition', 'draft', 1, ?
+     WHERE NOT EXISTS (SELECT 1 FROM campaigns WHERE business_id = ?)`,
+    [id, businessId, nowIso(), businessId]
   );
-  return id;
+
+  // Re-select rather than assuming `id` won: if a concurrent request won
+  // the race, our insert above was a no-op and we need to return the row
+  // that actually landed.
+  const row = await queryFirst<{ id: string }>(
+    db,
+    "SELECT id FROM campaigns WHERE business_id = ? ORDER BY created_at ASC, id ASC LIMIT 1",
+    [businessId]
+  );
+  return row!.id;
 }
 
 // Exported (plan.md Item 16 Step A) -- same reasoning as ensureCampaign above.
