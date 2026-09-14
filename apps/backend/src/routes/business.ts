@@ -943,7 +943,7 @@ export async function generateCampaignForBusiness(
   env: Env,
   businessId: string,
   body: CampaignGenerateBody,
-  explicitCampaignId?: string
+  campaignId: string
 ): Promise<CampaignGenerateResult> {
   if (!body.businessName?.trim() || !body.categorySlug || !body.goal || !body.rewardPatternNames?.length) {
     return {
@@ -974,19 +974,15 @@ export async function generateCampaignForBusiness(
     }
   }
 
-  // Single-active-campaign guard (plan.md decision): findCurrentCampaignId
-  // always resolves to the one "current" campaign for this business --
-  // generation must not silently clobber a live campaign's tasks/rewards/
-  // dates out from under active customers.
-  // plan.md Item 21 -- POST /campaigns (create-new-campaign flow) passes its
-  // freshly-created campaignId explicitly -- the only caller left after the
-  // legacy POST /campaign/generate route (and review-admin's equivalent) were
-  // removed 2026-09-15, since neither had a live UI caller once ensureCampaign's
-  // auto-create-on-write behavior went away (see the file's earlier decision
-  // note). campaignId is now required, not resolved implicitly, since every
-  // caller of this function creates its own campaign row via createNewCampaign
-  // before calling it.
-  const campaignId = explicitCampaignId;
+  // Single-active-campaign guard (plan.md decision): generation must not
+  // silently clobber a live campaign's tasks/rewards/dates out from under
+  // active customers. campaignId is a required param, always a freshly-
+  // created row from createNewCampaign -- the legacy POST /campaign/generate
+  // route (and review-admin's equivalent), which used to resolve it
+  // implicitly via findCurrentCampaignId, were removed 2026-09-15 as dead
+  // code once ensureCampaign's auto-create-on-write behavior went away
+  // (neither had a live UI caller left -- see the file's earlier decision
+  // note).
   const currentStatus = await queryFirst<{ status: string }>(db, "SELECT status FROM campaigns WHERE id = ?", [
     campaignId,
   ]);
