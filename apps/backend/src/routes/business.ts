@@ -1149,8 +1149,11 @@ businessRouter.get("/campaigns", async (c) => {
 
 // Creates a brand-new campaign row and immediately generates its
 // tasks/rewards/copy from the wizard body, for the campaign list page's
-// "ایجاد کمپین" entry point -- unlike POST /campaign/generate, this never
-// reuses/overwrites an existing campaign.
+// "ایجاد کمپین" entry point -- this is now the only way to generate a
+// campaign's tasks/rewards/copy (the legacy POST /campaign/generate, which
+// generated into whatever campaign findCurrentCampaignId resolved to, was
+// removed 2026-09-15), so unlike that route this never reuses/overwrites an
+// existing campaign.
 businessRouter.post("/campaigns", async (c) => {
   const db = c.env.DB;
   const businessId = c.get("auth").sub;
