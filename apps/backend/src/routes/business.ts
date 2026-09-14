@@ -390,7 +390,7 @@ export type CampaignUpdateBody = Partial<{
 
 export type CampaignUpdateResult =
   | { ok: true; campaign: Awaited<ReturnType<typeof serializeCampaign>> }
-  | { ok: false; status: 400 | 409; error: string };
+  | { ok: false; status: 400 | 404 | 409; error: string };
 
 // Extracted from the PUT /campaign route handler (plan.md Item 16 Step A) so
 // reviewAdminRouter's businessId-route-param PUT endpoint (Step B) can reuse
@@ -407,9 +407,16 @@ export async function applyCampaignUpdate(
 ): Promise<CampaignUpdateResult> {
   // plan.md Item 21 -- the new :campaignId-scoped PUT /campaigns/:campaignId
   // route passes its campaignId explicitly; legacy callers (PUT /campaign,
-  // reviewAdminRouter's businessId-only endpoint) fall back to ensureCampaign's
-  // single-"current"-campaign resolution, same as before Item 21.
-  const campaignId = explicitCampaignId ?? (await ensureCampaign(db, businessId));
+  // reviewAdminRouter's businessId-only endpoint) fall back to
+  // findCurrentCampaignId's single-"current"-campaign resolution.
+  // Decided 2026-09-15: no more create-on-write here (ensureCampaign
+  // removed) -- a legacy caller with no campaign yet gets a 404, forcing
+  // an explicit createNewCampaign() (POST /campaigns) instead of silently
+  // stubbing one into existence.
+  const campaignId = explicitCampaignId ?? (await findCurrentCampaignId(db, businessId));
+  if (!campaignId) {
+    return { ok: false, status: 404, error: "No campaign found for this business" };
+  }
 
   if (body.status !== undefined) {
     if (!["active", "draft", "ended"].includes(body.status)) {
