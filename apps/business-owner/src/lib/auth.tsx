@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp } from '@ai-campaign-builder/api-client'
 import client from './api-client'
+import { subscribeAccountDeleted } from './account-deleted-bus'
 
 const STORAGE_KEY = 'aicb_business_owner_auth'
 
@@ -28,6 +29,14 @@ interface AuthContextValue {
    * false -> sessionStorage, cleared as soon as the tab/browser closes. */
   verifyOtp: (phone: string, code: string, remember?: boolean) => Promise<boolean>
   logout: () => void
+  /** True once any API call has reported this business account no longer
+   * exists (backend code business_account_deleted). Stays true across the
+   * logout() this triggers, so ProtectedRoute can show AccountDeletedScreen
+   * instead of silently bouncing to /login the instant isAuthenticated
+   * flips false -- cleared only via clearAccountDeleted (called when the
+   * person taps "back to login" on that screen). */
+  accountDeleted: boolean
+  clearAccountDeleted: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -49,10 +58,20 @@ function readStoredAuth(): StoredAuth | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<StoredAuth | null>(null)
   const [loading, setLoading] = useState(true)
+  const [accountDeleted, setAccountDeleted] = useState(false)
 
   useEffect(() => {
     setAuth(readStoredAuth())
     setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    return subscribeAccountDeleted(() => {
+      localStorage.removeItem(STORAGE_KEY)
+      sessionStorage.removeItem(STORAGE_KEY)
+      setAuth(null)
+      setAccountDeleted(true)
+    })
   }, [])
 
   const requestOtp = async (phone: string) => {
@@ -87,9 +106,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuth(null)
   }
 
+  const clearAccountDeleted = () => setAccountDeleted(false)
+
   return (
     <AuthContext.Provider
-      value={{ phone: auth?.phone ?? null, isAuthenticated: !!auth, loading, requestOtp, verifyOtp, logout }}
+      value={{
+        phone: auth?.phone ?? null,
+        isAuthenticated: !!auth,
+        loading,
+        requestOtp,
+        verifyOtp,
+        logout,
+        accountDeleted,
+        clearAccountDeleted,
+      }}
     >
       {children}
     </AuthContext.Provider>
