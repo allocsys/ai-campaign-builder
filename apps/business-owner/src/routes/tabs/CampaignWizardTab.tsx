@@ -147,22 +147,16 @@ function selectClassName() {
 
 /**
  * The actual 5-step wizard UI + generate/launch logic, extracted (2026-09-13,
- * "bring the wizard back into the Campaign tab") so it can be embedded by
- * TWO callers instead of living behind one route:
- *   - CampaignWizardTab below: the from-scratch onboarding path for a
- *     business with no real campaign yet (unchanged behavior).
- *   - CampaignEditorTab: shown inline whenever `manualEditorEnabled` (پرو
- *     مود) is off, replacing what used to be a disabled/read-only dump of
- *     the manual editor's own fields -- that view was redundant with the
- *     dashboard's existing summary and gave non-pro owners no way to act.
- *     The wizard already tolerates being run against a business that has a
- *     real campaign: handleGenerate below simply surfaces the backend's 409
- *     ("campaign is active, end it first") as generateError if they try to
- *     regenerate over a live campaign, and freely overwrites a draft
- *     otherwise -- no separate embedded-mode branching needed here.
- * Callers own navigation after a successful launch via `onLaunched`, since
- * this component has no opinion on where to go next once it isn't always
- * the whole page.
+ * "bring the wizard back into the Campaign tab") so it could be embedded by
+ * more than one caller -- originally both CampaignWizardTab below (the
+ * from-scratch onboarding path for a business with no real campaign yet) and
+ * CampaignEditorTab (shown inline whenever `manualEditorEnabled` was off).
+ * CampaignEditorTab dropped that inline fallback entirely in plan.md Item 21
+ * (see that file's own comment) once `CampaignEditor`'s `readOnly` display
+ * mode covered the same need, so CampaignWizardTab is the sole caller now.
+ * The component still owns navigation-after-launch via `onLaunched` rather
+ * than hardcoding a redirect, since that's still a caller-owned decision even
+ * with just one caller today.
  *
  * Decided 2026-09-15: this component used to support a `mode` prop --
  * 'legacy' targeted the single-"current"-campaign endpoints
