@@ -159,9 +159,19 @@ businessRouter.get("/checklist", async (c) => {
 });
 
 // ============================================================================
-// Campaign (single "current" campaign per business -- auto-provisioned as a
-// draft the first time it's read, since the frontend model always expects
-// exactly one Campaign object, not a list)
+// Campaign (plan.md Item 21 -- a business can now hold multiple campaigns;
+// only one may be `status = 'active'` at a time, enforced in
+// applyCampaignUpdate below). ensureCampaign() is kept as a LEGACY resolver
+// for routes not yet converted to an explicit :campaignId (GET/PUT /campaign,
+// POST /campaign/generate, GET /stats, POST /campaign/chat -- see plan.md
+// Item 21's "deferred" note on the chat route specifically). It now prefers
+// the business's active campaign if one exists, else its most recently
+// created campaign, instead of always the oldest -- a reasonable single
+// "current" campaign to fall back to now that more than one may exist.
+// New :campaignId-scoped routes (GET/POST /campaigns, GET/PUT
+// /campaigns/:campaignId, GET /campaigns/:campaignId/stats) are the real,
+// non-legacy way to address a specific campaign and are what the frontend
+// list/detail pages should move to.
 // ============================================================================
 
 // Short, URL-safe, unique slug for a campaign's public join link/QR
@@ -179,12 +189,14 @@ async function generateUniqueJoinSlug(db: D1Database): Promise<string> {
 }
 
 // Exported (plan.md Item 16 Step A) so reviewAdminRouter's businessId-route-param
-// endpoints can resolve/reuse the exact same "current campaign" model instead of
-// duplicating it.
+// endpoints can resolve/reuse the same legacy "current campaign" fallback
+// instead of duplicating it. See the section comment above for the
+// active-first / newest-else resolution order (changed from oldest-first
+// as part of plan.md Item 21).
 export async function ensureCampaign(db: D1Database, businessId: string): Promise<string> {
   const existing = await queryFirst<{ id: string }>(
     db,
-    "SELECT id FROM campaigns WHERE business_id = ? ORDER BY created_at ASC, id ASC LIMIT 1",
+    "SELECT id FROM campaigns WHERE business_id = ? ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT 1",
     [businessId]
   );
   if (existing) return existing.id;
@@ -208,10 +220,71 @@ export async function ensureCampaign(db: D1Database, businessId: string): Promis
   // that actually landed.
   const row = await queryFirst<{ id: string }>(
     db,
-    "SELECT id FROM campaigns WHERE business_id = ? ORDER BY created_at ASC, id ASC LIMIT 1",
+    "SELECT id FROM campaigns WHERE business_id = ? ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT 1",
     [businessId]
   );
   return row!.id;
+}
+
+// plan.md Item 21 -- unconditionally creates a brand-new campaign row for a
+// business (always `draft`, never reuses/overwrites an existing row), for
+// the new "ایجاد کمپین" (create campaign) entry point on the campaign list
+// page. Unlike ensureCampaign, this never checks for an existing row first.
+export async function createNewCampaign(db: D1Database, businessId: string): Promise<string> {
+  const id = generateId();
+  await execute(
+    db,
+    `INSERT INTO campaigns (id, business_id, goal, status, point_multiplier, created_at)
+     VALUES (?, ?, 'acquisition', 'draft', 1, ?)`,
+    [id, businessId, nowIso()]
+  );
+  return id;
+}
+
+// plan.md Item 21 -- verifies a campaignId actually belongs to this business
+// before any :campaignId-scoped route touches it, same ownership-scoping
+// principle as every other route in this file (see the top-of-file comment:
+// business id always comes from the JWT, never trusted from the request).
+// Returns null (caller returns 404) rather than throwing, since "not found"
+// is an expected, routine case here (bad id, wrong business, typo'd url).
+async function getCampaignOwnedByBusiness(
+  db: D1Database,
+  businessId: string,
+  campaignId: string
+): Promise<{ id: string } | null> {
+  return queryFirst<{ id: string }>(db, "SELECT id FROM campaigns WHERE id = ? AND business_id = ?", [
+    campaignId,
+    businessId,
+  ]);
+}
+
+// plan.md Item 21 -- summary row for the new campaign list page (GET
+// /campaigns). Deliberately NOT the full serializeCampaign() shape (no
+// tasks/rewards arrays) -- the list page only needs enough to render one row
+// per campaign and route into the right detail page on click.
+async function listCampaignsForBusiness(db: D1Database, businessId: string) {
+  const rows = await queryAll<{
+    id: string;
+    status: string;
+    goal: string;
+    start_date: string | null;
+    end_date: string | null;
+    created_at: string;
+  }>(
+    db,
+    `SELECT id, status, goal, start_date, end_date, created_at
+     FROM campaigns WHERE business_id = ?
+     ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at DESC`,
+    [businessId]
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    status: r.status as "active" | "draft" | "ended",
+    goal: r.goal as "acquisition" | "retention" | "acquisition_retention",
+    startDate: r.start_date ?? "",
+    endDate: r.end_date ?? "",
+    createdAt: r.created_at,
+  }));
 }
 
 // Exported (plan.md Item 16 Step A) -- same reasoning as ensureCampaign above.
@@ -301,14 +374,40 @@ export type CampaignUpdateResult =
 export async function applyCampaignUpdate(
   db: D1Database,
   businessId: string,
-  body: CampaignUpdateBody
+  body: CampaignUpdateBody,
+  explicitCampaignId?: string
 ): Promise<CampaignUpdateResult> {
-  const campaignId = await ensureCampaign(db, businessId);
+  // plan.md Item 21 -- the new :campaignId-scoped PUT /campaigns/:campaignId
+  // route passes its campaignId explicitly; legacy callers (PUT /campaign,
+  // reviewAdminRouter's businessId-only endpoint) fall back to ensureCampaign's
+  // single-"current"-campaign resolution, same as before Item 21.
+  const campaignId = explicitCampaignId ?? (await ensureCampaign(db, businessId));
 
   if (body.status !== undefined) {
     if (!["active", "draft", "ended"].includes(body.status)) {
       return { ok: false, status: 400, error: "Invalid status" };
     }
+
+    // plan.md Item 21 -- only one campaign may be active per business at a
+    // time (decided 2026-09-14, supersedes the same-day "simultaneous
+    // active" draft of this item). Activating a second campaign while
+    // another is still active is rejected rather than silently ending the
+    // first one -- an owner must explicitly end the current campaign first.
+    if (body.status === "active") {
+      const otherActive = await queryFirst<{ id: string }>(
+        db,
+        "SELECT id FROM campaigns WHERE business_id = ? AND status = 'active' AND id != ?",
+        [businessId, campaignId]
+      );
+      if (otherActive) {
+        return {
+          ok: false,
+          status: 409,
+          error: "کمپین دیگری از این کسب‌وکار در حال اجراست. ابتدا آن را پایان دهید.",
+        };
+      }
+    }
+
     await execute(db, "UPDATE campaigns SET status = ? WHERE id = ?", [body.status, campaignId]);
 
     // Activating a campaign should make it reachable/advertised from the
@@ -791,7 +890,8 @@ export async function generateCampaignForBusiness(
   db: D1Database,
   env: Env,
   businessId: string,
-  body: CampaignGenerateBody
+  body: CampaignGenerateBody,
+  explicitCampaignId?: string
 ): Promise<CampaignGenerateResult> {
   if (!body.businessName?.trim() || !body.categorySlug || !body.goal || !body.rewardPatternNames?.length) {
     return {
@@ -827,7 +927,10 @@ export async function generateCampaignForBusiness(
   // must not silently clobber a live campaign's tasks/rewards/dates out from
   // under active customers. ensureCampaign's own auto-create-draft-if-none
   // path is harmless here: a brand-new business has no campaign to clobber.
-  const campaignId = await ensureCampaign(db, businessId);
+  // plan.md Item 21 -- POST /campaigns (create-new-campaign flow) passes its
+  // freshly-created campaignId explicitly; the legacy POST /campaign/generate
+  // route falls back to ensureCampaign's single-"current"-campaign resolution.
+  const campaignId = explicitCampaignId ?? (await ensureCampaign(db, businessId));
   const currentStatus = await queryFirst<{ status: string }>(db, "SELECT status FROM campaigns WHERE id = ?", [
     campaignId,
   ]);
@@ -960,6 +1063,64 @@ businessRouter.post("/campaign/generate", async (c) => {
   const result = await generateCampaignForBusiness(db, c.env, businessId, body);
   if (!result.ok) return c.json({ error: result.error }, result.status);
   return c.json(result.result);
+});
+
+// ============================================================================
+// Campaign list + :campaignId-scoped routes (plan.md Item 21). The legacy
+// single-campaign routes above (GET/PUT /campaign, POST /campaign/generate)
+// remain in place, unchanged in behavior, for callers not yet migrated to an
+// explicit campaignId -- see ensureCampaign's comment for their
+// active-first/newest-else fallback order.
+// ============================================================================
+
+businessRouter.get("/campaigns", async (c) => {
+  const db = c.env.DB;
+  const rows = await listCampaignsForBusiness(db, c.get("auth").sub);
+  return c.json(rows);
+});
+
+// Creates a brand-new campaign row and immediately generates its
+// tasks/rewards/copy from the wizard body, for the campaign list page's
+// "ایجاد کمپین" entry point -- unlike POST /campaign/generate, this never
+// reuses/overwrites an existing campaign.
+businessRouter.post("/campaigns", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const body = await c.req.json<CampaignGenerateBody>();
+  const campaignId = await createNewCampaign(db, businessId);
+  const result = await generateCampaignForBusiness(db, c.env, businessId, body, campaignId);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json({ campaignId, ...result.result }, 201);
+});
+
+businessRouter.get("/campaigns/:campaignId", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const campaignId = c.req.param("campaignId");
+  const owned = await getCampaignOwnedByBusiness(db, businessId, campaignId);
+  if (!owned) return c.json({ error: "Campaign not found" }, 404);
+  return c.json(await serializeCampaign(db, campaignId));
+});
+
+businessRouter.put("/campaigns/:campaignId", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const campaignId = c.req.param("campaignId");
+  const owned = await getCampaignOwnedByBusiness(db, businessId, campaignId);
+  if (!owned) return c.json({ error: "Campaign not found" }, 404);
+  const body = await c.req.json<CampaignUpdateBody>();
+  const result = await applyCampaignUpdate(db, businessId, body, campaignId);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json(result.campaign);
+});
+
+businessRouter.get("/campaigns/:campaignId/stats", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const campaignId = c.req.param("campaignId");
+  const owned = await getCampaignOwnedByBusiness(db, businessId, campaignId);
+  if (!owned) return c.json({ error: "Campaign not found" }, 404);
+  return c.json(await loadBusinessStats(db, campaignId));
 });
 
 // ============================================================================
