@@ -8,7 +8,6 @@ import type {
   CampaignSizeSignals,
   CreatedCampaignProposal,
   GenerateCampaignRequest,
-  GeneratedCampaignProposal,
   Insight,
   SuggestedChange,
   CampaignChatRequest,
