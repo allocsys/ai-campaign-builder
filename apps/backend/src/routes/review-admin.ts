@@ -10,10 +10,9 @@ import {
   findCurrentCampaignId,
   serializeCampaign,
   applyCampaignUpdate,
-  generateCampaignForBusiness,
   deleteCampaignForBusiness,
 } from "./business";
-import type { CampaignUpdateBody, CampaignGenerateBody } from "./business";
+import type { CampaignUpdateBody } from "./business";
 
 const reviewAdminRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
