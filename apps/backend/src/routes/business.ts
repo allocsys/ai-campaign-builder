@@ -1129,12 +1129,7 @@ export async function generateCampaignForBusiness(
   };
 }
 
-businessRouter.post("/campaign/generate", async (c) => {
-  const db = c.env.DB;
-  const businessId = c.get("auth").sub;
-  const body = await c.req.json<CampaignGenerateBody>();
-  const result = await generateCampaignForBusiness(db, c.env, businessId, body);
-  if (!result.ok) return c.json({ error: result.error }, result.status);
+PLACEHOLDER_MARK result.status);
   return c.json(result.result);
 });
 
