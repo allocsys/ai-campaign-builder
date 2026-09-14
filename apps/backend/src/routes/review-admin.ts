@@ -326,12 +326,15 @@ reviewAdminRouter.delete("/admins/:id", async (c) => {
 // isRoot distinction for campaign access, per the full-access decision).
 // ----------------------------------------------------------------------------
 
-function serializeBusinessListItem(row: { id: string; name: string; phone: string; name_fa: string; manual_editor_enabled: number }) {
+function serializeBusinessListItem(row: { id: string; name: string; phone: string; name_fa: string | null; manual_editor_enabled: number }) {
   return {
     id: row.id,
     name: row.name,
     phone: row.phone,
-    categoryLabel: row.name_fa,
+    // null when the business hasn't picked a category yet (see the LEFT JOIN
+    // comment below, and business.ts's loadProfile for the owner-facing
+    // equivalent of this same 2026-09-15 nullable-category_id fix).
+    categoryLabel: row.name_fa ?? "",
     // plan.md Item 16 Step E -- lets the business picker show/toggle each
     // business's "حالت حرفه‌ای" state without a separate per-business fetch.
     manualEditorEnabled: !!row.manual_editor_enabled,
@@ -341,12 +344,17 @@ function serializeBusinessListItem(row: { id: string; name: string; phone: strin
 // Business picker for the admin campaign UI (Step D/E) -- every business in
 // the system, since review_admin has no per-business scoping (unlike
 // business_owner, whose JWT sub IS the business id).
+// plan.md decision (2026-09-15, "defer business provisioning"): LEFT JOIN,
+// not JOIN -- `businesses.category_id` is now nullable, so an inner JOIN
+// would silently drop any business that hasn't picked a category yet
+// (e.g. every brand-new signup, until its first campaign is created) from
+// this list entirely.
 reviewAdminRouter.get("/businesses", async (c) => {
   const db = c.env.DB;
-  const rows = await queryAll<{ id: string; name: string; phone: string; name_fa: string; manual_editor_enabled: number }>(
+  const rows = await queryAll<{ id: string; name: string; phone: string; name_fa: string | null; manual_editor_enabled: number }>(
     db,
     `SELECT b.id, b.name, b.phone, bc.name_fa, b.manual_editor_enabled
-     FROM businesses b JOIN business_categories bc ON bc.id = b.category_id
+     FROM businesses b LEFT JOIN business_categories bc ON bc.id = b.category_id
      ORDER BY b.name ASC`
   );
   return c.json(rows.map(serializeBusinessListItem));

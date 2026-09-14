@@ -138,20 +138,6 @@ authRouter.post("/verify-otp", async (c) => {
         }
 
         userId = generateId();
-        // For default category, pick the first category from business_categories or create one if empty
-        let cat = await queryFirst<{ id: string }>(db, "SELECT id FROM business_categories LIMIT 1");
-        let categoryId = cat?.id;
-
-        if (!categoryId) {
-          categoryId = generateId();
-          const nowIso = new Date().toISOString();
-          await execute(
-            db,
-            "INSERT INTO business_categories (id, slug, name_fa, active, created_at) VALUES (?, ?, ?, 1, ?)",
-            [categoryId, "coffee_shop", "کافی‌شاپ/کافه", nowIso]
-          );
-        }
-
         const nowIso = new Date().toISOString();
         // No business-name field exists on signup -- `businesses.name` (NOT
         // NULL, no DB default) has to hold SOMETHING until the owner sets a
@@ -159,14 +145,21 @@ authRouter.post("/verify-otp", async (c) => {
         // generateCampaignForBusiness) or Settings. Using the owner's own
         // real name here (not a generic placeholder string like the old
         // "کسب‌وکار جدید") means this interim value is at least real data the
-        // owner actually typed, not a fabricated record. Category is still
-        // an arbitrary first row, same as before -- no category picker on
-        // signup either.
+        // owner actually typed, not a fabricated record.
+        // plan.md decision (2026-09-15, "defer business provisioning"):
+        // category_id is no longer auto-assigned to an arbitrary first row
+        // here -- `businesses.category_id` is now nullable (see migration
+        // 0001_init.sql), and stays NULL until the owner picks a real
+        // category via the wizard's Step 1 (generateCampaignForBusiness's
+        // `UPDATE businesses SET category_id = ?`). Picking a meaningless
+        // placeholder category at signup was worse than having none: it
+        // silently mis-categorized a business before the owner ever made a
+        // real choice, with nothing forcing a later correction.
         await execute(
           db,
-          `INSERT INTO businesses (id, name, category_id, phone, phone_verified, phone_verified_at, sms_wallet_balance_toman, autopilot_enabled, size_tier, owner_first_name, owner_last_name, created_at)
-           VALUES (?, ?, ?, ?, 1, ?, 0, 0, 'small', ?, ?, ?)`,
-          [userId, `${trimmedFirstName} ${trimmedLastName}`, categoryId, phone, nowIso, trimmedFirstName, trimmedLastName, nowIso]
+          `INSERT INTO businesses (id, name, phone, phone_verified, phone_verified_at, sms_wallet_balance_toman, autopilot_enabled, size_tier, owner_first_name, owner_last_name, created_at)
+           VALUES (?, ?, ?, 1, ?, 0, 0, 'small', ?, ?, ?)`,
+          [userId, `${trimmedFirstName} ${trimmedLastName}`, phone, nowIso, trimmedFirstName, trimmedLastName, nowIso]
         );
       } else {
         userId = business.id;
