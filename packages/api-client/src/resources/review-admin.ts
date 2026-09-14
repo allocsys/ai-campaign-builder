@@ -6,8 +6,6 @@ import type {
   AdminBusinessListItem,
   AdminCustomerListItem,
   Campaign,
-  GenerateCampaignRequest,
-  GeneratedCampaignProposal,
   StaffMember,
 } from '../types';
 
@@ -125,19 +123,13 @@ export async function deleteAdminBusinessCampaign(
   );
 }
 
-export async function generateAdminBusinessCampaign(
-  client: ApiClient,
-  businessId: string,
-  data: GenerateCampaignRequest
-): Promise<GeneratedCampaignProposal> {
-  return client.request<GeneratedCampaignProposal>(
-    `/api/review-admin/businesses/${encodeURIComponent(businessId)}/campaign/generate`,
-    {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }
-  );
-}
+// Decided 2026-09-15: generateAdminBusinessCampaign (POST /businesses/:businessId/campaign/generate)
+// was removed -- it had no caller anywhere in review-console, and the
+// backend route it pointed at was itself deleted as dead code once
+// generateCampaignForBusiness stopped supporting implicit campaignId
+// resolution (see review-admin.ts's own decision note server-side). Admin
+// campaign access remains full parity with the owner's for view/edit/delete
+// above (getAdminBusinessCampaign/updateAdminBusinessCampaign/deleteAdminBusinessCampaign).
 
 // plan.md Item 16 Step E -- admin-side toggle for a business's manual-editor
 // gate ("حالت حرفه‌ای"). The owner can also self-toggle their own via
