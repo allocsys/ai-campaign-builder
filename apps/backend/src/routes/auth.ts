@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
 import { generateId, queryFirst, execute } from "../lib/db";
+import type { D1Database } from "@cloudflare/workers-types";
 import { signJWT } from "../middleware/auth";
 import { getJwtSecret } from "../lib/jwt-config";
 import { ensureCustomerCampaignCode, resolveCampaignByJoinSlug } from "./customer";
@@ -25,6 +26,16 @@ const DEV_OTPS: Record<string, string> = {
   staff: "3321",
 };
 
+// Read-only -- resolves whether a phone already has a businesses row,
+// WITHOUT ever creating one. Same non-creating-resolver principle as
+// business.ts's findCurrentCampaignId: a page load / OTP request must never
+// have the side effect of provisioning a real row. The actual create-on-
+// write still only happens in verify-otp below, same as before.
+async function isNewBusinessPhone(db: D1Database, phone: string): Promise<boolean> {
+  const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM businesses WHERE phone = ?", [phone]);
+  return !existing;
+}
+
 authRouter.post("/request-otp", async (c) => {
   try {
     const body = await c.req.json<{ phone?: string; role?: string }>();
@@ -42,12 +53,25 @@ authRouter.post("/request-otp", async (c) => {
     // For now, in dev mode, the mock OTP is statically known (e.g., 7712 / 5432 / 9911).
     console.log(`[DEV OTP] Requested for phone ${phone} with role ${role}. Dev OTP is: ${DEV_OTPS[role]}`);
 
+    // isNewBusiness (business_owner role only): lets the frontend show the
+    // new owner-first-name/owner-last-name fields for a brand-new phone and
+    // hide them for an existing one, decided BEFORE the OTP step so the
+    // person isn't asked to re-enter a code after being told they also need
+    // to fill in their name. Omitted entirely for the other 3 roles -- they
+    // have no such distinction and no callers read this field for them.
+    const isNewBusiness = role === "business_owner" ? await isNewBusinessPhone(c.env.DB, phone) : undefined;
+
     // TEMPORARY (dev-mode only, remove once a real SMS provider is wired in):
     // echo the OTP back in the response so a live human tester can complete
     // OTP verification (e.g. Open Item 13, Step E part 2) without server/log
     // access -- there is no real SMS being sent today either way, so this
     // doesn't weaken anything that currently exists.
-    return c.json({ ok: true, message: "OTP sent (dev mode stub)", devOtp: DEV_OTPS[role] });
+    return c.json({
+      ok: true,
+      message: "OTP sent (dev mode stub)",
+      devOtp: DEV_OTPS[role],
+      ...(isNewBusiness !== undefined ? { isNewBusiness } : {}),
+    });
   } catch (err) {
     return c.json({ error: "Invalid request body" }, 400);
   }
