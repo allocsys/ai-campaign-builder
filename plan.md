@@ -429,8 +429,6 @@ packages/
 
 ---
 
----
-
 23. **Account/business conflation — the `businesses` table doubles as both the owner's account and the business profile.** Found 2026-09-15 while scoping PR #114 ("defer business provisioning to first campaign creation"). Root cause, surfaced by the user directly: `businesses` holds both auth/account fields (`phone`, `phone_verified`, `phone_verified_at`, `sms_wallet_balance_toman`, `sms_monthly_cap_toman`, `owner_first_name`, `owner_last_name`) and true business-profile fields (`name`, `category_id`, `address`, `instagram_handle`, `size_tier`) in one row. "An owner signed up but hasn't described their business yet" has no honest representation in that shape — it gets forced into a `businesses` row with nulled-out/placeholder business fields, which is exactly the complexity PR #114 was built to manage (nullable `category_id`, deferred `ensureMicrosite`, a `microsite_not_created` 404 branch, etc.). This item fixes the conflation at the root instead of continuing to manage its symptoms.
 
     **Decided 2026-09-15:**
