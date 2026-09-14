@@ -1,8 +1,16 @@
--- Initial schema for ai-campaign-builder backend (Cloudflare D1 / SQLite).
+-- Schema for ai-campaign-builder backend (Cloudflare D1 / SQLite).
 -- Source of truth: /architecture.md at repo root. Follows that doc's own
 -- type-mapping note (Stack section): uuid->TEXT, jsonb->TEXT (app-parsed JSON),
 -- enum->TEXT with a CHECK constraint listing allowed values, boolean->INTEGER
 -- (0/1), timestamp->TEXT (ISO 8601), numeric->REAL.
+--
+-- This file is the single consolidated schema, replacing what used to be 16
+-- incremental migrations (0001-0016). Collapsed 2026-09-15: the product has
+-- no real users yet, so there was no data-compatibility reason to keep
+-- shipping the schema as a history of ALTER TABLE / table-rebuild steps --
+-- this file just IS the current, correct schema. If real users ever exist
+-- before the next schema change, go back to additive migrations instead of
+-- editing this file in place.
 
 -- ============================================================
 -- Lookup / global config tables
@@ -108,13 +116,58 @@ CREATE TABLE onboarding_checklist_items (
 );
 
 -- ============================================================
+-- Identity / staff-adjacent tables
+-- ============================================================
+
+-- Invite-only, scoped to a single business. A business owner pre-registers a
+-- staff phone before that phone can request an OTP with role='staff'.
+CREATE TABLE staff (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL REFERENCES businesses(id),
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL UNIQUE,
+  phone_verified INTEGER NOT NULL DEFAULT 0,
+  phone_verified_at TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- Invite-only, mirrors `staff`'s shape. A review_admin registers the phone
+-- before it can complete OTP verification with role='review_team'.
+CREATE TABLE review_team_members (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL UNIQUE,
+  phone_verified INTEGER NOT NULL DEFAULT 0,
+  phone_verified_at TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- Holds only NON-root admins. The root admin is bootstrapped entirely from
+-- env vars (REVIEW_ADMIN_USERNAME / REVIEW_ADMIN_PASSWORD_HASH, see
+-- wrangler.toml) and never gets a row here.
+CREATE TABLE review_admins (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  -- Free text, not a FK: the creator may be 'root' (env-configured identity,
+  -- no row anywhere to reference) or another review_admins row's username.
+  created_by TEXT NOT NULL
+);
+
+-- ============================================================
 -- Core business / campaign tables
 -- ============================================================
 
 CREATE TABLE businesses (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  category_id TEXT NOT NULL REFERENCES business_categories(id),
+  -- Nullable: set at signup with no category yet. First populated when the
+  -- owner runs the campaign wizard for the first time (generateCampaignForBusiness
+  -- sets it from the wizard's categorySlug), not before.
+  category_id TEXT REFERENCES business_categories(id),
   phone TEXT NOT NULL UNIQUE,
   phone_verified INTEGER NOT NULL DEFAULT 0,
   phone_verified_at TEXT,
@@ -123,13 +176,29 @@ CREATE TABLE businesses (
   instagram_handle TEXT,
   autopilot_enabled INTEGER NOT NULL DEFAULT 0,
   size_tier TEXT CHECK (size_tier IN ('micro', 'small', 'medium', 'large')),
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  -- Running count of suggested_changes this owner has manually applied
+  -- (applied_by = 'business_owner'); denormalized to avoid a join+aggregate
+  -- on the hot AutopilotTab read path.
+  manual_apply_count INTEGER NOT NULL DEFAULT 0,
+  -- How many manual applies are required before autopilot can be enabled.
+  -- Per-business (not global) so it can vary later without another migration.
+  autopilot_eligibility_threshold INTEGER NOT NULL DEFAULT 3,
+  address TEXT,
+  -- Shared boolean gate for the manual campaign editor; settable by the
+  -- owner (self-serve "حالت حرفه‌ای" toggle) or by review_admin on their
+  -- behalf. review_admin's own editor access is unconditional regardless.
+  manual_editor_enabled INTEGER NOT NULL DEFAULT 0,
+  -- Nullable: collected at signup going forward; existing/legacy rows may
+  -- have neither, which is not an error condition.
+  owner_first_name TEXT,
+  owner_last_name TEXT
 );
 
 CREATE TABLE campaigns (
   id TEXT PRIMARY KEY,
   business_id TEXT NOT NULL REFERENCES businesses(id),
-  goal TEXT NOT NULL CHECK (goal IN ('acquisition', 'retention')),
+  goal TEXT NOT NULL CHECK (goal IN ('acquisition', 'retention', 'acquisition_retention')),
   audience_description TEXT,
   offer_description TEXT,
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'ended')),
@@ -140,7 +209,15 @@ CREATE TABLE campaigns (
   max_referrals_per_customer INTEGER NOT NULL DEFAULT 10,
   grace_period_days INTEGER NOT NULL DEFAULT 2,
   carryover_percentage INTEGER NOT NULL DEFAULT 30,
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  -- Wizard Step 3 size-tier signals, persisted so a reopened wizard can
+  -- pre-fill from the business's most-recently-created campaign. All
+  -- nullable: a business's very first campaign has nothing to pre-fill from.
+  daily_customer_count_min INTEGER,
+  daily_customer_count_max INTEGER,
+  monthly_revenue_toman_min REAL,
+  monthly_revenue_toman_max REAL,
+  follower_count INTEGER
 );
 
 CREATE TABLE campaign_tasks (
@@ -148,7 +225,10 @@ CREATE TABLE campaign_tasks (
   campaign_id TEXT NOT NULL REFERENCES campaigns(id),
   task_pattern_id TEXT NOT NULL REFERENCES task_patterns(id),
   points_value INTEGER NOT NULL,
-  display_order INTEGER NOT NULL DEFAULT 0
+  display_order INTEGER NOT NULL DEFAULT 0,
+  -- Free-form label shown in the frontend (e.g. "Share your visit on
+  -- Instagram Story"), separate from the underlying task_pattern.
+  name TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE campaign_rewards (
@@ -156,7 +236,8 @@ CREATE TABLE campaign_rewards (
   campaign_id TEXT NOT NULL REFERENCES campaigns(id),
   reward_pattern_id TEXT NOT NULL REFERENCES reward_patterns(id),
   threshold_points INTEGER NOT NULL,
-  description TEXT
+  description TEXT,
+  name TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE customers (
@@ -197,7 +278,17 @@ CREATE TABLE task_submissions (
   reviewed_by TEXT CHECK (reviewed_by IN ('ai', 'central_team', 'business_owner')),
   submitted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   reviewed_at TEXT,
-  points_awarded INTEGER
+  points_awarded INTEGER,
+  -- Lets the staff-pos offline sync queue detect a replayed action after a
+  -- flaky sync and return "duplicate_skipped" instead of double-awarding
+  -- points. Nullable + UNIQUE: SQLite treats multiple NULLs in a UNIQUE
+  -- column as distinct, so non-offline submissions are unaffected.
+  idempotency_key TEXT,
+  -- References review_team_members(id) by convention (no FK enforcement --
+  -- D1/SQLite FK enforcement is off by default in this project). Existing
+  -- rows keep the fixed 'central_team' string in reviewed_by; only new
+  -- resolutions populate this column going forward.
+  reviewed_by_user_id TEXT
 );
 
 CREATE TABLE purchase_logs (
@@ -308,7 +399,12 @@ CREATE TABLE business_microsites (
   addon_monthly_price_toman REAL,
   addon_status TEXT CHECK (addon_status IN ('active', 'cancelled')),
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  -- 0 (default): slug is still whatever ensureMicrosite() auto-generated,
+  -- and PUT /microsite is free to accept a new value. 1: the owner has
+  -- already made their one-time choice and the backend rejects further
+  -- changes, so an already-shared/printed referral link never silently 404s.
+  subdomain_slug_set_by_owner INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE business_microsite_modules (
@@ -320,18 +416,23 @@ CREATE TABLE business_microsite_modules (
   content TEXT
 );
 
--- reviewed_by has no FK: architecture.md references "central team member" but
--- no such table is defined yet in the doc (review-console team identity is
--- presently just the phone+OTP auth subject, not a persisted roster table).
--- Stored as a nullable TEXT id here; add a real FK once that table exists.
 CREATE TABLE referral_flags (
   id TEXT PRIMARY KEY,
-  referrer_customer_campaign_code_id TEXT NOT NULL REFERENCES customer_campaign_codes(id),
+  -- The referrer's own campaign-code row (customer_campaign_codes.id) --
+  -- NOT the referred customers. Lets us join back to the referrer's phone
+  -- and personal_code for display without duplicating that data here.
+  customer_campaign_code_id TEXT NOT NULL REFERENCES customer_campaign_codes(id),
   rule_triggered TEXT NOT NULL CHECK (rule_triggered IN ('velocity', 'dead_referral_ratio')),
-  triggered_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  description TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'reviewed', 'dismissed')),
-  reviewed_by TEXT,
-  notes TEXT
+  notes TEXT,
+  triggered_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  resolved_at TEXT,
+  -- 'central_team' is a legacy fixed value on old rows; new resolutions
+  -- populate resolved_by_user_id (references review_team_members(id) by
+  -- convention) instead.
+  resolved_by TEXT,
+  resolved_by_user_id TEXT
 );
 
 CREATE TABLE insights (
@@ -388,8 +489,13 @@ CREATE INDEX idx_customer_campaign_codes_customer_id ON customer_campaign_codes(
 CREATE INDEX idx_customer_campaign_codes_campaign_id ON customer_campaign_codes(campaign_id);
 CREATE INDEX idx_task_submissions_code_id ON task_submissions(customer_campaign_code_id);
 CREATE INDEX idx_task_submissions_status ON task_submissions(status);
+CREATE INDEX idx_task_submissions_idempotency_key ON task_submissions(idempotency_key);
+CREATE INDEX idx_task_submissions_reviewed_by_user_id ON task_submissions(reviewed_by_user_id);
 CREATE INDEX idx_points_ledger_code_id ON points_ledger(customer_campaign_code_id);
 CREATE INDEX idx_business_contacts_business_id ON business_contacts(business_id);
 CREATE INDEX idx_notifications_log_campaign_id ON notifications_log(campaign_id);
+CREATE INDEX idx_referral_flags_code_id ON referral_flags(customer_campaign_code_id);
 CREATE INDEX idx_referral_flags_status ON referral_flags(status);
+CREATE INDEX idx_referral_flags_resolved_by_user_id ON referral_flags(resolved_by_user_id);
 CREATE INDEX idx_suggested_changes_campaign_id ON suggested_changes(campaign_id);
+CREATE INDEX idx_staff_business_id ON staff(business_id);
