@@ -13,11 +13,21 @@ type Step = 'phone' | 'otp'
  * Kept as one component with internal step state rather than two routes, so
  * the entered phone number survives the phone→OTP transition without needing
  * router state/params.
+ *
+ * Sign-up vs sign-in differentiation (product decision): the phone step's
+ * requestOtp call now also returns isNewBusiness -- a brand-new phone number
+ * additionally shows first/last name inputs on the OTP step (required,
+ * blocks submission), while an existing phone's OTP step is unchanged from
+ * before. Decided BEFORE the OTP step renders (not via a separate signup/
+ * login tab) so the person never has to pick the "wrong" entry point.
  */
 export function AuthScreen() {
   const [step, setStep] = useState<Step>('phone')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
+  const [isNewBusiness, setIsNewBusiness] = useState(false)
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -37,7 +47,8 @@ export function AuthScreen() {
     }
     setLoading(true)
     try {
-      const devOtp = await requestOtp(phone)
+      const { devOtp, isNewBusiness: newBusiness } = await requestOtp(phone)
+      setIsNewBusiness(!!newBusiness)
       setStep('otp')
       // TEMPORARY (dev-mode only): no real SMS provider is wired in yet, so
       // surface the backend's fixed dev OTP directly instead of leaving the
@@ -55,15 +66,32 @@ export function AuthScreen() {
   const handleOtpSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
+    // Client-side guard for the brand-new-business case -- the backend
+    // enforces this too (400 if missing), this just avoids a round-trip for
+    // the common case of an empty field.
+    if (isNewBusiness && (!firstName.trim() || !lastName.trim())) {
+      setError('لطفاً نام و نام‌خانوادگی خود را وارد کنید')
+      return
+    }
     setLoading(true)
     try {
-      const ok = await verifyOtp(phone, code, remember)
+      const ok = await verifyOtp(
+        phone,
+        code,
+        remember,
+        isNewBusiness ? firstName.trim() : undefined,
+        isNewBusiness ? lastName.trim() : undefined
+      )
       if (!ok) {
         setError('کد وارد شده اشتباه است')
         return
       }
       show('ورود با موفقیت انجام شد', 'success')
       navigate('/dashboard', { replace: true })
+    } catch (err) {
+      // Surfaces the backend's real message -- e.g. the missing-name 400
+      // for a brand-new business, not just a generic "wrong code" text.
+      setError(err instanceof Error ? err.message : 'تایید کد با خطا مواجه شد، دوباره تلاش کنید')
     } finally {
       setLoading(false)
     }
@@ -72,7 +100,9 @@ export function AuthScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <Card className="max-w-sm w-full p-8">
-        <h1 className="text-xl font-bold mb-1 text-center">ورود کسب‌وکار</h1>
+        <h1 className="text-xl font-bold mb-1 text-center">
+          {step === 'otp' && isNewBusiness ? 'ثبت‌نام کسب‌وکار' : 'ورود کسب‌وکار'}
+        </h1>
         <p className="text-slate-400 text-sm text-center mb-6">
           {step === 'phone' ? 'شماره موبایل خود را وارد کنید' : `کد ارسال شده به ${phone} را وارد کنید`}
         </p>
@@ -95,6 +125,22 @@ export function AuthScreen() {
           </form>
         ) : (
           <form onSubmit={handleOtpSubmit} className="flex flex-col gap-4">
+            {isNewBusiness && (
+              <>
+                <Input
+                  label="نام"
+                  placeholder="مثال: علی"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+                <Input
+                  label="نام خانوادگی"
+                  placeholder="مثال: رضایی"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </>
+            )}
             <Input
               label="کد تایید"
               inputMode="numeric"
@@ -102,7 +148,7 @@ export function AuthScreen() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               error={error ?? undefined}
-              autoFocus
+              autoFocus={!isNewBusiness}
             />
             <label className="flex items-center gap-2 text-xs text-slate-400">
               <input
@@ -113,7 +159,7 @@ export function AuthScreen() {
               مرا به خاطر بسپار
             </label>
             <Button type="submit" loading={loading} className="w-full">
-              تایید و ورود
+              {isNewBusiness ? 'ثبت‌نام و ورود' : 'تایید و ورود'}
             </Button>
             <Button
               type="button"
@@ -122,6 +168,8 @@ export function AuthScreen() {
               onClick={() => {
                 setStep('phone')
                 setCode('')
+                setFirstName('')
+                setLastName('')
                 setError(null)
               }}
             >
