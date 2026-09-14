@@ -6,6 +6,8 @@ import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { generateCampaignProposal } from "../lib/campaign-generator";
 import { validateMicrositeSlug } from "@ai-campaign-builder/shared-config";
+import { parseNaturalLanguageCampaignRequest } from "../lib/campaign-agent";
+import { loadChatHistory, appendChatTurns } from "../lib/chat-history";
 
 const businessRouter = new Hono<{ Bindings: Env; Variables: { auth: JWTPayload } }>();
 
@@ -1090,6 +1092,88 @@ async function loadOwnedSuggestion(db: D1Database, businessId: string, suggestio
     [suggestionId, businessId]
   );
 }
+
+// ============================================================================
+// Natural-language campaign editing chat (plan.md Open Item 20, Part B).
+// Wires Part A's parseNaturalLanguageCampaignRequest (lib/campaign-agent.ts)
+// into a real endpoint: loads/saves per-session chat history in Workers KV
+// (lib/chat-history.ts, per plan.md's decision), calls the parser with the
+// owner's current campaign state, and on a non-clarification result inserts
+// the resulting `pending` row directly into the suggested_changes table
+// above -- reusing the EXACT same Apply/Dismiss flow SuggestionsTab.tsx
+// already renders for analysis-driven suggestions, per Part B's "one
+// unified place changes get confirmed" decision. This route NEVER calls
+// applyCampaignUpdate itself, matching campaign-agent.ts's own load-bearing
+// safety rule that an NL request only ever proposes, never writes live.
+//
+// sessionId is chosen client-side (crypto.randomUUID() once per mounted
+// chat widget) -- there's no server-side "start session" step, since the
+// first message for a brand-new sessionId simply finds no prior history in
+// KV and starts a fresh conversation, same as any later message would.
+// ============================================================================
+
+export interface CampaignChatRequestBody {
+  sessionId: string;
+  text: string;
+}
+
+businessRouter.post("/campaign/chat", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const body = await c.req.json<Partial<CampaignChatRequestBody>>();
+
+  if (!body.sessionId || typeof body.sessionId !== "string") {
+    return c.json({ error: "Missing required field: sessionId" }, 400);
+  }
+  if (!body.text || typeof body.text !== "string" || !body.text.trim()) {
+    return c.json({ error: "Missing required field: text" }, 400);
+  }
+
+  const campaignId = await ensureCampaign(db, businessId);
+  const campaignState = await serializeCampaign(db, campaignId);
+  const history = await loadChatHistory(c.env, campaignId, body.sessionId);
+
+  const result = await parseNaturalLanguageCampaignRequest(c.env, body.text, campaignState, history);
+
+  if (result.needsClarification) {
+    await appendChatTurns(c.env, campaignId, body.sessionId, [
+      { role: "owner", content: body.text },
+      { role: "assistant", content: result.clarifyingQuestion },
+    ]);
+    return c.json({ needsClarification: true, clarifyingQuestion: result.clarifyingQuestion });
+  }
+
+  const id = generateId();
+  await execute(
+    db,
+    `INSERT INTO suggested_changes
+       (id, campaign_id, risk_tier, change_type, target_id, current_value, suggested_value, rationale, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+    [
+      id,
+      campaignId,
+      result.riskTier,
+      result.changeType,
+      result.targetId ?? null,
+      result.currentValue,
+      result.suggestedValue,
+      result.rationale,
+    ]
+  );
+
+  // Confirms the request landed in the suggestions queue -- keeps the chat
+  // transcript coherent if the owner sends a follow-up in the same session,
+  // even though the actual Apply/Dismiss decision now happens over in
+  // SuggestionsTab, not in this chat widget.
+  await appendChatTurns(c.env, campaignId, body.sessionId, [
+    { role: "owner", content: body.text },
+    { role: "assistant", content: `پیشنهاد ثبت شد و به بخش پیشنهادها اضافه شد: ${result.rationale}` },
+  ]);
+
+  const created = await loadOwnedSuggestion(db, businessId, id);
+  if (!created) return c.json({ error: "Suggestion vanished mid-request" }, 500);
+  return c.json({ needsClarification: false, suggestion: serializeSuggestion(created) });
+});
 
 businessRouter.post("/suggestions/:id/apply", async (c) => {
   const db = c.env.DB;

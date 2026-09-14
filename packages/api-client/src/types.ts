@@ -162,6 +162,21 @@ export interface SuggestedChange {
   status: 'pending' | 'applied' | 'dismissed';
 }
 
+// ============================================================================
+// Natural-language campaign editing chat (plan.md Open Item 20, Part B).
+// Shape matches apps/backend/src/routes/business.ts's POST /campaign/chat.
+// ============================================================================
+
+export interface CampaignChatRequest {
+  /** Client-generated (crypto.randomUUID()) once per mounted chat widget -- identifies this conversation's KV-backed history on the backend. */
+  sessionId: string;
+  text: string;
+}
+
+export type CampaignChatResult =
+  | { needsClarification: true; clarifyingQuestion: string }
+  | { needsClarification: false; suggestion: SuggestedChange };
+
 export interface AutopilotState {
   enabled: boolean;
   manualApplyCount: number;

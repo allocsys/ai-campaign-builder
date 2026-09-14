@@ -493,6 +493,16 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Ensure CHAT_HISTORY KV namespace exists
+        # Item 20 Part B -- same idempotent lookup-or-create pattern as the
+        # D1 step above, needed before `wrangler deploy` since the Worker's
+        # wrangler.toml [[kv_namespaces]] entry needs a real id, not the
+        # committed placeholder, to deploy successfully.
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: ./.github/actions/ensure-kv-namespace
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:

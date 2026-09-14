@@ -25,6 +25,21 @@ binding = "DB"
 database_name = "ai-campaign-builder-db"
 database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
 
+# Chat-history storage for lib/campaign-agent.ts's multi-turn NL
+# campaign-editing flow (plan.md Open Item 20 Part A/B decision: Workers KV
+# over Durable Objects/a new D1 table). Same placeholder-id pattern as the
+# D1 database above -- namespace_id below is a placeholder and is meant to
+# stay one. CI's .github/actions/ensure-kv-namespace action (mirrors
+# ensure-d1-database exactly) idempotently looks this namespace up by title
+# (creating it on first deploy only) and patches its OWN local checkout of
+# this file with the real id before running wrangler commands -- that patch
+# is never committed back here. For local dev, wrangler's --local mode uses
+# a local sqlite-backed KV emulation keyed by binding name, not this id, so
+# the placeholder is fine as-is.
+[[kv_namespaces]]
+binding = "CHAT_HISTORY"
+id = "REPLACE_WITH_REAL_KV_NAMESPACE_ID"
+
 # JWT_SECRET and any OTP/SMS provider secrets are set via `wrangler secret put`,
 # not committed here. Same for the root review_admin identity:
 #   wrangler secret put REVIEW_ADMIN_USERNAME

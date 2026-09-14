@@ -8,6 +8,8 @@ import type {
   GeneratedCampaignProposal,
   Insight,
   SuggestedChange,
+  CampaignChatRequest,
+  CampaignChatResult,
   AutopilotState,
   MicrositeState,
   Subscription,
@@ -92,6 +94,23 @@ export async function dismissSuggestedChange(
   return client.request<SuggestedChange>(`/api/business/suggestions/${encodeURIComponent(id)}/dismiss`, {
     method: 'POST',
     body: reason !== undefined ? JSON.stringify({ reason }) : undefined,
+  });
+}
+
+/**
+ * plan.md Open Item 20 Part B -- sends one turn of the NL campaign-editing
+ * chat. Response is either a clarifying question (send another message with
+ * the SAME sessionId to continue the conversation) or a freshly-created
+ * `pending` SuggestedChange, which then shows up wherever getSuggestedChanges
+ * is polled (SuggestionsTab) for the normal Apply/Dismiss confirmation.
+ */
+export async function sendCampaignChatMessage(
+  client: ApiClient,
+  data: CampaignChatRequest
+): Promise<CampaignChatResult> {
+  return client.request<CampaignChatResult>('/api/business/campaign/chat', {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
 }
 

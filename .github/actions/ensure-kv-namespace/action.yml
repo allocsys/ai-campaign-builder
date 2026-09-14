@@ -1,0 +1,85 @@
+name: 'Ensure KV namespace exists'
+description: >
+  Idempotently ensures a Cloudflare Workers KV namespace exists and patches
+  this job's own (uncommitted) checkout of apps/backend/wrangler.toml with
+  the real namespace id, so wrangler commands in the SAME job run against
+  the real namespace instead of the placeholder id committed to the repo.
+  Direct mirror of ./.github/actions/ensure-d1-database -- see that action's
+  own comments for the fuller rationale; only the wrangler subcommands and
+  JSON shape differ (kv namespace list/create vs d1 list/create).
+
+  GUARD AGAINST RECREATION ON REDEPLOY: this looks the namespace up by title
+  via `wrangler kv namespace list` first and only calls
+  `wrangler kv namespace create` if that lookup finds nothing. On every run
+  after the first, the lookup finds the existing namespace and reuses its
+  id -- `wrangler kv namespace create` is never called again once the
+  namespace exists.
+
+  NOT COMMITTED BACK TO THE REPO: the wrangler.toml edit only exists in this
+  job's own checkout. apps/backend/wrangler.toml on disk in the repo keeps
+  its placeholder value forever (it's documentation, not live config) --
+  every job run that needs it resolves the real id fresh via this same
+  idempotent lookup, independently, since jobs run in separate checkouts.
+
+inputs:
+  namespace-title:
+    description: 'Title of the KV namespace (wrangler namespace-create argument -- becomes "<worker-name>-<title>" as the namespace title on the Cloudflare account)'
+    required: true
+    default: 'CHAT_HISTORY'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Look up or create the KV namespace, then patch this checkout's wrangler.toml
+      shell: bash
+      working-directory: apps/backend
+      run: |
+        set -euo pipefail
+        NS_TITLE="${{ inputs.namespace-title }}"
+
+        # Same defensive-parsing posture as ensure-d1-database's action.yml:
+        # `wrangler kv namespace list --json` has been observed to return
+        # either a bare array or a {"result": [...]} wrapper depending on
+        # wrangler version, and each entry's id key has been seen as "id" or
+        # "namespace_id". Check both known variants rather than assuming one
+        # exact shape -- fail loudly below if neither matches, rather than
+        # silently deploying against a wrong/missing id. `wrangler kv
+        # namespace create <title>` creates a namespace whose title is
+        # actually "<worker-name>-<title>" (wrangler prefixes it with the
+        # binding/worker context) -- match on a title that CONTAINS NS_TITLE
+        # rather than an exact match, same reasoning as why this isn't
+        # matched by binding name directly.
+        EXISTING_ID=$(npx wrangler kv namespace list --json | node -e "
+          const raw = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+          const list = Array.isArray(raw) ? raw : (raw.result || []);
+          const match = list.find(ns => typeof ns.title === 'string' && ns.title.includes(process.argv[1]));
+          process.stdout.write(match ? (match.id || match.namespace_id || '') : '');
+        " "$NS_TITLE")
+
+        if [ -n "$EXISTING_ID" ]; then
+          echo "::add-mask::$EXISTING_ID"
+          echo "KV namespace matching '$NS_TITLE' already exists (id: [masked]) -- skipping creation."
+          NS_ID="$EXISTING_ID"
+        else
+          echo "KV namespace matching '$NS_TITLE' not found for this account -- creating it now. This should only happen once, on the very first deploy."
+          # Mirrors ensure-d1-database's own note: don't assume `create`
+          # supports --json on the pinned wrangler version -- re-run the
+          # same list-based lookup afterward to resolve the id instead of
+          # parsing create's own output directly.
+          npx wrangler kv namespace create "$NS_TITLE"
+          NS_ID=$(npx wrangler kv namespace list --json | node -e "
+            const raw = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+            const list = Array.isArray(raw) ? raw : (raw.result || []);
+            const match = list.find(ns => typeof ns.title === 'string' && ns.title.includes(process.argv[1]));
+            process.stdout.write(match ? (match.id || match.namespace_id || '') : '');
+          " "$NS_TITLE")
+          if [ -z "$NS_ID" ]; then
+            echo "::error::Created the KV namespace via 'wrangler kv namespace create' but couldn't find it afterward via a 'wrangler kv namespace list --json' lookup by title '$NS_TITLE'. The namespace now exists in Cloudflare -- check manually before retrying (the lookup branch above should find it and skip recreation on the next run)."
+            exit 1
+          fi
+          echo "::add-mask::$NS_ID"
+          echo "Created KV namespace matching '$NS_TITLE' (id: [masked])."
+        fi
+
+        sed -i "s/id = \"REPLACE_WITH_REAL_KV_NAMESPACE_ID\"/id = \"$NS_ID\"/" wrangler.toml
+        echo "This job's local wrangler.toml now points at the real KV namespace id (not committed back to the repo -- see this action's description)."
