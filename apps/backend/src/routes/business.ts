@@ -814,9 +814,10 @@ export async function deleteCampaignForBusiness(db: D1Database, businessId: stri
 // (fixing routes/auth.ts's placeholder-name/arbitrary-category auto-create
 // gap), deterministically computes size tier + weighted tasks + reward
 // thresholds via lib/campaign-generator.ts, and persists the result onto
-// the business's current campaign as a fresh draft -- mirroring PUT
-// /campaign's own replace-tasks/replace-rewards logic so both endpoints
-// stay consistent. A separate PUT /campaign { status: 'active' } call (the
+// the given campaign (always a freshly-created row, see the required
+// campaignId param below) as a fresh draft -- mirroring applyCampaignUpdate's
+// own replace-tasks/replace-rewards logic so both stay consistent. A
+// separate PUT /campaigns/:campaignId { status: 'active' } call (the
 // wizard's existing "Launch" action) is what actually activates it.
 // ============================================================================
 
