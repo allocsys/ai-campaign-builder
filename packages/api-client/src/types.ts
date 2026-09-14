@@ -227,6 +227,8 @@ export interface SuggestedChange {
 // ============================================================================
 
 export interface CampaignChatRequest {
+  /** plan.md Item 21 deferred sub-item 2 -- the specific campaign this chat message targets, verified server-side against the authenticated business before anything is read/written. */
+  campaignId: string;
   /** Client-generated (crypto.randomUUID()) once per mounted chat widget -- identifies this conversation's KV-backed history on the backend. */
   sessionId: string;
   text: string;
