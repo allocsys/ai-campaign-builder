@@ -7,7 +7,6 @@ import { getJwtSecret } from "../lib/jwt-config";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { hashPassword, verifyPassword } from "../lib/password";
 import {
-  ensureCampaign,
   findCurrentCampaignId,
   serializeCampaign,
   applyCampaignUpdate,
@@ -316,7 +315,7 @@ reviewAdminRouter.delete("/admins/:id", async (c) => {
 // Campaign access (plan.md Item 16 Step B). Gives review_admin FULL PARITY
 // with a business owner's own campaign access ("I'm the one making changes
 // so it's full access" -- user's decision, no partial/read-only subset).
-// Reuses business.ts's Step A exports (ensureCampaign, serializeCampaign,
+// Reuses business.ts's Step A exports (findCurrentCampaignId, serializeCampaign,
 // applyCampaignUpdate, generateCampaignForBusiness) so an admin edit goes
 // through the EXACT same validation and side effects as an owner edit
 // (join-slug generation, microsite featuring, campaign_highlight defaults
