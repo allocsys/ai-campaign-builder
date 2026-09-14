@@ -667,14 +667,14 @@ export async function applyCampaignUpdate(
   return { ok: true, campaign: await serializeCampaign(db, campaignId) };
 }
 
-businessRouter.put("/campaign", async (c) => {
-  const db = c.env.DB;
-  const businessId = c.get("auth").sub;
-  const body = await c.req.json<CampaignUpdateBody>();
-  const result = await applyCampaignUpdate(db, businessId, body);
-  if (!result.ok) return c.json({ error: result.error }, result.status);
-  return c.json(result.campaign);
-});
+// Decided 2026-09-15: the legacy write-side single-campaign route (PUT
+// /campaign) was removed -- it had no remaining caller once CampaignWizardForm's
+// mode='legacy' branch was retired (the only frontend flow that ever hit this
+// without first loading an existing campaign). The equivalent explicit-id
+// route, PUT /campaigns/:campaignId, is the only owner-facing campaign write
+// path now (plus review-admin's businessId-scoped PUT below, which still
+// legitimately needs applyCampaignUpdate's implicit-campaignId resolution
+// since admin has no :campaignId concept of its own).
 
 export type DeleteCampaignResult =
   | { ok: true; deletedCampaignId: string }
@@ -977,16 +977,14 @@ export async function generateCampaignForBusiness(
   // generation must not silently clobber a live campaign's tasks/rewards/
   // dates out from under active customers.
   // plan.md Item 21 -- POST /campaigns (create-new-campaign flow) passes its
-  // freshly-created campaignId explicitly; the legacy POST /campaign/generate
-  // route falls back to findCurrentCampaignId's single-"current"-campaign
-  // resolution. Decided 2026-09-15: ensureCampaign (the old create-on-write
-  // resolver) was removed -- a legacy caller with no campaign yet now gets a
-  // 404 instead of silently getting a fresh draft to generate into; the
-  // owner must go through POST /campaigns (createNewCampaign) explicitly.
-  const campaignId = explicitCampaignId ?? (await findCurrentCampaignId(db, businessId));
-  if (!campaignId) {
-    return { ok: false, status: 404, error: "No campaign found for this business" };
-  }
+  // freshly-created campaignId explicitly -- the only caller left after the
+  // legacy POST /campaign/generate route (and review-admin's equivalent) were
+  // removed 2026-09-15, since neither had a live UI caller once ensureCampaign's
+  // auto-create-on-write behavior went away (see the file's earlier decision
+  // note). campaignId is now required, not resolved implicitly, since every
+  // caller of this function creates its own campaign row via createNewCampaign
+  // before calling it.
+  const campaignId = explicitCampaignId;
   const currentStatus = await queryFirst<{ status: string }>(db, "SELECT status FROM campaigns WHERE id = ?", [
     campaignId,
   ]);
