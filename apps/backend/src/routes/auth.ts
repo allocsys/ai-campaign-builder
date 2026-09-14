@@ -79,8 +79,16 @@ authRouter.post("/request-otp", async (c) => {
 
 authRouter.post("/verify-otp", async (c) => {
   try {
-    const body = await c.req.json<{ phone?: string; otp?: string; role?: string; referralCode?: string; joinSlug?: string }>();
-    const { phone, otp, role, referralCode, joinSlug } = body;
+    const body = await c.req.json<{
+      phone?: string;
+      otp?: string;
+      role?: string;
+      referralCode?: string;
+      joinSlug?: string;
+      ownerFirstName?: string;
+      ownerLastName?: string;
+    }>();
+    const { phone, otp, role, referralCode, joinSlug, ownerFirstName, ownerLastName } = body;
 
     if (!phone || !otp || !role) {
       return c.json({ error: "Missing required fields: phone, otp, role" }, 400);
@@ -114,6 +122,20 @@ authRouter.post("/verify-otp", async (c) => {
       );
 
       if (!business) {
+        // Brand-new signup -- owner's first + last name are required at this
+        // step (product decision: blocks OTP verification if missing, no
+        // placeholder fallback the way business name/category still have).
+        // Checked here (not earlier) so the phone/otp/role presence check
+        // above still fires first for a malformed request in general.
+        const trimmedFirstName = ownerFirstName?.trim();
+        const trimmedLastName = ownerLastName?.trim();
+        if (!trimmedFirstName || !trimmedLastName) {
+          return c.json(
+            { error: "برای ثبت‌نام، لطفاً نام و نام‌خانوادگی خود را وارد کنید." },
+            400
+          );
+        }
+
         userId = generateId();
         // For default category, pick the first category from business_categories or create one if empty
         let cat = await queryFirst<{ id: string }>(db, "SELECT id FROM business_categories LIMIT 1");
@@ -130,11 +152,15 @@ authRouter.post("/verify-otp", async (c) => {
         }
 
         const nowIso = new Date().toISOString();
+        // Business name/category are UNCHANGED (still the placeholder name +
+        // arbitrary first category, still fixed later via the wizard's Step 1,
+        // per business.ts's generateCampaignForBusiness comment) -- only the
+        // owner's own name (migration 0016's new columns) is new here.
         await execute(
           db,
-          `INSERT INTO businesses (id, name, category_id, phone, phone_verified, phone_verified_at, sms_wallet_balance_toman, autopilot_enabled, size_tier, created_at)
-           VALUES (?, ?, ?, ?, 1, ?, 0, 0, 'small', ?)`,
-          [userId, "کسب‌وکار جدید", categoryId, phone, nowIso, nowIso]
+          `INSERT INTO businesses (id, name, category_id, phone, phone_verified, phone_verified_at, sms_wallet_balance_toman, autopilot_enabled, size_tier, owner_first_name, owner_last_name, created_at)
+           VALUES (?, ?, ?, ?, 1, ?, 0, 0, 'small', ?, ?, ?)`,
+          [userId, "کسب‌وکار جدید", categoryId, phone, nowIso, trimmedFirstName, trimmedLastName, nowIso]
         );
       } else {
         userId = business.id;
