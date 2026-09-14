@@ -1129,13 +1129,16 @@ export async function generateCampaignForBusiness(
   };
 }
 
-
 // ============================================================================
-// Campaign list + :campaignId-scoped routes (plan.md Item 21). The legacy
-// single-campaign routes above (GET/PUT /campaign, POST /campaign/generate)
-// remain in place, unchanged in behavior, for callers not yet migrated to an
-// explicit campaignId -- see ensureCampaign's comment for their
-// active-first/newest-else fallback order.
+// Campaign list + :campaignId-scoped routes (plan.md Item 21). GET /campaign
+// remains in place above for the dashboard's own single-"current"-campaign
+// summary view (see findCurrentCampaignId's comment for its active-first/
+// newest-else fallback order); its write-side siblings (PUT /campaign, POST
+// /campaign/generate) were removed 2026-09-15 as dead code -- see the
+// decision note above applyCampaignUpdate/generateCampaignForBusiness. These
+// :campaignId-scoped routes are the only way to write a campaign now, aside
+// from review-admin's businessId-scoped PUT (kept -- admin has no
+// :campaignId concept of its own).
 // ============================================================================
 
 businessRouter.get("/campaigns", async (c) => {
