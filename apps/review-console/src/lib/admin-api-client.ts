@@ -15,6 +15,12 @@ import {
   updateAdminBusinessCampaign as _updateAdminBusinessCampaign,
   deleteAdminBusinessCampaign as _deleteAdminBusinessCampaign,
   updateAdminBusinessManualEditor as _updateAdminBusinessManualEditor,
+  getAdminBusinessStaff as _getAdminBusinessStaff,
+  deleteAdminStaff as _deleteAdminStaff,
+  deleteAdminMicrosite as _deleteAdminMicrosite,
+  getAdminCustomers as _getAdminCustomers,
+  deleteAdminCustomer as _deleteAdminCustomer,
+  deleteAdminBusiness as _deleteAdminBusiness,
 } from '@ai-campaign-builder/api-client'
 
 // Separate token storage key from the review_team auth in lib/api-client.ts
@@ -63,6 +69,15 @@ export const updateAdminBusinessCampaign = (businessId: string, data: Partial<Ca
 export const deleteAdminBusinessCampaign = (businessId: string) => _deleteAdminBusinessCampaign(adminApiClient, businessId)
 export const updateAdminBusinessManualEditor = (businessId: string, enabled: boolean) =>
   _updateAdminBusinessManualEditor(adminApiClient, businessId, enabled)
+
+// Entity deletion -- staff / customers / businesses / microsites.
+export const getAdminBusinessStaff = (businessId: string) => _getAdminBusinessStaff(adminApiClient, businessId)
+export const deleteAdminStaff = (businessId: string, staffId: string) =>
+  _deleteAdminStaff(adminApiClient, businessId, staffId)
+export const deleteAdminMicrosite = (businessId: string) => _deleteAdminMicrosite(adminApiClient, businessId)
+export const getAdminCustomers = () => _getAdminCustomers(adminApiClient)
+export const deleteAdminCustomer = (customerId: string) => _deleteAdminCustomer(adminApiClient, customerId)
+export const deleteAdminBusiness = (businessId: string) => _deleteAdminBusiness(adminApiClient, businessId)
 
 export { ADMIN_AUTH_STORAGE_KEY }
 export default adminApiClient
