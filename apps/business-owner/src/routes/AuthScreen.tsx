@@ -28,7 +28,6 @@ export function AuthScreen() {
   const [isNewBusiness, setIsNewBusiness] = useState(false)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [businessName, setBusinessName] = useState('')
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -70,8 +69,8 @@ export function AuthScreen() {
     // Client-side guard for the brand-new-business case -- the backend
     // enforces this too (400 if missing), this just avoids a round-trip for
     // the common case of an empty field.
-    if (isNewBusiness && (!firstName.trim() || !lastName.trim() || !businessName.trim())) {
-      setError('لطفاً نام و نام‌خانوادگی خود و نام کسب‌وکار را وارد کنید')
+    if (isNewBusiness && (!firstName.trim() || !lastName.trim())) {
+      setError('لطفاً نام و نام‌خانوادگی خود را وارد کنید')
       return
     }
     setLoading(true)
@@ -81,8 +80,7 @@ export function AuthScreen() {
         code,
         remember,
         isNewBusiness ? firstName.trim() : undefined,
-        isNewBusiness ? lastName.trim() : undefined,
-        isNewBusiness ? businessName.trim() : undefined
+        isNewBusiness ? lastName.trim() : undefined
       )
       if (!ok) {
         setError('کد وارد شده اشتباه است')
@@ -141,12 +139,6 @@ export function AuthScreen() {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                 />
-                <Input
-                  label="نام کسب‌وکار"
-                  placeholder="مثال: کافی شاپ آفتاب"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                />
               </>
             )}
             <Input
@@ -178,7 +170,6 @@ export function AuthScreen() {
                 setCode('')
                 setFirstName('')
                 setLastName('')
-                setBusinessName('')
                 setError(null)
               }}
             >
