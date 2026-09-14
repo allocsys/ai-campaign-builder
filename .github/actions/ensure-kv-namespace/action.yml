@@ -49,9 +49,18 @@ runs:
         # binding/worker context) -- match on a title that CONTAINS NS_TITLE
         # rather than an exact match, same reasoning as why this isn't
         # matched by binding name directly.
+        #
+        # ALSO defensive against leading non-JSON stdout: some wrangler
+        # versions print a banner/notice line on stdout before the JSON
+        # payload, which breaks a naive JSON.parse of the full captured
+        # output. Slice to the first '[' or '{' before parsing so any such
+        # preamble is discarded instead of corrupting the parse.
         EXISTING_ID=$(npx wrangler kv namespace list --json | node -e "
-          const raw = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-          const list = Array.isArray(raw) ? raw : (raw.result || []);
+          const raw = require('fs').readFileSync(0, 'utf8');
+          const starts = ['[', '{'].map(c => raw.indexOf(c)).filter(i => i !== -1);
+          const start = starts.length ? Math.min(...starts) : 0;
+          const parsed = JSON.parse(raw.slice(start));
+          const list = Array.isArray(parsed) ? parsed : (parsed.result || []);
           const match = list.find(ns => typeof ns.title === 'string' && ns.title.includes(process.argv[1]));
           process.stdout.write(match ? (match.id || match.namespace_id || '') : '');
         " "$NS_TITLE")
@@ -68,8 +77,11 @@ runs:
           # parsing create's own output directly.
           npx wrangler kv namespace create "$NS_TITLE"
           NS_ID=$(npx wrangler kv namespace list --json | node -e "
-            const raw = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-            const list = Array.isArray(raw) ? raw : (raw.result || []);
+            const raw = require('fs').readFileSync(0, 'utf8');
+            const starts = ['[', '{'].map(c => raw.indexOf(c)).filter(i => i !== -1);
+            const start = starts.length ? Math.min(...starts) : 0;
+            const parsed = JSON.parse(raw.slice(start));
+            const list = Array.isArray(parsed) ? parsed : (parsed.result || []);
             const match = list.find(ns => typeof ns.title === 'string' && ns.title.includes(process.argv[1]));
             process.stdout.write(match ? (match.id || match.namespace_id || '') : '');
           " "$NS_TITLE")
