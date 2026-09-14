@@ -37,32 +37,27 @@ runs:
         set -euo pipefail
         NS_TITLE="${{ inputs.namespace-title }}"
 
-        # Same defensive-parsing posture as ensure-d1-database's action.yml:
-        # `wrangler kv namespace list --json` has been observed to return
-        # either a bare array or a {"result": [...]} wrapper depending on
-        # wrangler version, and each entry's id key has been seen as "id" or
-        # "namespace_id". Check both known variants rather than assuming one
-        # exact shape -- fail loudly below if neither matches, rather than
-        # silently deploying against a wrong/missing id. `wrangler kv
-        # namespace create <title>` creates a namespace whose title is
-        # actually "<worker-name>-<title>" (wrangler prefixes it with the
-        # binding/worker context) -- match on a title that CONTAINS NS_TITLE
-        # rather than an exact match, same reasoning as why this isn't
-        # matched by binding name directly.
+        # ROOT CAUSE (confirmed 2026-09-14, after two failed defensive-parsing
+        # attempts): `wrangler kv namespace list --json` is NOT a valid
+        # invocation on the installed wrangler version. Per Cloudflare's own
+        # docs, `wrangler kv namespace list` returns a JSON array of
+        # namespace objects (id + title) BY DEFAULT now -- there is no
+        # --json flag for this subcommand at all. Passing the unrecognized
+        # --json flag doesn't error; it makes wrangler print this
+        # subcommand's help/usage text to stdout instead (yargs behavior),
+        # which is exactly what broke JSON.parse here, in both previous
+        # "defensive parsing" attempts -- the failure was never actually
+        # about leading preamble text before valid JSON, it was that there
+        # was never any JSON in the output at all. Fix: drop --json --
+        # `wrangler kv namespace list` alone already returns JSON.
         #
-        # ALSO defensive against leading non-JSON stdout: the installed
-        # wrangler version prints a preamble on stdout before the JSON
-        # payload, and (discovered the hard way) that preamble can itself
-        # contain a literal '[' character -- e.g. it starts with the text
-        # "[string...", so naively slicing to the FIRST '[' or '{' still
-        # hands JSON.parse a non-JSON chunk. Fix: try every '[' / '{'
-        # position in the captured output in order and JSON.parse from
-        # there, keeping the first one that actually succeeds, rather than
-        # assuming the first bracket found is the real start. If NONE of
-        # them parse, fail with a chunk of the raw output included in the
-        # error so the actual preamble text is visible in the Actions log
-        # instead of having to guess at it from a truncated error message.
-        EXISTING_ID=$(npx wrangler kv namespace list --json | node -e "
+        # Kept the defensive parsing (try every '[' / '{' start position,
+        # not just the first) and the diagnostic dump-raw-output-on-failure
+        # behavior from the prior attempt as a safety net against some
+        # OTHER future wrangler output-format change -- low cost, and it's
+        # what actually surfaced this root cause in the Actions log instead
+        # of a truncated, unhelpful error message.
+        EXISTING_ID=$(npx wrangler kv namespace list | node -e "
           const raw = require('fs').readFileSync(0, 'utf8');
           const candidates = [];
           for (let i = 0; i < raw.length; i++) {
@@ -76,7 +71,7 @@ runs:
             } catch (e) { /* try the next candidate start */ }
           }
           if (parsed === undefined) {
-            process.stderr.write('Could not find valid JSON in wrangler kv namespace list --json output. Raw output (first 1000 chars): ' + JSON.stringify(raw.slice(0, 1000)) + require('os').EOL);
+            process.stderr.write('Could not find valid JSON in wrangler kv namespace list output. Raw output (first 1000 chars): ' + JSON.stringify(raw.slice(0, 1000)) + require('os').EOL);
             process.exit(1);
           }
           const list = Array.isArray(parsed) ? parsed : (parsed.result || []);
@@ -95,7 +90,7 @@ runs:
           # same list-based lookup afterward to resolve the id instead of
           # parsing create's own output directly.
           npx wrangler kv namespace create "$NS_TITLE"
-          NS_ID=$(npx wrangler kv namespace list --json | node -e "
+          NS_ID=$(npx wrangler kv namespace list | node -e "
             const raw = require('fs').readFileSync(0, 'utf8');
             const candidates = [];
             for (let i = 0; i < raw.length; i++) {
@@ -109,7 +104,7 @@ runs:
               } catch (e) { /* try the next candidate start */ }
             }
             if (parsed === undefined) {
-              process.stderr.write('Could not find valid JSON in wrangler kv namespace list --json output. Raw output (first 1000 chars): ' + JSON.stringify(raw.slice(0, 1000)) + require('os').EOL);
+              process.stderr.write('Could not find valid JSON in wrangler kv namespace list output. Raw output (first 1000 chars): ' + JSON.stringify(raw.slice(0, 1000)) + require('os').EOL);
               process.exit(1);
             }
             const list = Array.isArray(parsed) ? parsed : (parsed.result || []);
@@ -117,7 +112,7 @@ runs:
             process.stdout.write(match ? (match.id || match.namespace_id || '') : '');
           " "$NS_TITLE")
           if [ -z "$NS_ID" ]; then
-            echo "::error::Created the KV namespace via 'wrangler kv namespace create' but couldn't find it afterward via a 'wrangler kv namespace list --json' lookup by title '$NS_TITLE'. The namespace now exists in Cloudflare -- check manually before retrying (the lookup branch above should find it and skip recreation on the next run)."
+            echo "::error::Created the KV namespace via 'wrangler kv namespace create' but couldn't find it afterward via a 'wrangler kv namespace list' lookup by title '$NS_TITLE'. The namespace now exists in Cloudflare -- check manually before retrying (the lookup branch above should find it and skip recreation on the next run)."
             exit 1
           fi
           echo "::add-mask::$NS_ID"
