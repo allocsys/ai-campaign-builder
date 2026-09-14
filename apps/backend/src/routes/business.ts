@@ -464,8 +464,8 @@ export async function applyCampaignUpdate(
       }
       // The just-activated campaign becomes the one featured on the
       // microsite -- a business has only one "current" campaign at a time
-      // (see ensureCampaign's single-current-campaign model), so this is
-      // always the right campaign to feature going forward.
+      // (see findCurrentCampaignId's single-current-campaign resolution),
+      // so this is always the right campaign to feature going forward.
       const micrositeId = await ensureMicrosite(db, businessId);
       await execute(db, "UPDATE business_microsites SET featured_campaign_id = ?, updated_at = ? WHERE id = ?", [
         campaignId,
@@ -701,9 +701,11 @@ export type DeleteCampaignResult =
 //     *consumed into* this one only get their consumed_in_campaign_id
 //     cleared, not deleted -- that carryover's source campaign is untouched
 //     and its row still has a reason to exist.
-// After this runs, ensureCampaign()'s auto-provision-a-draft behavior means
-// the next GET /campaign (owner or admin) simply sees a brand-new empty
-// draft, same as a business that never had a campaign at all.
+// After this runs, the next GET /campaign (owner or admin) 404s -- same as
+// a business that never had a campaign at all -- since these legacy routes
+// no longer auto-provision a draft (ensureCampaign was removed 2026-09-15).
+// A new campaign only ever comes from an explicit createNewCampaign() call
+// (POST /campaigns) or POST /campaign/generate.
 export async function deleteCampaignForBusiness(db: D1Database, businessId: string): Promise<DeleteCampaignResult> {
   const current = await queryFirst<{ id: string }>(
     db,
@@ -970,15 +972,21 @@ export async function generateCampaignForBusiness(
     }
   }
 
-  // Single-active-campaign guard (plan.md decision): ensureCampaign always
-  // resolves to the one "current" campaign for this business -- generation
-  // must not silently clobber a live campaign's tasks/rewards/dates out from
-  // under active customers. ensureCampaign's own auto-create-draft-if-none
-  // path is harmless here: a brand-new business has no campaign to clobber.
+  // Single-active-campaign guard (plan.md decision): findCurrentCampaignId
+  // always resolves to the one "current" campaign for this business --
+  // generation must not silently clobber a live campaign's tasks/rewards/
+  // dates out from under active customers.
   // plan.md Item 21 -- POST /campaigns (create-new-campaign flow) passes its
   // freshly-created campaignId explicitly; the legacy POST /campaign/generate
-  // route falls back to ensureCampaign's single-"current"-campaign resolution.
-  const campaignId = explicitCampaignId ?? (await ensureCampaign(db, businessId));
+  // route falls back to findCurrentCampaignId's single-"current"-campaign
+  // resolution. Decided 2026-09-15: ensureCampaign (the old create-on-write
+  // resolver) was removed -- a legacy caller with no campaign yet now gets a
+  // 404 instead of silently getting a fresh draft to generate into; the
+  // owner must go through POST /campaigns (createNewCampaign) explicitly.
+  const campaignId = explicitCampaignId ?? (await findCurrentCampaignId(db, businessId));
+  if (!campaignId) {
+    return { ok: false, status: 404, error: "No campaign found for this business" };
+  }
   const currentStatus = await queryFirst<{ status: string }>(db, "SELECT status FROM campaigns WHERE id = ?", [
     campaignId,
   ]);
