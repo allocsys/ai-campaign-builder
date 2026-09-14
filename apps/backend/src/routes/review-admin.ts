@@ -434,4 +434,228 @@ reviewAdminRouter.post("/businesses/:businessId/campaign/generate", async (c) =>
   return c.json(result.result);
 });
 
+// ----------------------------------------------------------------------------
+// Admin entity deletion (staff / customers / businesses / microsites).
+// Mirrors deleteCampaignForBusiness's manual-cascade style: D1/SQLite here
+// has no ON DELETE CASCADE on any of these FKs, so every child table has to
+// be cleaned up explicitly, in FK-safe order, before the parent row goes.
+// All routes below are review_admin-only (same router-wide guard as
+// everything else in this file) and are irreversible hard deletes -- no
+// confirmation step server-side, same contract as the existing campaign
+// delete (the review-console UI is expected to confirm first).
+// ----------------------------------------------------------------------------
+
+function serializeStaffMember(row: { id: string; name: string; phone: string; phone_verified: number; active: number }) {
+  return {
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    phoneVerified: !!row.phone_verified,
+    active: !!row.active,
+  };
+}
+
+// List staff for one business -- admin has no per-business scoping, so this
+// exists purely so the review-console staff list has something to render
+// before offering delete (business.ts's own GET /business/staff is scoped to
+// auth.sub, i.e. the business owner's own session, not usable here).
+reviewAdminRouter.get("/businesses/:businessId/staff", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.req.param("businessId");
+  if (!(await loadBusinessOr404(db, businessId))) return c.json({ error: "Business not found" }, 404);
+
+  const rows = await queryAll<{ id: string; name: string; phone: string; phone_verified: number; active: number }>(
+    db,
+    "SELECT id, name, phone, phone_verified, active FROM staff WHERE business_id = ? ORDER BY created_at ASC",
+    [businessId]
+  );
+  return c.json(rows.map(serializeStaffMember));
+});
+
+// Staff rows have no children referencing them anywhere in the schema --
+// a plain delete, scoped to the given business so an admin can't delete a
+// staff id that belongs to a different business by mistake.
+reviewAdminRouter.delete("/businesses/:businessId/staff/:staffId", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.req.param("businessId");
+  const staffId = c.req.param("staffId");
+
+  const existing = await queryFirst<{ id: string }>(
+    db,
+    "SELECT id FROM staff WHERE id = ? AND business_id = ?",
+    [staffId, businessId]
+  );
+  if (!existing) return c.json({ error: "Staff member not found for this business" }, 404);
+
+  await execute(db, "DELETE FROM staff WHERE id = ?", [staffId]);
+  return c.json({ ok: true, id: staffId });
+});
+
+// Deletes the given business's published microsite, if any. A microsite's
+// only child table is business_microsite_modules (FK business_microsite_id);
+// nothing else references a microsite's id (campaigns.featured_campaign_id
+// runs the other direction, business_microsites -> campaigns).
+async function deleteMicrositeForBusiness(db: D1Database, businessId: string): Promise<{ ok: true; deletedMicrositeId: string } | { ok: false; status: 404; error: string }> {
+  const microsite = await queryFirst<{ id: string }>(db, "SELECT id FROM business_microsites WHERE business_id = ?", [
+    businessId,
+  ]);
+  if (!microsite) return { ok: false, status: 404, error: "No microsite found for this business" };
+
+  await execute(db, "DELETE FROM business_microsite_modules WHERE business_microsite_id = ?", [microsite.id]);
+  await execute(db, "DELETE FROM business_microsites WHERE id = ?", [microsite.id]);
+  return { ok: true, deletedMicrositeId: microsite.id };
+}
+
+reviewAdminRouter.delete("/businesses/:businessId/microsite", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.req.param("businessId");
+  if (!(await loadBusinessOr404(db, businessId))) return c.json({ error: "Business not found" }, 404);
+
+  const result = await deleteMicrositeForBusiness(db, businessId);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json({ ok: true, deletedMicrositeId: result.deletedMicrositeId });
+});
+
+function serializeAdminCustomer(row: {
+  id: string;
+  phone_number: string;
+  phone_verified: number;
+  telegram_opted_in: number;
+  created_at: string;
+}) {
+  return {
+    id: row.id,
+    phoneNumber: row.phone_number,
+    phoneVerified: !!row.phone_verified,
+    telegramOptedIn: !!row.telegram_opted_in,
+    createdAt: row.created_at,
+  };
+}
+
+// Customers are global (not business-scoped) -- listed here in full for the
+// admin customers page, same "no per-business scoping" model as GET /businesses.
+reviewAdminRouter.get("/customers", async (c) => {
+  const db = c.env.DB;
+  const rows = await queryAll<{
+    id: string;
+    phone_number: string;
+    phone_verified: number;
+    telegram_opted_in: number;
+    created_at: string;
+  }>(db, "SELECT id, phone_number, phone_verified, telegram_opted_in, created_at FROM customers ORDER BY created_at DESC");
+  return c.json(rows.map(serializeAdminCustomer));
+});
+
+// Full cascade delete for one customer -- mirrors deleteCampaignForBusiness's
+// cascade style but scoped to this customer's customer_campaign_codes rows
+// (across however many businesses/campaigns they've joined) instead of one
+// campaign's codes.
+async function deleteCustomerCompletely(db: D1Database, customerId: string): Promise<{ ok: true } | { ok: false; status: 404; error: string }> {
+  const customer = await queryFirst<{ id: string }>(db, "SELECT id FROM customers WHERE id = ?", [customerId]);
+  if (!customer) return { ok: false, status: 404, error: "Customer not found" };
+
+  const codes = await queryAll<{ id: string }>(db, "SELECT id FROM customer_campaign_codes WHERE customer_id = ?", [
+    customerId,
+  ]);
+  const codeIds = codes.map((r) => r.id);
+
+  let submissionIds: string[] = [];
+  if (codeIds.length > 0) {
+    const placeholders = codeIds.map(() => "?").join(",");
+    const subs = await queryAll<{ id: string }>(
+      db,
+      `SELECT id FROM task_submissions WHERE customer_campaign_code_id IN (${placeholders})`,
+      codeIds
+    );
+    submissionIds = subs.map((r) => r.id);
+  }
+
+  if (submissionIds.length > 0) {
+    const placeholders = submissionIds.map(() => "?").join(",");
+    await execute(db, `UPDATE task_submissions SET qualifying_purchase_id = NULL WHERE id IN (${placeholders})`, submissionIds);
+    await execute(db, `DELETE FROM purchase_logs WHERE task_submission_id IN (${placeholders})`, submissionIds);
+  }
+
+  if (codeIds.length > 0) {
+    const placeholders = codeIds.map(() => "?").join(",");
+    await execute(db, `DELETE FROM points_ledger WHERE customer_campaign_code_id IN (${placeholders})`, codeIds);
+    await execute(db, `DELETE FROM reward_redemptions WHERE customer_campaign_code_id IN (${placeholders})`, codeIds);
+  }
+
+  if (submissionIds.length > 0) {
+    const placeholders = submissionIds.map(() => "?").join(",");
+    await execute(db, `DELETE FROM task_submissions WHERE id IN (${placeholders})`, submissionIds);
+  }
+
+  if (codeIds.length > 0) {
+    const placeholders = codeIds.map(() => "?").join(",");
+    await execute(db, `DELETE FROM referral_flags WHERE referrer_customer_campaign_code_id IN (${placeholders})`, codeIds);
+    await execute(
+      db,
+      `UPDATE customer_campaign_codes SET referred_by_code_id = NULL WHERE referred_by_code_id IN (${placeholders})`,
+      codeIds
+    );
+    await execute(db, `DELETE FROM notifications_log WHERE customer_campaign_code_id IN (${placeholders})`, codeIds);
+  }
+
+  await execute(db, "DELETE FROM customer_campaign_codes WHERE customer_id = ?", [customerId]);
+  await execute(db, "DELETE FROM customers WHERE id = ?", [customerId]);
+
+  return { ok: true };
+}
+
+reviewAdminRouter.delete("/customers/:customerId", async (c) => {
+  const db = c.env.DB;
+  const customerId = c.req.param("customerId");
+
+  const result = await deleteCustomerCompletely(db, customerId);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json({ ok: true, id: customerId });
+});
+
+// Full cascade delete for a business owner -- deletes every campaign the
+// business has ever had (looping deleteCampaignForBusiness, which only ever
+// removes the single most-recent campaign per call), plus every other child
+// table that references businesses.id, before the businesses row itself.
+// This is the most destructive route in the admin panel: it removes the
+// business's entire history (staff, contacts, subscription, SMS wallet log,
+// microsite, checklist progress, AI constraints, carryovers) in addition to
+// campaigns. No confirmation step server-side -- review-console UI must
+// confirm first, same contract as the campaign delete above.
+async function deleteBusinessCompletely(db: D1Database, businessId: string): Promise<{ ok: true } | { ok: false; status: 404; error: string }> {
+  const business = await queryFirst<{ id: string }>(db, "SELECT id FROM businesses WHERE id = ?", [businessId]);
+  if (!business) return { ok: false, status: 404, error: "Business not found" };
+
+  // Repeatedly delete this business's "most recent" campaign until none are
+  // left -- deleteCampaignForBusiness only ever targets one campaign per call.
+  // Cap the loop defensively so a bug elsewhere can't spin forever.
+  for (let i = 0; i < 1000; i++) {
+    const result = await deleteCampaignForBusiness(db, businessId);
+    if (!result.ok) break;
+  }
+
+  await deleteMicrositeForBusiness(db, businessId);
+
+  await execute(db, "DELETE FROM staff WHERE business_id = ?", [businessId]);
+  await execute(db, "DELETE FROM business_contacts WHERE business_id = ?", [businessId]);
+  await execute(db, "DELETE FROM business_subscriptions WHERE business_id = ?", [businessId]);
+  await execute(db, "DELETE FROM sms_wallet_transactions WHERE business_id = ?", [businessId]);
+  await execute(db, "DELETE FROM business_checklist_progress WHERE business_id = ?", [businessId]);
+  await execute(db, "DELETE FROM business_ai_constraints WHERE business_id = ?", [businessId]);
+  await execute(db, "DELETE FROM point_carryovers WHERE business_id = ?", [businessId]);
+
+  await execute(db, "DELETE FROM businesses WHERE id = ?", [businessId]);
+
+  return { ok: true };
+}
+
+reviewAdminRouter.delete("/businesses/:businessId", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.req.param("businessId");
+
+  const result = await deleteBusinessCompletely(db, businessId);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json({ ok: true, id: businessId });
+});
+
 export { reviewAdminRouter };
