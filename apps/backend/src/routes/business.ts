@@ -190,13 +190,18 @@ businessRouter.get("/checklist", async (c) => {
 // ============================================================================
 // Campaign (plan.md Item 21 -- a business can now hold multiple campaigns;
 // only one may be `status = 'active'` at a time, enforced in
-// applyCampaignUpdate below). ensureCampaign() is kept as a LEGACY resolver
+// applyCampaignUpdate below). findCurrentCampaignId() is the LEGACY resolver
 // for routes not yet converted to an explicit :campaignId (GET/PUT /campaign,
 // POST /campaign/generate, GET /stats -- POST /campaign/chat was converted
-// to an explicit campaignId, see that route's own comment below). It now prefers
+// to an explicit campaignId, see that route's own comment below). It prefers
 // the business's active campaign if one exists, else its most recently
 // created campaign, instead of always the oldest -- a reasonable single
 // "current" campaign to fall back to now that more than one may exist.
+// Decided 2026-09-15: these legacy routes never auto-create a campaign --
+// ensureCampaign() (the old create-on-write resolver) has been removed
+// entirely. A business with no campaign gets a 404 from these routes; the
+// only way to get a campaign row is the explicit createNewCampaign() below
+// (POST /campaigns), never an implicit side effect of a write to /campaign.
 // New :campaignId-scoped routes (GET/POST /campaigns, GET/PUT
 // /campaigns/:campaignId, GET /campaigns/:campaignId/stats) are the real,
 // non-legacy way to address a specific campaign and are what the frontend
@@ -230,9 +235,11 @@ async function resolveCurrentCampaignRow(db: D1Database, businessId: string): Pr
   );
 }
 
-// Read-only counterpart to ensureCampaign below -- resolves the business's
-// current campaign (same active-first/newest-else order) WITHOUT ever
-// creating one. Root-cause fix for the 2026-09-14 phantom-campaign bug:
+// Resolves the business's current campaign (active-first/newest-else
+// order) WITHOUT ever creating one -- this is now the ONLY resolver for
+// the legacy single-campaign routes (ensureCampaign, the old create-on-write
+// resolver, was removed 2026-09-15; see the section comment above). Root-
+// cause fix for the 2026-09-14 phantom-campaign bug:
 // GET-only endpoints (GET /campaign, GET /stats, and review-admin's
 // businessId-scoped GET /campaign) do no writing, so simply loading a page
 // must never have the side effect of inserting a real campaign row for a
@@ -249,7 +256,7 @@ export async function findCurrentCampaignId(db: D1Database, businessId: string):
 // plan.md Item 21 -- unconditionally creates a brand-new campaign row for a
 // business (always `draft`, never reuses/overwrites an existing row), for
 // the new "ایجاد کمپین" (create campaign) entry point on the campaign list
-// page. Unlike ensureCampaign, this never checks for an existing row first.
+// page. Unlike the legacy resolver above, this never checks for an existing row first.
 export async function createNewCampaign(db: D1Database, businessId: string): Promise<string> {
   const id = generateId();
   await execute(
@@ -307,7 +314,7 @@ async function listCampaignsForBusiness(db: D1Database, businessId: string) {
   }));
 }
 
-// Exported (plan.md Item 16 Step A) -- same reasoning as ensureCampaign above.
+// Exported (plan.md Item 16 Step A) -- same reasoning as findCurrentCampaignId above.
 export async function serializeCampaign(db: D1Database, campaignId: string) {
   const campaign = await queryFirst<{
     status: string;
