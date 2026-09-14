@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
 import { generateId, queryFirst, execute } from "../lib/db";
+import type { D1Database } from "@cloudflare/workers-types";
 import { signJWT } from "../middleware/auth";
 import { getJwtSecret } from "../lib/jwt-config";
 import { ensureCustomerCampaignCode, resolveCampaignByJoinSlug } from "./customer";
@@ -25,6 +26,16 @@ const DEV_OTPS: Record<string, string> = {
   staff: "3321",
 };
 
+// Read-only -- resolves whether a phone already has a businesses row,
+// WITHOUT ever creating one. Same non-creating-resolver principle as
+// business.ts's findCurrentCampaignId: a page load / OTP request must never
+// have the side effect of provisioning a real row. The actual create-on-
+// write still only happens in verify-otp below, same as before.
+async function isNewBusinessPhone(db: D1Database, phone: string): Promise<boolean> {
+  const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM businesses WHERE phone = ?", [phone]);
+  return !existing;
+}
+
 authRouter.post("/request-otp", async (c) => {
   try {
     const body = await c.req.json<{ phone?: string; role?: string }>();
@@ -42,12 +53,25 @@ authRouter.post("/request-otp", async (c) => {
     // For now, in dev mode, the mock OTP is statically known (e.g., 7712 / 5432 / 9911).
     console.log(`[DEV OTP] Requested for phone ${phone} with role ${role}. Dev OTP is: ${DEV_OTPS[role]}`);
 
+    // isNewBusiness (business_owner role only): lets the frontend show the
+    // new owner-first-name/owner-last-name fields for a brand-new phone and
+    // hide them for an existing one, decided BEFORE the OTP step so the
+    // person isn't asked to re-enter a code after being told they also need
+    // to fill in their name. Omitted entirely for the other 3 roles -- they
+    // have no such distinction and no callers read this field for them.
+    const isNewBusiness = role === "business_owner" ? await isNewBusinessPhone(c.env.DB, phone) : undefined;
+
     // TEMPORARY (dev-mode only, remove once a real SMS provider is wired in):
     // echo the OTP back in the response so a live human tester can complete
     // OTP verification (e.g. Open Item 13, Step E part 2) without server/log
     // access -- there is no real SMS being sent today either way, so this
     // doesn't weaken anything that currently exists.
-    return c.json({ ok: true, message: "OTP sent (dev mode stub)", devOtp: DEV_OTPS[role] });
+    return c.json({
+      ok: true,
+      message: "OTP sent (dev mode stub)",
+      devOtp: DEV_OTPS[role],
+      ...(isNewBusiness !== undefined ? { isNewBusiness } : {}),
+    });
   } catch (err) {
     return c.json({ error: "Invalid request body" }, 400);
   }
@@ -55,8 +79,16 @@ authRouter.post("/request-otp", async (c) => {
 
 authRouter.post("/verify-otp", async (c) => {
   try {
-    const body = await c.req.json<{ phone?: string; otp?: string; role?: string; referralCode?: string; joinSlug?: string }>();
-    const { phone, otp, role, referralCode, joinSlug } = body;
+    const body = await c.req.json<{
+      phone?: string;
+      otp?: string;
+      role?: string;
+      referralCode?: string;
+      joinSlug?: string;
+      ownerFirstName?: string;
+      ownerLastName?: string;
+    }>();
+    const { phone, otp, role, referralCode, joinSlug, ownerFirstName, ownerLastName } = body;
 
     if (!phone || !otp || !role) {
       return c.json({ error: "Missing required fields: phone, otp, role" }, 400);
@@ -90,6 +122,20 @@ authRouter.post("/verify-otp", async (c) => {
       );
 
       if (!business) {
+        // Brand-new signup -- owner's first + last name are required at this
+        // step (product decision: blocks OTP verification if missing, no
+        // placeholder fallback the way business name/category still have).
+        // Checked here (not earlier) so the phone/otp/role presence check
+        // above still fires first for a malformed request in general.
+        const trimmedFirstName = ownerFirstName?.trim();
+        const trimmedLastName = ownerLastName?.trim();
+        if (!trimmedFirstName || !trimmedLastName) {
+          return c.json(
+            { error: "برای ثبت‌نام، لطفاً نام و نام‌خانوادگی خود را وارد کنید." },
+            400
+          );
+        }
+
         userId = generateId();
         // For default category, pick the first category from business_categories or create one if empty
         let cat = await queryFirst<{ id: string }>(db, "SELECT id FROM business_categories LIMIT 1");
@@ -106,11 +152,15 @@ authRouter.post("/verify-otp", async (c) => {
         }
 
         const nowIso = new Date().toISOString();
+        // Business name/category are UNCHANGED (still the placeholder name +
+        // arbitrary first category, still fixed later via the wizard's Step 1,
+        // per business.ts's generateCampaignForBusiness comment) -- only the
+        // owner's own name (migration 0016's new columns) is new here.
         await execute(
           db,
-          `INSERT INTO businesses (id, name, category_id, phone, phone_verified, phone_verified_at, sms_wallet_balance_toman, autopilot_enabled, size_tier, created_at)
-           VALUES (?, ?, ?, ?, 1, ?, 0, 0, 'small', ?)`,
-          [userId, "کسب‌وکار جدید", categoryId, phone, nowIso, nowIso]
+          `INSERT INTO businesses (id, name, category_id, phone, phone_verified, phone_verified_at, sms_wallet_balance_toman, autopilot_enabled, size_tier, owner_first_name, owner_last_name, created_at)
+           VALUES (?, ?, ?, ?, 1, ?, 0, 0, 'small', ?, ?, ?)`,
+          [userId, "کسب‌وکار جدید", categoryId, phone, nowIso, trimmedFirstName, trimmedLastName, nowIso]
         );
       } else {
         userId = business.id;
