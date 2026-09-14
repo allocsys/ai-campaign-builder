@@ -794,6 +794,19 @@ export type CampaignGenerateBody = Partial<{
   audienceDescription: string;
   dailyCustomerCount: number;
   monthlyRevenueToman: number;
+  /**
+   * plan.md Item 21 Step C -- the wizard's actual range-slider selection
+   * (not just the average above, which is what feeds the deterministic
+   * size-tier math). Optional/additive: an older client that only sends
+   * dailyCustomerCount/monthlyRevenueToman still works exactly as before,
+   * it just leaves these 4 columns NULL on the resulting campaign row, so
+   * a future wizard visit has nothing to pre-fill from this campaign (same
+   * as any campaign created before migration 0015).
+   */
+  dailyCustomerCountMin: number;
+  dailyCustomerCountMax: number;
+  monthlyRevenueTomanMin: number;
+  monthlyRevenueTomanMax: number;
   /** Optional -- omitted/null when the owner has no Instagram page. */
   followerCount: number | null;
   /** Optional (plan.md "Step 4 leads with AI deciding" decision) -- only ever feeds LLM copy, never the deterministic math, so it's not required. */
