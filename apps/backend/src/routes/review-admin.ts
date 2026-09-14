@@ -378,10 +378,9 @@ async function loadBusinessOr404(db: D1Database, businessId: string): Promise<bo
 }
 
 // businessId-route-param equivalent of business.ts's GET /campaign. Uses the
-// read-only findCurrentCampaignId (not ensureCampaign) so an admin merely
-// viewing a business that hasn't been through the wizard yet can't silently
-// create a phantom campaign for them -- same root-cause fix as the owner-
-// facing GET /campaign.
+// read-only findCurrentCampaignId so an admin merely viewing a business that
+// hasn't been through the wizard yet can't silently create a phantom
+// campaign for them -- same root-cause fix as the owner-facing GET /campaign.
 reviewAdminRouter.get("/businesses/:businessId/campaign", async (c) => {
   const db = c.env.DB;
   const businessId = c.req.param("businessId");
@@ -392,8 +391,13 @@ reviewAdminRouter.get("/businesses/:businessId/campaign", async (c) => {
   return c.json(await serializeCampaign(db, campaignId));
 });
 
-// businessId-route-param equivalent of business.ts's PUT /campaign --
+// businessId-route-param equivalent of the owner's campaign write path --
 // delegates to applyCampaignUpdate for identical validation/side effects.
+// Unlike the owner side (which moved entirely to explicit-campaignId writes
+// via PUT /campaigns/:campaignId once the legacy PUT /campaign was removed
+// 2026-09-15), this route legitimately keeps applyCampaignUpdate's implicit
+// findCurrentCampaignId resolution -- admin has no :campaignId concept of
+// its own to pass explicitly.
 reviewAdminRouter.put("/businesses/:businessId/campaign", async (c) => {
   const db = c.env.DB;
   const businessId = c.req.param("businessId");
@@ -406,7 +410,7 @@ reviewAdminRouter.put("/businesses/:businessId/campaign", async (c) => {
 });
 
 // Pause is a plain status change, not a distinct DB concept -- reuses the
-// same PUT /campaign { status: 'draft' } path above (no separate route).
+// same PUT above (status: 'draft') (no separate route).
 // This DELETE, however, is genuinely destructive: it hard-deletes the
 // business's current campaign and every row that references it (customer
 // codes, task submissions, redemptions, points ledger entries, etc.) --
@@ -424,20 +428,17 @@ reviewAdminRouter.delete("/businesses/:businessId/campaign", async (c) => {
   return c.json({ ok: true, deletedCampaignId: result.deletedCampaignId });
 });
 
-// businessId-route-param equivalent of business.ts's POST /campaign/generate
-// (the full onboarding-wizard generation flow) -- delegates to
-// generateCampaignForBusiness for identical validation/side effects,
-// including the single-active-campaign guard and AI-constraints clamping.
-reviewAdminRouter.post("/businesses/:businessId/campaign/generate", async (c) => {
-  const db = c.env.DB;
-  const businessId = c.req.param("businessId");
-  if (!(await loadBusinessOr404(db, businessId))) return c.json({ error: "Business not found" }, 404);
-
-  const body = await c.req.json<CampaignGenerateBody>();
-  const result = await generateCampaignForBusiness(db, c.env, businessId, body);
-  if (!result.ok) return c.json({ error: result.error }, result.status);
-  return c.json(result.result);
-});
+// Decided 2026-09-15: the businessId-route-param equivalent of the owner's
+// POST /campaign/generate (full onboarding-wizard generation flow) was
+// removed -- review-console never actually called it (generateAdminBusinessCampaign
+// in the api-client had no caller), and generateCampaignForBusiness now
+// requires an explicit campaignId (its implicit-resolution fallback was
+// removed along with ensureCampaign), so this route would no longer even
+// compile as written. Admin campaign access remains full parity with the
+// owner's for GET/PUT/DELETE (view, manual-edit, hard-delete) above; if an
+// admin-triggered wizard-style generation is needed later, it should create
+// its own campaign row first (mirroring owner-side POST /campaigns), not
+// resurrect an implicit "current campaign" resolution.
 
 // ----------------------------------------------------------------------------
 // Admin entity deletion (staff / customers / businesses / microsites).
