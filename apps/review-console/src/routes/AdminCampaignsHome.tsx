@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, Card, Modal, useToast } from '@ai-campaign-builder/ui-kit'
 import { CampaignEditor } from '@ai-campaign-builder/campaign-editor'
-import type { AdminBusinessListItem, Campaign } from '@ai-campaign-builder/api-client'
+import type { AdminBusinessListItem, Campaign, StaffMember } from '@ai-campaign-builder/api-client'
 import { AdminAppShell } from './AdminAppShell'
 import {
   getAdminBusinesses,
@@ -9,6 +9,10 @@ import {
   updateAdminBusinessCampaign,
   deleteAdminBusinessCampaign,
   updateAdminBusinessManualEditor,
+  getAdminBusinessStaff,
+  deleteAdminStaff,
+  deleteAdminMicrosite,
+  deleteAdminBusiness,
 } from '../lib/admin-api-client'
 
 /** Persian digits -- matches the rest of the app's locale conventions. */
@@ -60,6 +64,17 @@ export function AdminCampaignsHome() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  const [staff, setStaff] = useState<StaffMember[]>([])
+  const [loadingStaff, setLoadingStaff] = useState(false)
+  const [staffError, setStaffError] = useState<string | null>(null)
+  const [deletingStaffId, setDeletingStaffId] = useState<string | null>(null)
+
+  const [micrositeModalOpen, setMicrositeModalOpen] = useState(false)
+  const [deletingMicrosite, setDeletingMicrosite] = useState(false)
+
+  const [businessDeleteModalOpen, setBusinessDeleteModalOpen] = useState(false)
+  const [deletingBusiness, setDeletingBusiness] = useState(false)
+
   useEffect(() => {
     let mounted = true
     getAdminBusinesses()
@@ -89,6 +104,14 @@ export function AdminCampaignsHome() {
       .then((c) => setCampaign(c))
       .catch((err) => setCampaignError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoadingCampaign(false))
+
+    setStaff([])
+    setStaffError(null)
+    setLoadingStaff(true)
+    getAdminBusinessStaff(b.id)
+      .then((rows) => setStaff(rows))
+      .catch((err) => setStaffError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setLoadingStaff(false))
   }
 
   function backToList() {
@@ -96,6 +119,10 @@ export function AdminCampaignsHome() {
     setCampaign(null)
     setCampaignError(null)
     setDeleteModalOpen(false)
+    setStaff([])
+    setStaffError(null)
+    setMicrositeModalOpen(false)
+    setBusinessDeleteModalOpen(false)
   }
 
   // "Pause" reuses the plain status field -- no separate DB concept, no
@@ -129,6 +156,57 @@ export function AdminCampaignsHome() {
       show(err instanceof Error ? err.message : String(err), 'danger')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  // Staff rows have no children referencing them -- a plain delete on the
+  // backend, scoped to this business so an id from a different business
+  // can't be deleted by mistake.
+  async function handleDeleteStaff(staffId: string) {
+    if (!selected) return
+    setDeletingStaffId(staffId)
+    try {
+      await deleteAdminStaff(selected.id, staffId)
+      setStaff((prev) => prev.filter((s) => s.id !== staffId))
+      show('عضو تیم حذف شد.', 'success')
+    } catch (err) {
+      show(err instanceof Error ? err.message : String(err), 'danger')
+    } finally {
+      setDeletingStaffId(null)
+    }
+  }
+
+  // Irreversible: removes the business's published microsite + its modules.
+  async function handleDeleteMicrosite() {
+    if (!selected) return
+    setDeletingMicrosite(true)
+    try {
+      await deleteAdminMicrosite(selected.id)
+      show('سایت اختصاصی این کسب‌وکار برای همیشه حذف شد.', 'success')
+      setMicrositeModalOpen(false)
+    } catch (err) {
+      show(err instanceof Error ? err.message : String(err), 'danger')
+    } finally {
+      setDeletingMicrosite(false)
+    }
+  }
+
+  // The most destructive action in the admin panel -- removes the business
+  // owner entirely: every campaign, staff member, microsite, subscription,
+  // SMS wallet history, and everything else tied to business_id. See
+  // deleteBusinessCompletely on the backend for the full cascade.
+  async function handleDeleteBusiness() {
+    if (!selected) return
+    setDeletingBusiness(true)
+    try {
+      await deleteAdminBusiness(selected.id)
+      setBusinesses((prev) => prev.filter((x) => x.id !== selected.id))
+      show('کسب‌وکار برای همیشه حذف شد.', 'success')
+      backToList()
+    } catch (err) {
+      show(err instanceof Error ? err.message : String(err), 'danger')
+    } finally {
+      setDeletingBusiness(false)
     }
   }
 
@@ -209,10 +287,51 @@ export function AdminCampaignsHome() {
                   {selected.categoryLabel} · <span dir="ltr">{selected.phone}</span>
                 </p>
               </div>
-              <Button variant="ghost" onClick={backToList}>
-                ← بازگشت به فهرست
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="danger" onClick={() => setBusinessDeleteModalOpen(true)}>
+                  حذف کسب‌وکار
+                </Button>
+                <Button variant="ghost" onClick={backToList}>
+                  ← بازگشت به فهرست
+                </Button>
+              </div>
             </div>
+
+            <Card className="p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <h3 className="text-sm font-medium text-slate-100">اعضای تیم</h3>
+                <Button variant="secondary" onClick={() => setMicrositeModalOpen(true)}>
+                  حذف سایت اختصاصی
+                </Button>
+              </div>
+              {loadingStaff && <div className="text-sm text-slate-400">در حال بارگذاری...</div>}
+              {staffError && <div className="text-sm text-red-400">{staffError}</div>}
+              {!loadingStaff && !staffError && staff.length === 0 && (
+                <div className="text-sm text-slate-400">هیچ عضو تیمی برای این کسب‌وکار ثبت نشده است.</div>
+              )}
+              {staff.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {staff.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between gap-3 flex-wrap text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-200">{s.name}</span>
+                        <span dir="ltr" className="text-xs text-slate-400">
+                          {s.phone}
+                        </span>
+                        {!s.active && <Badge tone="neutral">غیرفعال</Badge>}
+                      </div>
+                      <Button
+                        variant="danger"
+                        loading={deletingStaffId === s.id}
+                        onClick={() => handleDeleteStaff(s.id)}
+                      >
+                        حذف
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
 
             {loadingCampaign && <div className="p-4 text-sm text-slate-400">در حال بارگذاری کمپین...</div>}
             {campaignError && <div className="p-4 text-sm text-red-400">{campaignError}</div>}
@@ -264,6 +383,54 @@ export function AdminCampaignsHome() {
               انصراف
             </Button>
             <Button type="button" variant="danger" loading={deleting} onClick={handleDeleteCampaign}>
+              بله، برای همیشه حذف شود
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={micrositeModalOpen}
+        onClose={() => (deletingMicrosite ? undefined : setMicrositeModalOpen(false))}
+        title="حذف سایت اختصاصی"
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-slate-300">
+            سایت اختصاصی (میکروسایت) کسب‌وکار <span className="font-medium text-slate-100">{selected?.name}</span> برای
+            همیشه حذف می‌شود. این عملیات <span className="font-medium text-red-400">غیرقابل بازگشت</span> است.
+          </p>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => setMicrositeModalOpen(false)} disabled={deletingMicrosite}>
+              انصراف
+            </Button>
+            <Button type="button" variant="danger" loading={deletingMicrosite} onClick={handleDeleteMicrosite}>
+              بله، برای همیشه حذف شود
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={businessDeleteModalOpen}
+        onClose={() => (deletingBusiness ? undefined : setBusinessDeleteModalOpen(false))}
+        title="حذف کسب‌وکار"
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-slate-300">
+            کسب‌وکار <span className="font-medium text-slate-100">{selected?.name}</span> همراه با تمام کمپین‌ها، اعضای
+            تیم، سایت اختصاصی، اشتراک، تاریخچه کیف‌پول پیامکی و هر چیز دیگری که به این کسب‌وکار مرتبط است برای همیشه
+            حذف می‌شود. این عملیات <span className="font-medium text-red-400">غیرقابل بازگشت</span> است.
+          </p>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setBusinessDeleteModalOpen(false)}
+              disabled={deletingBusiness}
+            >
+              انصراف
+            </Button>
+            <Button type="button" variant="danger" loading={deletingBusiness} onClick={handleDeleteBusiness}>
               بله، برای همیشه حذف شود
             </Button>
           </div>
