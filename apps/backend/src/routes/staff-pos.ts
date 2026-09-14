@@ -35,13 +35,18 @@ staffPosRouter.use("/*", async (c, next) => {
 // Shared helpers
 // ============================================================================
 
-// Resolves the business's current campaign the same way business.ts's
-// ensureCampaign does for reads (most-recently-created), but read-only here
-// -- staff never creates a campaign, only acts against an existing one.
+// plan.md Item 21 -- a business can now hold multiple campaigns (draft/
+// ended history alongside at most one active one), so "the" campaign staff
+// act against is specifically the active one, not just the most recently
+// created row (which could now be an unlaunched draft or a past, ended
+// campaign). Read-only here -- staff never creates a campaign, only acts
+// against an existing one. Returns null if the business currently has no
+// active campaign at all (e.g. between campaigns), same as before when no
+// campaign existed yet.
 async function findActiveCampaignId(db: D1Database, businessId: string): Promise<string | null> {
   const row = await queryFirst<{ id: string }>(
     db,
-    "SELECT id FROM campaigns WHERE business_id = ? ORDER BY created_at DESC LIMIT 1",
+    "SELECT id FROM campaigns WHERE business_id = ? AND status = 'active' LIMIT 1",
     [businessId]
   );
   return row?.id ?? null;
