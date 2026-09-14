@@ -4,9 +4,11 @@ import type {
   ReviewTeamMember,
   ReviewAdminAccount,
   AdminBusinessListItem,
+  AdminCustomerListItem,
   Campaign,
   GenerateCampaignRequest,
   GeneratedCampaignProposal,
+  StaffMember,
 } from '../types';
 
 export async function adminLogin(
@@ -153,4 +155,51 @@ export async function updateAdminBusinessManualEditor(
       body: JSON.stringify({ enabled }),
     }
   );
+}
+
+// ----------------------------------------------------------------------------
+// Entity deletion -- staff / customers / businesses / microsites. All hard,
+// irreversible deletes server-side; callers (review-console) are expected to
+// confirm with the admin before calling any of these.
+// ----------------------------------------------------------------------------
+
+export async function getAdminBusinessStaff(client: ApiClient, businessId: string): Promise<StaffMember[]> {
+  return client.request<StaffMember[]>(`/api/review-admin/businesses/${encodeURIComponent(businessId)}/staff`);
+}
+
+export async function deleteAdminStaff(
+  client: ApiClient,
+  businessId: string,
+  staffId: string
+): Promise<{ ok: boolean; id: string }> {
+  return client.request<{ ok: boolean; id: string }>(
+    `/api/review-admin/businesses/${encodeURIComponent(businessId)}/staff/${encodeURIComponent(staffId)}`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function deleteAdminMicrosite(
+  client: ApiClient,
+  businessId: string
+): Promise<{ ok: boolean; deletedMicrositeId: string }> {
+  return client.request<{ ok: boolean; deletedMicrositeId: string }>(
+    `/api/review-admin/businesses/${encodeURIComponent(businessId)}/microsite`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function getAdminCustomers(client: ApiClient): Promise<AdminCustomerListItem[]> {
+  return client.request<AdminCustomerListItem[]>('/api/review-admin/customers');
+}
+
+export async function deleteAdminCustomer(client: ApiClient, customerId: string): Promise<{ ok: boolean; id: string }> {
+  return client.request<{ ok: boolean; id: string }>(`/api/review-admin/customers/${encodeURIComponent(customerId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function deleteAdminBusiness(client: ApiClient, businessId: string): Promise<{ ok: boolean; id: string }> {
+  return client.request<{ ok: boolean; id: string }>(`/api/review-admin/businesses/${encodeURIComponent(businessId)}`, {
+    method: 'DELETE',
+  });
 }
