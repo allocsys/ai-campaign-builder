@@ -1129,9 +1129,6 @@ export async function generateCampaignForBusiness(
   };
 }
 
-PLACEHOLDER_MARK result.status);
-  return c.json(result.result);
-});
 
 // ============================================================================
 // Campaign list + :campaignId-scoped routes (plan.md Item 21). The legacy
