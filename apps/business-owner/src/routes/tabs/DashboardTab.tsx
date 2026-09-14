@@ -115,8 +115,13 @@ export function DashboardTab() {
           <h3 className="text-sm font-semibold text-slate-300">تسک‌های کمپین</h3>
           <div className="flex items-center gap-2">
             {profile?.manualEditorEnabled && (
+              // plan.md Item 21 -- the old fixed '/dashboard/campaign/edit'
+              // route is gone; editing a specific campaign now needs its id,
+              // which this legacy getCampaign() response doesn't carry (see
+              // Campaign type -- no `id` field). Routes to the campaign list
+              // page instead, where the owner picks which campaign to edit.
               <Link
-                to="/dashboard/campaign/edit"
+                to="/dashboard/campaign"
                 className="text-xs text-brand-400 hover:text-brand-300 underline underline-offset-2"
               >
                 ویرایش دستی

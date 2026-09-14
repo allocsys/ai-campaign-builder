@@ -1,7 +1,7 @@
 import { type ReactNode, useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { Button, AppHeader, Drawer, BottomNav } from '@ai-campaign-builder/ui-kit'
-import { getSuggestedChanges, getCampaign } from '@ai-campaign-builder/api-client'
+import { getSuggestedChanges } from '@ai-campaign-builder/api-client'
 import { useAuth } from '../lib/auth'
 import apiClient from '../lib/api-client'
 
@@ -14,10 +14,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0)
-  // Default to the wizard route until the campaign fetch resolves, and stay
-  // there if it fails -- worst case a business with a real campaign briefly
-  // sees the wizard on first paint, same as today, rather than us guessing.
-  const [campaignTo, setCampaignTo] = useState('/dashboard/campaign')
 
   useEffect(() => {
     let mounted = true
@@ -39,52 +35,23 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  useEffect(() => {
-    let mounted = true
-    getCampaign(apiClient)
-      .then((campaign) => {
-        if (!mounted) return
-        // Same "has this business ever actually gotten a real campaign"
-        // signal as CampaignEditorTab/CampaignWizardTab -- ensureCampaign()
-        // auto-provisions an empty draft row on first-ever GET, so row
-        // existence alone can't distinguish "fresh business" from "has a
-        // campaign".
-        const hasRealCampaign =
-          campaign.status === 'active' || campaign.tasks.length > 0 || campaign.rewards.length > 0
-        setCampaignTo(hasRealCampaign ? '/dashboard/campaign/edit' : '/dashboard/campaign')
-      })
-      .catch(() => {
-        // Silently keep the wizard default on error
-      })
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  // Map route pathname to Persian title per design.md IA table
+  // Map route pathname to Persian title per design.md IA table. Prefix-
+  // matches '/dashboard/campaign*' (plan.md Item 21) since the nav tab now
+  // always points at the campaign list page (BottomNav's own default), and
+  // that page fans out into '/dashboard/campaign/new' and
+  // '/dashboard/campaign/:campaignId' -- a dynamic id in the pathname can't
+  // be matched by an exact switch case the way the old fixed
+  // '/dashboard/campaign/edit' route could.
   const getTitle = (pathname: string) => {
-    switch (pathname) {
-      case '/dashboard':
-        return 'داشبورد'
-      case '/dashboard/campaign':
-      case '/dashboard/campaign/edit':
-        return 'کمپین'
-      case '/dashboard/insights':
-      case '/dashboard/suggestions':
-        return 'تحلیل و پیشنهاد'
-      case '/dashboard/microsite':
-        return 'میکروسایت'
-      case '/dashboard/autopilot':
-        return 'خودکارسازی'
-      case '/dashboard/settings':
-        return 'تنظیمات'
-      case '/dashboard/staff':
-        return 'کارکنان'
-      case '/dashboard/sends-log':
-        return 'لاگ ارسال‌ها'
-      default:
-        return 'داشبورد'
-    }
+    if (pathname === '/dashboard') return 'داشبورد'
+    if (pathname.startsWith('/dashboard/campaign')) return 'کمپین'
+    if (pathname === '/dashboard/insights' || pathname === '/dashboard/suggestions') return 'تحلیل و پیشنهاد'
+    if (pathname === '/dashboard/microsite') return 'میکروسایت'
+    if (pathname === '/dashboard/autopilot') return 'خودکارسازی'
+    if (pathname === '/dashboard/settings') return 'تنظیمات'
+    if (pathname === '/dashboard/staff') return 'کارکنان'
+    if (pathname === '/dashboard/sends-log') return 'لاگ ارسال‌ها'
+    return 'داشبورد'
   }
 
   const currentTitle = getTitle(location.pathname)
@@ -147,7 +114,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className="flex-1 p-6">{children}</main>
 
-      <BottomNav insightsBadgeCount={pendingSuggestionsCount} campaignTo={campaignTo} />
+      {/* plan.md Item 21 -- campaignTo no longer needs to be computed here:
+          the nav tab always points at the campaign list page now (its own
+          default '/dashboard/campaign'), regardless of whether this business
+          has any campaigns yet -- CampaignListTab's own empty state handles
+          that case. */}
+      <BottomNav insightsBadgeCount={pendingSuggestionsCount} />
     </div>
   )
 }

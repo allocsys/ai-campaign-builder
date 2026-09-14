@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card } from '@ai-campaign-builder/ui-kit'
-import { getCampaign } from '@ai-campaign-builder/api-client'
+import { getCampaignSummaries } from '@ai-campaign-builder/api-client'
 import apiClient from '../lib/api-client'
 import { OnboardingBanner } from './OnboardingBanner'
 import { DashboardTab } from './tabs/DashboardTab'
@@ -11,23 +11,24 @@ import { DashboardTab } from './tabs/DashboardTab'
  *
  * routes/auth.ts auto-creates a placeholder business row on a brand-new
  * phone number's first OTP login (hardcoded name "کسب‌وکار جدید" + an
- * arbitrary category), and business.ts's ensureCampaign() auto-provisions
- * an empty draft campaign the first time GET /campaign is called. Without
- * this gate, a new owner's very first screen after login was DashboardTab
- * rendering that placeholder data as if it were real: an unfamiliar
- * category label, "کسب‌وکار جدید" as the business name, and a "پیش‌نویس"
- * (draft) badge for a campaign the owner never created -- disorienting on
- * a first login, since none of it reflects anything the owner chose.
+ * arbitrary category). Without this gate, a new owner's very first screen
+ * after login was DashboardTab rendering that placeholder data as if it
+ * were real: an unfamiliar category label and "کسب‌وکار جدید" as the
+ * business name -- disorienting on a first login, since none of it
+ * reflects anything the owner chose.
  *
- * Uses the same hasRealCampaign signal already relied on by AppShell's
- * campaignTo redirect and by CampaignWizardTab/CampaignEditorTab's own
- * guards (row existence alone can't distinguish "fresh business" from
- * "has a campaign", since ensureCampaign() always creates a row on first
- * read).
+ * plan.md Item 21 -- switched from the legacy single-campaign
+ * hasRealCampaign signal (GET /campaign, which auto-provisions an empty
+ * draft row on first read via ensureCampaign(), so row existence alone
+ * couldn't distinguish "fresh business" from "has a campaign") to GET
+ * /campaigns (the new list endpoint, which does NOT auto-provision
+ * anything -- a truly fresh business gets back an empty array). A simple
+ * "has at least one campaign row" check is now sufficient and no longer
+ * needs the tasks.length/rewards.length heuristic the old signal required.
  *
  * Rather than a hard redirect straight into the wizard (which just swaps
- * one unexplained screen for another), a business with no real campaign
- * yet sees the normal dashboard rendered blurred underneath a cover card
+ * one unexplained screen for another), a business with no campaigns yet
+ * sees the normal dashboard rendered blurred underneath a cover card
  * with a single clear CTA -- the owner can see there's a real dashboard
  * waiting, understands why it's locked, and has one obvious next step.
  * The underlying placeholder data is blurred/non-interactive either way,
@@ -37,34 +38,29 @@ import { DashboardTab } from './tabs/DashboardTab'
  */
 export function DashboardIndexRoute() {
   const navigate = useNavigate()
-  const [hasRealCampaign, setHasRealCampaign] = useState<boolean | null>(null)
+  const [hasAnyCampaign, setHasAnyCampaign] = useState<boolean | null>(null)
 
   useEffect(() => {
     let mounted = true
-    getCampaign(apiClient)
-      .then((campaign) => {
-        if (mounted) {
-          setHasRealCampaign(
-            campaign.status === 'active' || campaign.tasks.length > 0 || campaign.rewards.length > 0
-          )
-        }
+    getCampaignSummaries(apiClient)
+      .then((campaigns) => {
+        if (mounted) setHasAnyCampaign(campaigns.length > 0)
       })
       .catch(() => {
         // On fetch failure, fail open to the real dashboard rather than
-        // risking a stuck cover screen -- same fail-open choice AppShell's
-        // own campaignTo effect makes on error.
-        if (mounted) setHasRealCampaign(true)
+        // risking a stuck cover screen.
+        if (mounted) setHasAnyCampaign(true)
       })
     return () => {
       mounted = false
     }
   }, [])
 
-  if (hasRealCampaign === null) {
+  if (hasAnyCampaign === null) {
     return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
   }
 
-  if (!hasRealCampaign) {
+  if (!hasAnyCampaign) {
     return (
       <div className="relative min-h-[70vh]">
         <div className="pointer-events-none select-none blur-md opacity-50" aria-hidden="true">
@@ -81,7 +77,7 @@ export function DashboardIndexRoute() {
                 برای مشاهده داشبورد، ابتدا با کمک دستیار هوشمند کمپین اولیه خود را بسازید. چند دقیقه بیشتر طول نمی‌کشد.
               </p>
             </div>
-            <Button onClick={() => navigate('/dashboard/campaign')} className="w-full justify-center">
+            <Button onClick={() => navigate('/dashboard/campaign/new')} className="w-full justify-center">
               ساخت کمپین با دستیار هوشمند
             </Button>
           </Card>

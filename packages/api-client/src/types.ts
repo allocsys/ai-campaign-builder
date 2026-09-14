@@ -69,6 +69,24 @@ export interface Campaign {
   rewards: CampaignReward[];
 }
 
+/**
+ * plan.md Item 21 -- summary row shape for GET /campaigns (the campaign list
+ * page). Deliberately NOT the full `Campaign` shape -- no tasks/rewards,
+ * since the list only needs enough to render one row per campaign and route
+ * into GET /campaigns/:campaignId for the rest. Unlike `Campaign`, this DOES
+ * carry an `id` -- the list is the only place a campaign's id is exposed to
+ * this app today, since legacy GET/PUT /campaign (single-campaign) never
+ * needed one.
+ */
+export interface CampaignSummary {
+  id: string;
+  status: 'active' | 'draft' | 'ended';
+  goal: 'acquisition' | 'retention' | 'acquisition_retention';
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+}
+
 // ============================================================================
 // Onboarding wizard / AI campaign generation (plan.md Open Item 8)
 // Shapes match apps/backend/src/routes/business.ts's POST /campaign/generate.
@@ -146,6 +164,16 @@ export interface GeneratedCampaignProposal extends Campaign {
    * resolved.
    */
   suggestedSiteSlug?: string;
+}
+
+/**
+ * plan.md Item 21 -- POST /campaigns (create-a-new-campaign flow) response:
+ * a `GeneratedCampaignProposal` plus the id of the freshly-created campaign
+ * row, since the caller (the campaign list page's "ایجاد کمپین" flow) has no
+ * other way to learn the new campaign's id to navigate to its detail page.
+ */
+export interface CreatedCampaignProposal extends GeneratedCampaignProposal {
+  campaignId: string;
 }
 
 export interface Insight {

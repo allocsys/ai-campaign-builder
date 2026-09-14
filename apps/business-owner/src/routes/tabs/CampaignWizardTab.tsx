@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
-import { generateCampaign, updateCampaign, updateMicrositeState, getCampaign, addStaff } from '@ai-campaign-builder/api-client'
+import { generateCampaign, updateCampaign, createCampaign, updateCampaignById, updateMicrositeState, addStaff } from '@ai-campaign-builder/api-client'
 import type {
   BusinessCategorySlug,
   GeneratedCampaignProposal,
@@ -163,10 +163,27 @@ function selectClassName() {
  * Callers own navigation after a successful launch via `onLaunched`, since
  * this component has no opinion on where to go next once it isn't always
  * the whole page.
+ *
+ * `mode` (plan.md Item 21): 'legacy' (default) targets the single-"current"-
+ * campaign endpoints (generateCampaign/updateCampaign, resolved server-side
+ * via ensureCampaign's active-then-newest fallback) -- unchanged behavior for
+ * not-yet-migrated callers. 'new' targets the :campaignId-scoped endpoints
+ * (createCampaign always makes a fresh row; updateCampaignById activates
+ * that exact row) for the campaign list page's "ایجاد کمپین" flow, which
+ * must never reuse/overwrite an existing campaign. `onLaunched` receives the
+ * new campaign's id in 'new' mode so the caller can navigate straight to its
+ * detail page; it's undefined in 'legacy' mode, same as before.
  */
-export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) {
+export function CampaignWizardForm({
+  onLaunched,
+  mode = 'legacy',
+}: {
+  onLaunched?: (campaignId?: string) => void
+  mode?: 'legacy' | 'new'
+}) {
   const { show: showToast } = useToast()
   const [step, setStep] = useState(1)
+  const [newCampaignId, setNewCampaignId] = useState<string | null>(null)
 
   // plan.md Item 20, Part C -- cosmetic step-transition state. thinkingTimeoutRef
   // holds the in-flight setTimeout id so a rapid back-then-forward nav (or an
@@ -292,7 +309,7 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
     setGenerating(true)
     setGenerateError(null)
     try {
-      const result = await generateCampaign(apiClient, {
+      const requestBody = {
         businessName: businessName.trim(),
         businessAddress: businessAddress.trim(),
         categorySlug,
@@ -304,7 +321,20 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
         offerDescription: offerDescription.trim(),
         rewardPatternNames,
         wantsSite,
-      })
+      }
+      // Branched explicitly (rather than picking a function reference to
+      // call once) since createCampaign/generateCampaign return different
+      // shapes -- storing "whichever function" in a variable first collapses
+      // the call's return type inference and loses the CreatedCampaignProposal
+      // narrowing handleLaunch needs below.
+      let result: GeneratedCampaignProposal
+      if (mode === 'new') {
+        const created = await createCampaign(apiClient, requestBody)
+        setNewCampaignId(created.campaignId)
+        result = created
+      } else {
+        result = await generateCampaign(apiClient, requestBody)
+      }
       setProposal(result)
       setSiteSlugInput(result.suggestedSiteSlug ?? '')
       setSiteSlugSaved(false)
@@ -375,9 +405,13 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
   async function handleLaunch() {
     setLaunching(true)
     try {
-      await updateCampaign(apiClient, { status: 'active' })
+      if (mode === 'new' && newCampaignId) {
+        await updateCampaignById(apiClient, newCampaignId, { status: 'active' })
+      } else {
+        await updateCampaign(apiClient, { status: 'active' })
+      }
       showToast('کمپین با موفقیت راه‌اندازی شد!', 'success')
-      onLaunched?.()
+      onLaunched?.(newCampaignId ?? undefined)
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), 'danger')
     } finally {
@@ -789,45 +823,27 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
 }
 
 /**
- * Route wrapper for `/dashboard/campaign` -- the from-scratch onboarding
- * path DashboardIndexRoute's cover-card CTA sends a business with no real
- * campaign to. Keeps the original guard: re-checked on every load (a direct
- * URL nav can't bypass it) so a business that already has a real campaign
- * doesn't land on a blank wizard here -- it's redirected to the editor tab,
- * which itself shows CampaignWizardForm inline when pro mode is off (see
- * CampaignEditorTab), so nothing is lost, just reached via a different
- * route once a campaign already exists.
+ * Route wrapper for `/dashboard/campaign/new` (plan.md Item 21) -- the
+ * "ایجاد کمپین" entry point from the campaign list page, and also what
+ * DashboardIndexRoute's from-scratch cover-card CTA sends a business with
+ * zero campaigns to. Unlike the pre-Item-21 version of this wrapper, there's
+ * no "redirect away if a real campaign already exists" guard here anymore:
+ * in the multi-campaign world an owner can start a new campaign at any time
+ * (the only real constraint -- at most one *active* campaign per business --
+ * is enforced server-side, surfaced to `CampaignWizardForm` as
+ * `generateError`/a launch failure like any other API error). Renders the
+ * form in `mode="new"` so it always creates a fresh campaign row rather than
+ * overwriting whatever the business's "current" campaign happens to be, and
+ * navigates straight to that new campaign's own detail page once launched.
  */
 export function CampaignWizardTab() {
   const navigate = useNavigate()
-  const [checkingExisting, setCheckingExisting] = useState(true)
-
-  useEffect(() => {
-    let mounted = true
-    getCampaign(apiClient)
-      .then((campaign) => {
-        if (!mounted) return
-        const hasRealCampaign =
-          campaign.status === 'active' || campaign.tasks.length > 0 || campaign.rewards.length > 0
-        if (hasRealCampaign) {
-          navigate('/dashboard/campaign/edit', { replace: true })
-          return
-        }
-        setCheckingExisting(false)
-      })
-      .catch(() => {
-        // If the check itself fails, fall back to showing the wizard rather
-        // than blocking the page entirely.
-        if (mounted) setCheckingExisting(false)
-      })
-    return () => {
-      mounted = false
-    }
-  }, [navigate])
-
-  if (checkingExisting) {
-    return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
-  }
-
-  return <CampaignWizardForm onLaunched={() => navigate('/dashboard')} />
+  return (
+    <CampaignWizardForm
+      mode="new"
+      onLaunched={(campaignId) =>
+        navigate(campaignId ? `/dashboard/campaign/${campaignId}` : '/dashboard/campaign')
+      }
+    />
+  )
 }

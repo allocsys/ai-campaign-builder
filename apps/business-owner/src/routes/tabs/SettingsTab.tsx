@@ -235,8 +235,12 @@ export function SettingsTab() {
           </Button>
         </div>
         {profile.manualEditorEnabled && (
+          // plan.md Item 21 -- the old fixed '/dashboard/campaign/edit' route
+          // is gone; a specific campaign's editor now needs its id, which
+          // isn't available here. Routes to the campaign list page instead,
+          // where the owner picks which campaign to edit.
           <Link
-            to="/dashboard/campaign/edit"
+            to="/dashboard/campaign"
             className="inline-flex text-sm text-brand-400 hover:text-brand-300 underline underline-offset-2"
           >
             رفتن به ویرایشگر دستی کمپین ←

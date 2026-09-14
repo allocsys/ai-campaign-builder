@@ -6,12 +6,11 @@ import { motionDuration, motionEasing } from './animation-tokens'
 export interface BottomNavProps extends HTMLAttributes<HTMLElement> {
   insightsBadgeCount?: number
   /**
-   * Overrides where the "کمپین" (Campaign) nav item points. Callers should
-   * pass '/dashboard/campaign/edit' once the business has a real campaign
-   * (active, or draft with tasks/rewards already) and '/dashboard/campaign'
-   * (the from-scratch AI wizard) otherwise -- see AppShell, which computes
-   * this from the fetched campaign, not from manualEditorEnabled/pro mode.
-   * Defaults to the wizard route for backward compatibility if omitted.
+   * Overrides where the "کمپین" (Campaign) nav item points. plan.md Item 21 --
+   * as of the multi-campaign redesign this always defaults to
+   * '/dashboard/campaign' (the campaign list page, which fans out into the
+   * wizard and per-campaign editor from there), so callers no longer need to
+   * pass this at all; kept as an override for flexibility/tests.
    */
   campaignTo?: string
 }
