@@ -47,9 +47,10 @@ export async function verifyOtp(
   // Only meaningful for role: 'business_owner' AND only required when
   // request-otp's isNewBusiness came back true -- an existing business
   // signing in again never needs to pass these. auth.ts's verify-otp
-  // returns 400 if a brand-new business_owner phone omits either one.
+  // returns 400 if a brand-new business_owner phone omits any of the three.
   ownerFirstName?: string,
-  ownerLastName?: string
+  ownerLastName?: string,
+  businessName?: string
 ): Promise<VerifyOtpResponse> {
   return client.request<VerifyOtpResponse>('/api/auth/verify-otp', {
     method: 'POST',
@@ -61,6 +62,7 @@ export async function verifyOtp(
       ...(joinSlug ? { joinSlug } : {}),
       ...(ownerFirstName ? { ownerFirstName } : {}),
       ...(ownerLastName ? { ownerLastName } : {}),
+      ...(businessName ? { businessName } : {}),
     }),
   });
 }
