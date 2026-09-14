@@ -1,9 +1,46 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input } from '@ai-campaign-builder/ui-kit'
-import { getMicrositeState, updateMicrositeState } from '@ai-campaign-builder/api-client'
+import { ApiError, getMicrositeState, updateMicrositeState } from '@ai-campaign-builder/api-client'
 import type { MicrositeState } from '@ai-campaign-builder/api-client'
 import { MICROSITE_DOMAIN, validateMicrositeSlug } from '@ai-campaign-builder/shared-config'
 import apiClient from '../../lib/api-client'
+
+/**
+ * Purely decorative stand-in for the blurred background on the "no
+ * microsite yet" cover screen below -- same non-fetching-placeholder
+ * principle as DashboardIndexRoute's DashboardBackgroundPlaceholder (see
+ * its comment for why this can't just be the real builder UI wrapped in
+ * blur: this route's own GET already 404s cleanly with no side effect, but
+ * mounting real state/inputs behind a blur is still pointless work and
+ * risks a future refactor accidentally wiring a real handler behind it).
+ * Static shapes only, never real data.
+ */
+function MicrositeBackgroundPlaceholder() {
+  return (
+    <div className="flex flex-col gap-4">
+      <Card className="p-4 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="h-4 w-24 rounded bg-white/10" />
+          <Badge tone="neutral">پیش‌نویس</Badge>
+        </div>
+        <div className="h-8 w-32 rounded bg-white/10" />
+      </Card>
+      <Card className="p-4 flex flex-col gap-2">
+        <div className="h-4 w-40 rounded bg-white/10" />
+        <div className="h-3 w-full rounded bg-white/10" />
+      </Card>
+      <div className="flex flex-col gap-2">
+        {[0, 1, 2, 3].map((i) => (
+          <Card key={i} className="flex items-center justify-between p-3.5">
+            <div className="h-3 w-24 rounded bg-white/10" />
+            <div className="h-7 w-14 rounded bg-white/10" />
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 /**
  * Business microsite module toggles (plan.md "Business microsite scope") — modular sections,
@@ -11,9 +48,17 @@ import apiClient from '../../lib/api-client'
  * TODO: wire to PATCH /business_microsite_modules once backend exists.
  */
 export function MicrositeBuilderTab() {
+  const navigate = useNavigate()
   const [state, setState] = useState<MicrositeState | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // plan.md decision (2026-09-15): microsite creation is no longer automatic
+  // -- GET /microsite now 404s with code 'microsite_not_created' for any
+  // business that hasn't checked the wizard's site checkbox yet. Tracked
+  // separately from `error` so it renders the same blurred-cover pattern
+  // DashboardIndexRoute already uses for "no campaign yet", instead of a
+  // raw red error string.
+  const [notCreated, setNotCreated] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -28,7 +73,11 @@ export function MicrositeBuilderTab() {
       })
       .catch((err) => {
         if (mounted) {
-          setError(err instanceof Error ? err.message : String(err))
+          if (err instanceof ApiError && err.code === 'microsite_not_created') {
+            setNotCreated(true)
+          } else {
+            setError(err instanceof Error ? err.message : String(err))
+          }
           setLoading(false)
         }
       })
@@ -111,6 +160,32 @@ export function MicrositeBuilderTab() {
 
   if (loading) {
     return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
+  }
+
+  if (notCreated) {
+    return (
+      <div className="relative min-h-[70vh]">
+        <div className="pointer-events-none select-none blur-md opacity-50" aria-hidden="true">
+          <MicrositeBackgroundPlaceholder />
+        </div>
+        <div className="absolute inset-0 flex items-start justify-center pt-16 px-4">
+          <Card className="max-w-sm w-full p-6 flex flex-col items-center gap-4 text-center shadow-2xl border-brand-500/40">
+            <span className="text-3xl" aria-hidden="true">
+              🌐
+            </span>
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-base font-bold text-slate-100">شما هنوز میکروسایتی نساخته‌اید</h2>
+              <p className="text-sm text-slate-400">
+                میکروسایت فقط هنگام ساخت کمپین، با فعال‌کردن گزینه «میکروسایت می‌خواهم» در دستیار هوشمند کمپین، ساخته می‌شود.
+              </p>
+            </div>
+            <Button onClick={() => navigate('/dashboard/campaign')} className="w-full justify-center">
+              مشاهده کمپین‌ها
+            </Button>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   if (error) {
