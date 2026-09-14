@@ -359,6 +359,8 @@ packages/
 
 20. ~~**Natural-language campaign editing (chat-driven) + wizard "thinking" polish.**~~ **CLOSED 2026-09-14.** All three parts built and merged -- see below for full detail. Decided 2026-09-14, grounded in infra that already existed (`ai-models.config.ts`'s free-tier Gemini-Flash-first cascade, and the `suggested_changes` table + `SuggestionsTab.tsx` Apply/Dismiss flow).
 
+    **Known gap, tracked under Item 21 (not reopening this item):** Part B's `POST /api/business/campaign/chat` route (PR #100) still resolves "the" campaign via the pre-Item-21 single-campaign assumption instead of an explicit `campaignId`. Once Item 21 lets a business have multiple campaigns, this route needs the same `WHERE id = ? AND business_id = ?` conversion as the other call sites -- deferred to a later pass, see Item 21's decisions section.
+
     **Part A -- shared NL request-parsing engine (backend, build first, both Part B and Part C depend on it).**
     - New function, e.g. `parseNaturalLanguageCampaignRequest(text, currentCampaignState)` in a new `apps/backend/src/lib/campaign-agent.ts`, using the *existing* `CAMPAIGN_COPY_CASCADE` cascade from `ai-models.config.ts` -- no new model/provider/infra, this is a second call site on the same cascade `campaign-generator.ts` already uses.
     - Prompted to return strict JSON matching the **same shape as a `suggested_changes` row** (`changeType`, `currentValue`, `suggestedValue`, `rationale` in Persian, `riskTier`), plus a `confidence` field.
