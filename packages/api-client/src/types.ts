@@ -87,6 +87,25 @@ export interface CampaignSummary {
   createdAt: string;
 }
 
+/**
+ * plan.md Item 21 Step C -- the wizard's Step 3 size-signal RANGE (not the
+ * averaged number that feeds the tier-threshold math), read back from the
+ * business's most-recently-created campaign so a new campaign's wizard can
+ * pre-fill Step 3's range sliders instead of starting from scratch every
+ * time. Every field is nullable/optional to mirror migration 0015's nullable
+ * columns -- a pre-migration campaign, or one where the owner never entered
+ * a given signal, simply has nothing recorded for it. GET /campaigns/latest-signals
+ * returns `null` outright (not this shape with all-null fields) when there's
+ * no campaign at all yet or nothing on it to pre-fill from.
+ */
+export interface CampaignSizeSignals {
+  dailyCustomerCountMin: number | null;
+  dailyCustomerCountMax: number | null;
+  monthlyRevenueTomanMin: number | null;
+  monthlyRevenueTomanMax: number | null;
+  followerCount: number | null;
+}
+
 // ============================================================================
 // Onboarding wizard / AI campaign generation (plan.md Open Item 8)
 // Shapes match apps/backend/src/routes/business.ts's POST /campaign/generate.
