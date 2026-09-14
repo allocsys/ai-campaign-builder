@@ -183,10 +183,10 @@ export function CampaignEditorTab() {
           request is a different way to REACH a suggestion (via the existing
           SuggestionsTab Apply/Dismiss flow), independent of whether this
           owner also has manual field-level editing access below.
-          NOTE (plan.md Item 21, deferred): the chat backend still resolves
-          via ensureCampaign's single-"current"-campaign fallback, not this
-          page's campaignId -- see plan.md Item 20's forward cross-reference. */}
-      <CampaignChatAssistant />
+          plan.md Item 21 deferred sub-item 2 (closed): the chat backend now
+          takes this page's campaignId explicitly instead of resolving via
+          ensureCampaign's single-"current"-campaign fallback. */}
+      <CampaignChatAssistant campaignId={campaignId} />
 
       {stats && (
         <div>

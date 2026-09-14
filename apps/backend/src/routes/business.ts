@@ -163,8 +163,8 @@ businessRouter.get("/checklist", async (c) => {
 // only one may be `status = 'active'` at a time, enforced in
 // applyCampaignUpdate below). ensureCampaign() is kept as a LEGACY resolver
 // for routes not yet converted to an explicit :campaignId (GET/PUT /campaign,
-// POST /campaign/generate, GET /stats, POST /campaign/chat -- see plan.md
-// Item 21's "deferred" note on the chat route specifically). It now prefers
+// POST /campaign/generate, GET /stats -- POST /campaign/chat was converted
+// to an explicit campaignId, see that route's own comment below). It now prefers
 // the business's active campaign if one exists, else its most recently
 // created campaign, instead of always the oldest -- a reasonable single
 // "current" campaign to fall back to now that more than one may exist.
@@ -1373,9 +1373,23 @@ async function loadOwnedSuggestion(db: D1Database, businessId: string, suggestio
 // chat widget) -- there's no server-side "start session" step, since the
 // first message for a brand-new sessionId simply finds no prior history in
 // KV and starts a fresh conversation, same as any later message would.
+//
+// campaignId (plan.md Item 21 deferred sub-item 2, closed here) -- this
+// route used to resolve "the" campaign via the legacy ensureCampaign
+// active-then-newest fallback, same as the still-legacy GET/PUT /campaign
+// routes above. Now takes an explicit campaignId from the client and
+// verifies ownership via getCampaignOwnedByBusiness (the same
+// WHERE id = ? AND business_id = ? pattern the :campaignId-scoped routes
+// use), so a business with multiple non-active campaigns open can no
+// longer have the chat silently edit whichever one ensureCampaign happened
+// to resolve to. lib/chat-history.ts's KV key is already keyed by
+// campaignId (`chat:{campaignId}:{sessionId}`), so no change was needed
+// there -- it simply now receives the real campaignId instead of
+// ensureCampaign's guess.
 // ============================================================================
 
 export interface CampaignChatRequestBody {
+  campaignId: string;
   sessionId: string;
   text: string;
 }
@@ -1385,6 +1399,9 @@ businessRouter.post("/campaign/chat", async (c) => {
   const businessId = c.get("auth").sub;
   const body = await c.req.json<Partial<CampaignChatRequestBody>>();
 
+  if (!body.campaignId || typeof body.campaignId !== "string") {
+    return c.json({ error: "Missing required field: campaignId" }, 400);
+  }
   if (!body.sessionId || typeof body.sessionId !== "string") {
     return c.json({ error: "Missing required field: sessionId" }, 400);
   }
@@ -1392,7 +1409,9 @@ businessRouter.post("/campaign/chat", async (c) => {
     return c.json({ error: "Missing required field: text" }, 400);
   }
 
-  const campaignId = await ensureCampaign(db, businessId);
+  const owned = await getCampaignOwnedByBusiness(db, businessId, body.campaignId);
+  if (!owned) return c.json({ error: "Campaign not found" }, 404);
+  const campaignId = body.campaignId;
   const campaignState = await serializeCampaign(db, campaignId);
   const history = await loadChatHistory(c.env, campaignId, body.sessionId);
 
