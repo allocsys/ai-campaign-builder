@@ -28,7 +28,7 @@ import apiClient from '../../lib/api-client'
  * This widget's own job stops at confirming the request was understood and
  * queued.
  */
-export function CampaignChatAssistant() {
+export function CampaignChatAssistant({ campaignId }: { campaignId: string }) {
   const { show: showToast } = useToast()
   const sessionIdRef = useRef<string>(crypto.randomUUID())
   const [messages, setMessages] = useState<{ role: 'owner' | 'assistant'; content: string }[]>([])
@@ -44,7 +44,7 @@ export function CampaignChatAssistant() {
     setSending(true)
 
     try {
-      const result = await sendCampaignChatMessage(apiClient, { sessionId: sessionIdRef.current, text })
+      const result = await sendCampaignChatMessage(apiClient, { campaignId, sessionId: sessionIdRef.current, text })
       if (result.needsClarification) {
         setMessages((prev) => [...prev, { role: 'assistant', content: result.clarifyingQuestion }])
       } else {
