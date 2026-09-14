@@ -6,6 +6,7 @@ import { AdminLoginScreen } from './routes/AdminLoginScreen'
 import { AdminProtectedRoute } from './routes/AdminProtectedRoute'
 import { AdminHome } from './routes/AdminHome'
 import { AdminCampaignsHome } from './routes/AdminCampaignsHome'
+import { AdminCustomersHome } from './routes/AdminCustomersHome'
 
 function App() {
   return (
@@ -37,6 +38,14 @@ function App() {
         element={
           <AdminProtectedRoute>
             <AdminCampaignsHome />
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/customers"
+        element={
+          <AdminProtectedRoute>
+            <AdminCustomersHome />
           </AdminProtectedRoute>
         }
       />
