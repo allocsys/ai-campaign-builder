@@ -1017,13 +1017,34 @@ export async function generateCampaignForBusiness(
   // Always resets to 'draft' regardless of whether the prior campaign was
   // 'draft' or 'ended' -- generation always produces a fresh proposal cycle;
   // 'active' was already rejected above with a 409.
+  // plan.md Item 21 Step C -- persist the wizard's raw size-signal range
+  // (not just the average that fed generateCampaignProposal above) so a
+  // future campaign for this business can pre-fill Step 3 from it via GET
+  // /campaigns/latest-signals below. All 5 default to null when the client
+  // didn't send them (older client, or the min/max fields simply omitted),
+  // matching migration 0015's nullable columns -- never a required field.
   await execute(
     db,
     `UPDATE campaigns
      SET status = 'draft', goal = ?, point_multiplier = ?, start_date = ?, end_date = ?,
-         audience_description = ?, offer_description = ?
+         audience_description = ?, offer_description = ?,
+         daily_customer_count_min = ?, daily_customer_count_max = ?,
+         monthly_revenue_toman_min = ?, monthly_revenue_toman_max = ?, follower_count = ?
      WHERE id = ?`,
-    [body.goal, proposal.sizeTier.pointMultiplier, startDate, endDate, body.audienceDescription?.trim() ?? "", body.offerDescription?.trim() ?? "", campaignId]
+    [
+      body.goal,
+      proposal.sizeTier.pointMultiplier,
+      startDate,
+      endDate,
+      body.audienceDescription?.trim() ?? "",
+      body.offerDescription?.trim() ?? "",
+      body.dailyCustomerCountMin ?? null,
+      body.dailyCustomerCountMax ?? null,
+      body.monthlyRevenueTomanMin ?? null,
+      body.monthlyRevenueTomanMax ?? null,
+      body.followerCount ?? null,
+      campaignId,
+    ]
   );
 
   const taskPatternRows = await queryAll<{ id: string; name: string }>(db, "SELECT id, name FROM task_patterns");
