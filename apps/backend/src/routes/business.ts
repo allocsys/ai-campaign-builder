@@ -1191,10 +1191,66 @@ businessRouter.get("/campaigns", async (c) => {
 // generated into whatever campaign findCurrentCampaignId resolved to, was
 // removed 2026-09-15), so unlike that route this never reuses/overwrites an
 // existing campaign.
+// plan.md Item 23 (2026-09-15): the businesses row (business PROFILE -- name,
+// category) is created here, lazily, the first time an owner creates a
+// campaign -- never at signup. If a businesses row already exists for this
+// owner (auth.sub was already remapped to it by the router-wide middleware
+// above), reuse it as-is; a 2nd/3rd campaign doesn't create a new business.
+// Only a brand-new owner (auth.sub still equals their ownerId, i.e. no
+// business exists yet) needs businessName/categorySlug validated here --
+// generateCampaignForBusiness's own validation still runs afterward for the
+// full body (goal, rewardPatternNames, etc.), this only covers the two
+// fields a businesses row itself needs to exist at all.
+async function ensureBusinessForOwner(
+  db: D1Database,
+  ownerId: string,
+  existingBusinessId: string | undefined,
+  businessName: string | undefined,
+  categorySlug: string | undefined
+): Promise<{ ok: true; businessId: string } | { ok: false; status: 400; error: string }> {
+  if (existingBusinessId) return { ok: true, businessId: existingBusinessId };
+
+  if (!businessName?.trim() || !categorySlug) {
+    return { ok: false, status: 400, error: "Missing required fields: businessName, categorySlug" };
+  }
+  const category = await queryFirst<{ id: string }>(db, "SELECT id FROM business_categories WHERE slug = ?", [
+    categorySlug,
+  ]);
+  if (!category) return { ok: false, status: 400, error: `Unknown categorySlug: ${categorySlug}` };
+
+  const id = generateId();
+  await execute(
+    db,
+    `INSERT INTO businesses (id, owner_id, name, category_id, autopilot_enabled, size_tier, created_at)
+     VALUES (?, ?, ?, ?, 0, 'small', ?)`,
+    [id, ownerId, businessName.trim(), category.id, nowIso()]
+  );
+  return { ok: true, businessId: id };
+}
+
 businessRouter.post("/campaigns", async (c) => {
   const db = c.env.DB;
-  const businessId = c.get("auth").sub;
+  const auth = c.get("auth") as JWTPayload & { ownerId?: string };
   const body = await c.req.json<CampaignGenerateBody>();
+
+  // auth.sub was already remapped by the router-wide middleware: it's the
+  // resolved businessId if one exists, or still the raw ownerId if not (see
+  // that middleware's comment). ensureBusinessForOwner tells the two apart
+  // by checking whether a businesses row exists for auth.ownerId, not by
+  // guessing from the shape of auth.sub.
+  const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM businesses WHERE owner_id = ?", [
+    auth.ownerId ?? auth.sub,
+  ]);
+  const ensured = await ensureBusinessForOwner(
+    db,
+    auth.ownerId ?? auth.sub,
+    existing?.id,
+    body.businessName,
+    body.categorySlug
+  );
+  if (!ensured.ok) return c.json({ error: ensured.error }, ensured.status);
+  const businessId = ensured.businessId;
+
   const campaignId = await createNewCampaign(db, businessId);
   const result = await generateCampaignForBusiness(db, c.env, businessId, body, campaignId);
   if (!result.ok) return c.json({ error: result.error }, result.status);
