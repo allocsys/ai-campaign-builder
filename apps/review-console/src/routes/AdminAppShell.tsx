@@ -15,6 +15,7 @@ export function AdminAppShell({ title, children }: { title: string; children: Re
   const adminNavItems = [
     { to: '/admin', label: 'پنل ادمین' },
     { to: '/admin/campaigns', label: 'کمپین‌های کسب‌وکارها' },
+    { to: '/admin/customers', label: 'مشتریان' },
   ]
 
   return (
