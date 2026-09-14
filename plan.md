@@ -355,8 +355,6 @@ packages/
 
 ---
 
----
-
 20. ~~**Natural-language campaign editing (chat-driven) + wizard "thinking" polish.**~~ **CLOSED 2026-09-14.** All three parts built and merged -- see below for full detail. Decided 2026-09-14, grounded in infra that already existed (`ai-models.config.ts`'s free-tier Gemini-Flash-first cascade, and the `suggested_changes` table + `SuggestionsTab.tsx` Apply/Dismiss flow).
 
     **Known gap, tracked under Item 21 (not reopening this item):** Part B's `POST /api/business/campaign/chat` route (PR #100) still resolves "the" campaign via the pre-Item-21 single-campaign assumption instead of an explicit `campaignId`. Once Item 21 lets a business have multiple campaigns, this route needs the same `WHERE id = ? AND business_id = ?` conversion as the other call sites -- deferred to a later pass, see Item 21's decisions section.
@@ -428,6 +426,30 @@ packages/
     - **Campaign participation is not the same signal as daily customer count.** Most real-world customers won't have joined a given campaign, especially early on; using campaign engagement as a stand-in for total daily foot traffic would systematically undercount and could push an active, high-traffic business into a lower tier than it belongs in.
     - **Circularity risk:** deriving campaign #2's tier from campaign #1's performance means a business mis-tiered too low the first time (weak multiplier, low engagement as a result) could get tiered even lower the second time, compounding rather than correcting the error.
     - Would also mean extending Phase 2 (currently read-only post-launch insights, explicitly not a feedback loop into onboarding per its own description) into a new role feeding back into campaign generation -- a real architectural expansion, not a small addition.
+
+---
+
+---
+
+23. **Account/business conflation — the `businesses` table doubles as both the owner's account and the business profile.** Found 2026-09-15 while scoping PR #114 ("defer business provisioning to first campaign creation"). Root cause, surfaced by the user directly: `businesses` holds both auth/account fields (`phone`, `phone_verified`, `phone_verified_at`, `sms_wallet_balance_toman`, `sms_monthly_cap_toman`, `owner_first_name`, `owner_last_name`) and true business-profile fields (`name`, `category_id`, `address`, `instagram_handle`, `size_tier`) in one row. "An owner signed up but hasn't described their business yet" has no honest representation in that shape — it gets forced into a `businesses` row with nulled-out/placeholder business fields, which is exactly the complexity PR #114 was built to manage (nullable `category_id`, deferred `ensureMicrosite`, a `microsite_not_created` 404 branch, etc.). This item fixes the conflation at the root instead of continuing to manage its symptoms.
+
+    **Decided 2026-09-15:**
+    - Split into **`business_owners`** (the account/auth entity: `id`, `phone`, `phone_verified`, `phone_verified_at`, `owner_first_name`, `owner_last_name`, `sms_wallet_balance_toman`, `sms_monthly_cap_toman`, `created_at`) and **`businesses`** stays the business-profile table but becomes a child, adding `owner_id TEXT NOT NULL REFERENCES business_owners(id)` and dropping the auth/account columns above. Everything currently business-profile-shaped stays on `businesses` as-is: `name`, `category_id`, `address`, `instagram_handle`, `size_tier`, `autopilot_enabled`, `manual_editor_enabled`, `manual_apply_count`, `autopilot_eligibility_threshold`.
+    - **Relationship: 1-to-1 for now** (one `business_owners` row → one `businesses` row) — user's own words: "فعلا ۱ به ۱ میریم جلو، شاید بعدا چند شعبه شد". The child-table shape (business belongs to an owner, not the reverse) already leaves room to become 1-to-many later (multi-branch) without another conflation-style rework.
+    - **Blast radius is smaller than it first looks:** every other table's `business_id` FK (`campaigns`, `staff`, `business_contacts`, `business_subscriptions`, `sms_wallet_transactions`, `business_microsites`, `business_checklist_progress`, `business_ai_constraints`, `point_carryovers`) keeps pointing at `businesses(id)` completely unchanged — those are correctly modeling "belongs to a business," not "belongs to an account," and none of that code needs to move. The real surface area is: (a) the `businesses` table definition itself, (b) `auth.ts`'s business_owner signup/login, (c) anywhere JWT claims or `businesses` row-lookups currently conflate "the account" with "the business" (`business.ts`'s `loadProfile`, `review-admin.ts`'s business-picker, `ensureMicrosite`/campaign-creation's implicit assumption that a `businesses` row already exists at signup time).
+    - **PR #114 stopped, not merged, effectively superseded** — its branch `defer-business-provisioning` is abandoned. Its premise (nullable `category_id`, deferred microsite, placeholder business row at signup) is exactly the workaround this item removes: once `business_owners` exists as its own signup-time entity, a `businesses` row is only ever created once a real business exists (name + category known), so `category_id`/`name` can go back to `NOT NULL` and none of PR #114's deferred-provisioning machinery is needed. This work continues on a fresh branch, `refactor-business-owner-entity`.
+    - **Data: wipe and rebuild.** Pre-launch, and the live D1 currently holds exactly one `businesses` row (test data, already emptied of its one test campaign this session). Not worth writing a migration/backfill script for one test row — same "no incremental migrations while pre-launch" standing rule applies: `0001_init.sql` gets edited directly to the new two-table shape, then live D1's affected tables get dropped and recreated to match.
+
+    **Schema change — done 2026-09-15, not yet applied to live D1, not yet reflected in application code:** `apps/backend/migrations/0001_init.sql` now defines `business_owners` (new) and a slimmed `businesses` with `owner_id` replacing the auth/account columns; `category_id` and `name` reverted to `NOT NULL` now that a `businesses` row is only ever created once real business info exists. See commit on branch `refactor-business-owner-entity`.
+
+    **Scope of work, not yet built (next session, per user's "بعد ادامه بده"):**
+    1. Apply the new schema to live D1: drop `businesses` (only 1 test row, already confirmed disposable) and recreate both tables per the new `0001_init.sql`, matching how the `category_id`-nullable change was hand-applied earlier.
+    2. `auth.ts`: business_owner signup/login creates and authenticates against `business_owners`, not `businesses`. Decide + implement the JWT shape change (`ownerId` claim, `businessId` claim becomes optional/nullable until a `businesses` row exists) and how every `businessId`-keyed route resolves a business from an authenticated owner when one may not exist yet.
+    3. `business.ts`: `loadProfile()` and every other route reading owner-identity fields (phone, sms wallet, owner name) need to read them from `business_owners` via the JWT's `ownerId`, while business-profile fields still come from `businesses`.
+    4. `review-admin.ts`: business-picker's `GET /businesses` needs the equivalent join/split.
+    5. Re-derive exactly where `ensureMicrosite`/`generateCampaignForBusiness`/campaign creation currently assume a `businesses` row already exists at signup time, since that assumption goes away entirely (a `businesses` row is now created at first-campaign-creation time, not signup) — this may fully replace what PR #114's (d) was doing, worth diffing against PR #114's abandoned commits rather than re-deriving from scratch.
+    6. Re-verify: `npx tsc --noEmit` in `apps/backend` + `apps/business-owner`, `npx vite build` for `apps/business-owner`.
+    7. Open a fresh PR on `refactor-business-owner-entity`; don't merge without asking, per standing instruction.
 
 ---
 
