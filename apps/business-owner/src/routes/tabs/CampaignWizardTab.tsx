@@ -366,7 +366,7 @@ export function CampaignWizardForm({
       const created = await createCampaign(apiClient, requestBody)
       setNewCampaignId(created.campaignId)
       setProposal(created)
-      setSiteSlugInput(result.suggestedSiteSlug ?? '')
+      setSiteSlugInput(created.suggestedSiteSlug ?? '')
       setSiteSlugSaved(false)
       setSiteSlugSkipped(false)
       setSiteSlugConfirming(false)
