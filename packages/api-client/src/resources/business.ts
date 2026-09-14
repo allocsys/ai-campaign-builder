@@ -4,6 +4,8 @@ import type {
   BusinessStats,
   ChecklistItem,
   Campaign,
+  CampaignSummary,
+  CreatedCampaignProposal,
   GenerateCampaignRequest,
   GeneratedCampaignProposal,
   Insight,
@@ -67,6 +69,53 @@ export async function generateCampaign(
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+// ============================================================================
+// Campaign list + :campaignId-scoped endpoints (plan.md Item 21). The legacy
+// single-campaign functions above (getCampaign/updateCampaign/generateCampaign)
+// remain in place unchanged for callers not yet migrated -- see business.ts
+// backend's ensureCampaign comment for their active-first/newest-else
+// fallback order.
+// ============================================================================
+
+export async function getCampaignSummaries(client: ApiClient): Promise<CampaignSummary[]> {
+  return client.request<CampaignSummary[]>('/api/business/campaigns');
+}
+
+/**
+ * Creates a brand-new campaign row and immediately generates its
+ * tasks/rewards/copy, for the campaign list page's "ایجاد کمپین" entry
+ * point -- unlike `generateCampaign`, this never reuses/overwrites an
+ * existing campaign.
+ */
+export async function createCampaign(
+  client: ApiClient,
+  data: GenerateCampaignRequest
+): Promise<CreatedCampaignProposal> {
+  return client.request<CreatedCampaignProposal>('/api/business/campaigns', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getCampaignById(client: ApiClient, campaignId: string): Promise<Campaign> {
+  return client.request<Campaign>(`/api/business/campaigns/${encodeURIComponent(campaignId)}`);
+}
+
+export async function updateCampaignById(
+  client: ApiClient,
+  campaignId: string,
+  data: Partial<Campaign>
+): Promise<Campaign> {
+  return client.request<Campaign>(`/api/business/campaigns/${encodeURIComponent(campaignId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getCampaignStatsById(client: ApiClient, campaignId: string): Promise<BusinessStats> {
+  return client.request<BusinessStats>(`/api/business/campaigns/${encodeURIComponent(campaignId)}/stats`);
 }
 
 export async function getInsights(client: ApiClient): Promise<Insight[]> {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
-import { generateCampaign, updateCampaign, updateMicrositeState, getCampaign, addStaff } from '@ai-campaign-builder/api-client'
+import { generateCampaign, updateCampaign, createCampaign, updateCampaignById, updateMicrositeState, addStaff } from '@ai-campaign-builder/api-client'
 import type {
   BusinessCategorySlug,
   GeneratedCampaignProposal,
@@ -163,10 +163,27 @@ function selectClassName() {
  * Callers own navigation after a successful launch via `onLaunched`, since
  * this component has no opinion on where to go next once it isn't always
  * the whole page.
+ *
+ * `mode` (plan.md Item 21): 'legacy' (default) targets the single-"current"-
+ * campaign endpoints (generateCampaign/updateCampaign, resolved server-side
+ * via ensureCampaign's active-then-newest fallback) -- unchanged behavior for
+ * not-yet-migrated callers. 'new' targets the :campaignId-scoped endpoints
+ * (createCampaign always makes a fresh row; updateCampaignById activates
+ * that exact row) for the campaign list page's "ایجاد کمپین" flow, which
+ * must never reuse/overwrite an existing campaign. `onLaunched` receives the
+ * new campaign's id in 'new' mode so the caller can navigate straight to its
+ * detail page; it's undefined in 'legacy' mode, same as before.
  */
-export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) {
+export function CampaignWizardForm({
+  onLaunched,
+  mode = 'legacy',
+}: {
+  onLaunched?: (campaignId?: string) => void
+  mode?: 'legacy' | 'new'
+}) {
   const { show: showToast } = useToast()
   const [step, setStep] = useState(1)
+  const [newCampaignId, setNewCampaignId] = useState<string | null>(null)
 
   // plan.md Item 20, Part C -- cosmetic step-transition state. thinkingTimeoutRef
   // holds the in-flight setTimeout id so a rapid back-then-forward nav (or an
@@ -292,7 +309,8 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
     setGenerating(true)
     setGenerateError(null)
     try {
-      const result = await generateCampaign(apiClient, {
+      const generateFn = mode === 'new' ? createCampaign : generateCampaign
+      const result = await generateFn(apiClient, {
         businessName: businessName.trim(),
         businessAddress: businessAddress.trim(),
         categorySlug,
@@ -305,6 +323,9 @@ export function CampaignWizardForm({ onLaunched }: { onLaunched?: () => void }) 
         rewardPatternNames,
         wantsSite,
       })
+      if (mode === 'new' && 'campaignId' in result) {
+        setNewCampaignId(result.campaignId)
+      }
       setProposal(result)
       setSiteSlugInput(result.suggestedSiteSlug ?? '')
       setSiteSlugSaved(false)
