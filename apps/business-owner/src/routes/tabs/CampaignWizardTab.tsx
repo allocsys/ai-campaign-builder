@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
-import { generateCampaign, updateCampaign, createCampaign, updateCampaignById, updateMicrositeState, addStaff, getLatestCampaignSizeSignals } from '@ai-campaign-builder/api-client'
+import { createCampaign, updateCampaignById, updateMicrositeState, addStaff, getLatestCampaignSizeSignals } from '@ai-campaign-builder/api-client'
 import type {
   BusinessCategorySlug,
   GeneratedCampaignProposal,
@@ -164,25 +164,26 @@ function selectClassName() {
  * this component has no opinion on where to go next once it isn't always
  * the whole page.
  *
- * `mode` (plan.md Item 21): 'legacy' (default) targets the single-"current"-
- * campaign endpoints (generateCampaign/updateCampaign, resolved server-side
- * via findCurrentCampaignId's active-then-newest fallback -- this mode is
- * only ever reached from CampaignEditorTab, i.e. once a campaign already
- * exists, so the 2026-09-15 removal of the old auto-create-on-write
- * resolver doesn't affect it: there's always a campaign for it to resolve
- * to). Unchanged behavior for not-yet-migrated callers. 'new' targets the :campaignId-scoped endpoints
- * (createCampaign always makes a fresh row; updateCampaignById activates
- * that exact row) for the campaign list page's "ایجاد کمپین" flow, which
- * must never reuse/overwrite an existing campaign. `onLaunched` receives the
- * new campaign's id in 'new' mode so the caller can navigate straight to its
- * detail page; it's undefined in 'legacy' mode, same as before.
+ * Decided 2026-09-15: this component used to support a `mode` prop --
+ * 'legacy' targeted the single-"current"-campaign endpoints
+ * (generateCampaign/updateCampaign, resolved server-side via
+ * findCurrentCampaignId's active-then-newest fallback) for CampaignEditorTab's
+ * now-removed inline fallback; 'new' targets the :campaignId-scoped
+ * endpoints (createCampaign always makes a fresh row; updateCampaignById
+ * activates that exact row) for the campaign list page's "ایجاد کمپین" flow.
+ * CampaignEditorTab dropped its CampaignWizardForm fallback entirely back in
+ * Item 21, leaving CampaignWizardTab as the only caller -- always in what
+ * used to be 'new' mode. The `mode` prop and the legacy branch (which called
+ * generateCampaign/updateCampaign, themselves removed as dead code once
+ * ensureCampaign went away) have been removed; this component now always
+ * creates a fresh campaign row and activates that exact row on launch.
+ * `onLaunched` receives the new campaign's id so the caller can navigate
+ * straight to its detail page.
  */
 export function CampaignWizardForm({
   onLaunched,
-  mode = 'legacy',
 }: {
   onLaunched?: (campaignId?: string) => void
-  mode?: 'legacy' | 'new'
 }) {
   const { show: showToast } = useToast()
   const [step, setStep] = useState(1)
