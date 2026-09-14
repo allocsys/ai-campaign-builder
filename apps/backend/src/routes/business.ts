@@ -466,30 +466,37 @@ export async function applyCampaignUpdate(
       // microsite -- a business has only one "current" campaign at a time
       // (see findCurrentCampaignId's single-current-campaign resolution),
       // so this is always the right campaign to feature going forward.
-      const micrositeId = await ensureMicrosite(db, businessId);
-      await execute(db, "UPDATE business_microsites SET featured_campaign_id = ?, updated_at = ? WHERE id = ?", [
-        campaignId,
-        nowIso(),
-        micrositeId,
-      ]);
-
-      // Bug fix 2026-09-12: the campaign_highlight module's title/description/
-      // cta_label were never populated anywhere -- see fillCampaignHighlightDefaults
-      // for the full story. Only fills in still-empty fields, never overwrites
-      // owner customization.
-      const activatedCampaign = await queryFirst<{ goal: string }>(db, "SELECT goal FROM campaigns WHERE id = ?", [
-        campaignId,
-      ]);
-      const businessRow = await queryFirst<{ name: string }>(db, "SELECT name FROM businesses WHERE id = ?", [
-        businessId,
-      ]);
-      if (activatedCampaign && businessRow) {
-        await fillCampaignHighlightDefaults(
-          db,
+      // plan.md decision (2026-09-15): non-creating lookup now -- a business
+      // that never opted into a microsite (wizard's wantsSite checkbox left
+      // unchecked) must not get one provisioned just from activating a
+      // campaign. Featuring + highlight-defaults are simply skipped when
+      // there's no microsite to feature the campaign on.
+      const micrositeId = await getMicrositeId(db, businessId);
+      if (micrositeId) {
+        await execute(db, "UPDATE business_microsites SET featured_campaign_id = ?, updated_at = ? WHERE id = ?", [
+          campaignId,
+          nowIso(),
           micrositeId,
-          activatedCampaign.goal as "acquisition" | "retention" | "acquisition_retention",
-          businessRow.name
-        );
+        ]);
+
+        // Bug fix 2026-09-12: the campaign_highlight module's title/description/
+        // cta_label were never populated anywhere -- see fillCampaignHighlightDefaults
+        // for the full story. Only fills in still-empty fields, never overwrites
+        // owner customization.
+        const activatedCampaign = await queryFirst<{ goal: string }>(db, "SELECT goal FROM campaigns WHERE id = ?", [
+          campaignId,
+        ]);
+        const businessRow = await queryFirst<{ name: string }>(db, "SELECT name FROM businesses WHERE id = ?", [
+          businessId,
+        ]);
+        if (activatedCampaign && businessRow) {
+          await fillCampaignHighlightDefaults(
+            db,
+            micrositeId,
+            activatedCampaign.goal as "acquisition" | "retention" | "acquisition_retention",
+            businessRow.name
+          );
+        }
       }
     }
   }
@@ -891,12 +898,11 @@ export type CampaignGenerateResult =
 // not an error, it just means the wizard shows no site-address step.
 async function resolveSuggestedMicrositeSlug(
   db: D1Database,
-  businessId: string,
+  micrositeId: string,
   rawSlug: string | undefined
 ): Promise<string | null> {
   if (!rawSlug) return null;
 
-  const micrositeId = await ensureMicrosite(db, businessId);
   const current = await queryFirst<{ subdomain_slug_set_by_owner: number }>(
     db,
     "SELECT subdomain_slug_set_by_owner FROM business_microsites WHERE id = ?",
@@ -1044,10 +1050,12 @@ export async function generateCampaignForBusiness(
     wantsSuggestedSiteSlug: !!body.wantsSite,
   });
 
-  // plan.md Open Item 18 -- resolved after generation, not inside
-  // campaign-generator.ts (which has no business_microsites access).
+  // plan.md decision (2026-09-15): microsite creation is no longer lazy --
+  // it happens exactly once, explicitly, right here, only when the wizard's
+  // site checkbox (wantsSite) was checked. See ensureMicrosite's own comment
+  // below for why GET/PUT /microsite no longer auto-provision on access.
   const suggestedSiteSlug = body.wantsSite
-    ? await resolveSuggestedMicrositeSlug(db, businessId, proposal.suggestedSiteSlug)
+    ? await resolveSuggestedMicrositeSlug(db, await ensureMicrosite(db, businessId), proposal.suggestedSiteSlug)
     : null;
 
   const nowMs = Date.now();
@@ -1814,6 +1822,15 @@ async function syncMicrositeNameChange(
   }
 }
 
+// plan.md decision (2026-09-15, supersedes the original "lazy on first
+// access" design): microsite creation is no longer an automatic side effect
+// of GET/PUT /microsite (see getMicrositeId's non-creating resolver just
+// below, used by those routes instead) or of activating a campaign -- it's
+// created explicitly, exactly once, only when the wizard's site checkbox is
+// checked (see generateCampaignForBusiness's call site above). A business
+// that never opts in simply has no business_microsites row, ever. Kept
+// idempotent (checks for an existing row first) as a defensive no-op, not
+// because anything is expected to call it twice.
 async function ensureMicrosite(db: D1Database, businessId: string): Promise<string> {
   const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM business_microsites WHERE business_id = ?", [
     businessId,
@@ -1856,6 +1873,19 @@ async function ensureMicrosite(db: D1Database, businessId: string): Promise<stri
   return id;
 }
 
+// Non-creating resolver -- companion to ensureMicrosite above, same
+// find-without-creating principle as findCurrentCampaignId. Returns null
+// (never fabricates a row) when the business hasn't opted into a microsite
+// yet. Used by GET/PUT /microsite and by applyCampaignUpdate's
+// campaign-activation branch, neither of which may have the side effect of
+// provisioning a microsite for a business that never asked for one.
+async function getMicrositeId(db: D1Database, businessId: string): Promise<string | null> {
+  const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM business_microsites WHERE business_id = ?", [
+    businessId,
+  ]);
+  return existing?.id ?? null;
+}
+
 async function serializeMicrosite(db: D1Database, micrositeId: string) {
   const site = await queryFirst<{
     published: number;
@@ -1894,14 +1924,20 @@ async function serializeMicrosite(db: D1Database, micrositeId: string) {
 
 businessRouter.get("/microsite", async (c) => {
   const db = c.env.DB;
-  const micrositeId = await ensureMicrosite(db, c.get("auth").sub);
+  const micrositeId = await getMicrositeId(db, c.get("auth").sub);
+  if (!micrositeId) {
+    return c.json({ error: "این کسب‌وکار هنوز میکروسایت نساخته است", code: "microsite_not_created" }, 404);
+  }
   return c.json(await serializeMicrosite(db, micrositeId));
 });
 
 businessRouter.put("/microsite", async (c) => {
   const db = c.env.DB;
   const businessId = c.get("auth").sub;
-  const micrositeId = await ensureMicrosite(db, businessId);
+  const micrositeId = await getMicrositeId(db, businessId);
+  if (!micrositeId) {
+    return c.json({ error: "این کسب‌وکار هنوز میکروسایت نساخته است", code: "microsite_not_created" }, 404);
+  }
   const body = await c.req.json<
     Partial<{
       published: boolean;
