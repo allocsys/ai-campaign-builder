@@ -8,7 +8,6 @@ import type {
   CampaignSizeSignals,
   CreatedCampaignProposal,
   GenerateCampaignRequest,
-  GeneratedCampaignProposal,
   Insight,
   SuggestedChange,
   CampaignChatRequest,
@@ -48,36 +47,25 @@ export async function getBusinessStats(client: ApiClient): Promise<BusinessStats
   return client.request<BusinessStats>('/api/business/stats');
 }
 
+/**
+ * The dashboard's single-"current"-campaign summary (used by DashboardTab,
+ * which only mounts once GET /campaigns has confirmed at least one campaign
+ * exists -- see DashboardIndexRoute). 404s for a business with none.
+ */
 export async function getCampaign(client: ApiClient): Promise<Campaign> {
   return client.request<Campaign>('/api/business/campaign');
 }
 
-export async function updateCampaign(
-  client: ApiClient,
-  data: Partial<Campaign>
-): Promise<Campaign> {
-  return client.request<Campaign>('/api/business/campaign', {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function generateCampaign(
-  client: ApiClient,
-  data: GenerateCampaignRequest
-): Promise<GeneratedCampaignProposal> {
-  return client.request<GeneratedCampaignProposal>('/api/business/campaign/generate', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
 // ============================================================================
-// Campaign list + :campaignId-scoped endpoints (plan.md Item 21). The legacy
-// single-campaign functions above (getCampaign/updateCampaign/generateCampaign)
-// remain in place unchanged for callers not yet migrated -- see business.ts
-// backend's ensureCampaign comment for their active-first/newest-else
-// fallback order.
+// Campaign list + :campaignId-scoped endpoints (plan.md Item 21). Decided
+// 2026-09-15: the legacy write-side single-campaign functions that used to
+// live here (updateCampaign, generateCampaign -- PUT/POST /api/business/
+// campaign[/generate]) were removed as dead code. They existed only for
+// CampaignWizardForm's mode='legacy' path, which itself had no remaining
+// caller once the wizard's onboarding entry point (CampaignWizardTab) moved
+// to mode='new' -- see that component's own comment. createCampaign (below)
+// is now the only way to create a campaign; updateCampaignById is the only
+// way to write one.
 // ============================================================================
 
 export async function getCampaignSummaries(client: ApiClient): Promise<CampaignSummary[]> {

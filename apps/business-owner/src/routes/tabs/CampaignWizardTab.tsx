@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
-import { generateCampaign, updateCampaign, createCampaign, updateCampaignById, updateMicrositeState, addStaff, getLatestCampaignSizeSignals } from '@ai-campaign-builder/api-client'
+import { createCampaign, updateCampaignById, updateMicrositeState, addStaff, getLatestCampaignSizeSignals } from '@ai-campaign-builder/api-client'
 import type {
   BusinessCategorySlug,
   GeneratedCampaignProposal,
@@ -147,39 +147,37 @@ function selectClassName() {
 
 /**
  * The actual 5-step wizard UI + generate/launch logic, extracted (2026-09-13,
- * "bring the wizard back into the Campaign tab") so it can be embedded by
- * TWO callers instead of living behind one route:
- *   - CampaignWizardTab below: the from-scratch onboarding path for a
- *     business with no real campaign yet (unchanged behavior).
- *   - CampaignEditorTab: shown inline whenever `manualEditorEnabled` (پرو
- *     مود) is off, replacing what used to be a disabled/read-only dump of
- *     the manual editor's own fields -- that view was redundant with the
- *     dashboard's existing summary and gave non-pro owners no way to act.
- *     The wizard already tolerates being run against a business that has a
- *     real campaign: handleGenerate below simply surfaces the backend's 409
- *     ("campaign is active, end it first") as generateError if they try to
- *     regenerate over a live campaign, and freely overwrites a draft
- *     otherwise -- no separate embedded-mode branching needed here.
- * Callers own navigation after a successful launch via `onLaunched`, since
- * this component has no opinion on where to go next once it isn't always
- * the whole page.
+ * "bring the wizard back into the Campaign tab") so it could be embedded by
+ * more than one caller -- originally both CampaignWizardTab below (the
+ * from-scratch onboarding path for a business with no real campaign yet) and
+ * CampaignEditorTab (shown inline whenever `manualEditorEnabled` was off).
+ * CampaignEditorTab dropped that inline fallback entirely in plan.md Item 21
+ * (see that file's own comment) once `CampaignEditor`'s `readOnly` display
+ * mode covered the same need, so CampaignWizardTab is the sole caller now.
+ * The component still owns navigation-after-launch via `onLaunched` rather
+ * than hardcoding a redirect, since that's still a caller-owned decision even
+ * with just one caller today.
  *
- * `mode` (plan.md Item 21): 'legacy' (default) targets the single-"current"-
- * campaign endpoints (generateCampaign/updateCampaign, resolved server-side
- * via ensureCampaign's active-then-newest fallback) -- unchanged behavior for
- * not-yet-migrated callers. 'new' targets the :campaignId-scoped endpoints
- * (createCampaign always makes a fresh row; updateCampaignById activates
- * that exact row) for the campaign list page's "ایجاد کمپین" flow, which
- * must never reuse/overwrite an existing campaign. `onLaunched` receives the
- * new campaign's id in 'new' mode so the caller can navigate straight to its
- * detail page; it's undefined in 'legacy' mode, same as before.
+ * Decided 2026-09-15: this component used to support a `mode` prop --
+ * 'legacy' targeted the single-"current"-campaign endpoints
+ * (generateCampaign/updateCampaign, resolved server-side via
+ * findCurrentCampaignId's active-then-newest fallback) for CampaignEditorTab's
+ * now-removed inline fallback; 'new' targets the :campaignId-scoped
+ * endpoints (createCampaign always makes a fresh row; updateCampaignById
+ * activates that exact row) for the campaign list page's "ایجاد کمپین" flow.
+ * CampaignEditorTab dropped its CampaignWizardForm fallback entirely back in
+ * Item 21, leaving CampaignWizardTab as the only caller -- always in what
+ * used to be 'new' mode. The `mode` prop and the legacy branch (which called
+ * generateCampaign/updateCampaign, themselves removed as dead code once
+ * ensureCampaign went away) have been removed; this component now always
+ * creates a fresh campaign row and activates that exact row on launch.
+ * `onLaunched` receives the new campaign's id so the caller can navigate
+ * straight to its detail page.
  */
 export function CampaignWizardForm({
   onLaunched,
-  mode = 'legacy',
 }: {
   onLaunched?: (campaignId?: string) => void
-  mode?: 'legacy' | 'new'
 }) {
   const { show: showToast } = useToast()
   const [step, setStep] = useState(1)
@@ -207,17 +205,11 @@ export function CampaignWizardForm({
   const [followerCount, setFollowerCount] = useState('')
 
   // plan.md Item 21 Step C -- pre-fill Step 3's size-signal inputs from the
-  // business's most-recently-created campaign, editable in place. Only
-  // fetched in mode==='new' (starting a fresh campaign for an
-  // already-existing business) -- mode==='legacy' is the from-scratch
-  // onboarding path for a business with no real campaign yet, where there's
-  // nothing meaningful to pre-fill from anyway (ensureCampaign's own
-  // auto-created draft has no recorded signals). Fetched once on mount, not
-  // re-fetched on startOver()/re-generation -- an owner who already adjusted
-  // the sliders this session shouldn't have their in-progress edits silently
-  // overwritten by a background refetch.
+  // business's most-recently-created campaign, editable in place. Fetched
+  // once on mount, not re-fetched on startOver()/re-generation -- an owner
+  // who already adjusted the sliders this session shouldn't have their
+  // in-progress edits silently overwritten by a background refetch.
   useEffect(() => {
-    if (mode !== 'new') return
     let cancelled = false
     getLatestCampaignSizeSignals(apiClient)
       .then((signals) => {
@@ -240,8 +232,7 @@ export function CampaignWizardForm({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode])
+  }, [])
   const [offerDescription, setOfferDescription] = useState('')
   const [showOfferDetail, setShowOfferDetail] = useState(false)
   const [rewardPatternNames, setRewardPatternNames] = useState<RewardPatternName[]>(['percentage_discount'])
@@ -366,21 +357,10 @@ export function CampaignWizardForm({
         rewardPatternNames,
         wantsSite,
       }
-      // Branched explicitly (rather than picking a function reference to
-      // call once) since createCampaign/generateCampaign return different
-      // shapes -- storing "whichever function" in a variable first collapses
-      // the call's return type inference and loses the CreatedCampaignProposal
-      // narrowing handleLaunch needs below.
-      let result: GeneratedCampaignProposal
-      if (mode === 'new') {
-        const created = await createCampaign(apiClient, requestBody)
-        setNewCampaignId(created.campaignId)
-        result = created
-      } else {
-        result = await generateCampaign(apiClient, requestBody)
-      }
-      setProposal(result)
-      setSiteSlugInput(result.suggestedSiteSlug ?? '')
+      const created = await createCampaign(apiClient, requestBody)
+      setNewCampaignId(created.campaignId)
+      setProposal(created)
+      setSiteSlugInput(created.suggestedSiteSlug ?? '')
       setSiteSlugSaved(false)
       setSiteSlugSkipped(false)
       setSiteSlugConfirming(false)
@@ -449,11 +429,8 @@ export function CampaignWizardForm({
   async function handleLaunch() {
     setLaunching(true)
     try {
-      if (mode === 'new' && newCampaignId) {
-        await updateCampaignById(apiClient, newCampaignId, { status: 'active' })
-      } else {
-        await updateCampaign(apiClient, { status: 'active' })
-      }
+      if (!newCampaignId) throw new Error('کمپین هنوز ساخته نشده است.')
+      await updateCampaignById(apiClient, newCampaignId, { status: 'active' })
       showToast('کمپین با موفقیت راه‌اندازی شد!', 'success')
       onLaunched?.(newCampaignId ?? undefined)
     } catch (err) {
@@ -875,16 +852,15 @@ export function CampaignWizardForm({
  * in the multi-campaign world an owner can start a new campaign at any time
  * (the only real constraint -- at most one *active* campaign per business --
  * is enforced server-side, surfaced to `CampaignWizardForm` as
- * `generateError`/a launch failure like any other API error). Renders the
- * form in `mode="new"` so it always creates a fresh campaign row rather than
- * overwriting whatever the business's "current" campaign happens to be, and
- * navigates straight to that new campaign's own detail page once launched.
+ * `generateError`/a launch failure like any other API error). `CampaignWizardForm`
+ * always creates a fresh campaign row rather than overwriting whatever the
+ * business's "current" campaign happens to be, and this wrapper navigates
+ * straight to that new campaign's own detail page once launched.
  */
 export function CampaignWizardTab() {
   const navigate = useNavigate()
   return (
     <CampaignWizardForm
-      mode="new"
       onLaunched={(campaignId) =>
         navigate(campaignId ? `/dashboard/campaign/${campaignId}` : '/dashboard/campaign')
       }

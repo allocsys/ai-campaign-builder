@@ -190,13 +190,18 @@ businessRouter.get("/checklist", async (c) => {
 // ============================================================================
 // Campaign (plan.md Item 21 -- a business can now hold multiple campaigns;
 // only one may be `status = 'active'` at a time, enforced in
-// applyCampaignUpdate below). ensureCampaign() is kept as a LEGACY resolver
+// applyCampaignUpdate below). findCurrentCampaignId() is the LEGACY resolver
 // for routes not yet converted to an explicit :campaignId (GET/PUT /campaign,
 // POST /campaign/generate, GET /stats -- POST /campaign/chat was converted
-// to an explicit campaignId, see that route's own comment below). It now prefers
+// to an explicit campaignId, see that route's own comment below). It prefers
 // the business's active campaign if one exists, else its most recently
 // created campaign, instead of always the oldest -- a reasonable single
 // "current" campaign to fall back to now that more than one may exist.
+// Decided 2026-09-15: these legacy routes never auto-create a campaign --
+// ensureCampaign() (the old create-on-write resolver) has been removed
+// entirely. A business with no campaign gets a 404 from these routes; the
+// only way to get a campaign row is the explicit createNewCampaign() below
+// (POST /campaigns), never an implicit side effect of a write to /campaign.
 // New :campaignId-scoped routes (GET/POST /campaigns, GET/PUT
 // /campaigns/:campaignId, GET /campaigns/:campaignId/stats) are the real,
 // non-legacy way to address a specific campaign and are what the frontend
@@ -230,9 +235,11 @@ async function resolveCurrentCampaignRow(db: D1Database, businessId: string): Pr
   );
 }
 
-// Read-only counterpart to ensureCampaign below -- resolves the business's
-// current campaign (same active-first/newest-else order) WITHOUT ever
-// creating one. Root-cause fix for the 2026-09-14 phantom-campaign bug:
+// Resolves the business's current campaign (active-first/newest-else
+// order) WITHOUT ever creating one -- this is now the ONLY resolver for
+// the legacy single-campaign routes (ensureCampaign, the old create-on-write
+// resolver, was removed 2026-09-15; see the section comment above). Root-
+// cause fix for the 2026-09-14 phantom-campaign bug:
 // GET-only endpoints (GET /campaign, GET /stats, and review-admin's
 // businessId-scoped GET /campaign) do no writing, so simply loading a page
 // must never have the side effect of inserting a real campaign row for a
@@ -246,42 +253,10 @@ export async function findCurrentCampaignId(db: D1Database, businessId: string):
   return existing?.id ?? null;
 }
 
-// Create-on-write resolver -- for routes that are actually about to WRITE
-// into "the" campaign (PUT /campaign, POST /campaign/generate, and their
-// review-admin equivalents, via applyCampaignUpdate/generateCampaignForBusiness's
-// fallback further down). A brand-new business genuinely needs a row to
-// save/generate into on its first real write, so auto-creating here is
-// legitimate -- unlike the old GET /campaign, this now only ever runs as
-// part of an owner- or admin-initiated write, never a passive page load.
-export async function ensureCampaign(db: D1Database, businessId: string): Promise<string> {
-  const existing = await resolveCurrentCampaignRow(db, businessId);
-  if (existing) return existing.id;
-
-  // Guard the insert with WHERE NOT EXISTS in the same statement so a
-  // concurrent request that raced past the SELECT above can't also insert
-  // a duplicate row for this business_id -- D1 serializes writes to the
-  // primary, so this check-and-insert is effectively atomic even without
-  // a DB-level unique constraint on business_id.
-  const id = generateId();
-  await execute(
-    db,
-    `INSERT INTO campaigns (id, business_id, goal, status, point_multiplier, created_at)
-     SELECT ?, ?, 'acquisition', 'draft', 1, ?
-     WHERE NOT EXISTS (SELECT 1 FROM campaigns WHERE business_id = ?)`,
-    [id, businessId, nowIso(), businessId]
-  );
-
-  // Re-select rather than assuming `id` won: if a concurrent request won
-  // the race, our insert above was a no-op and we need to return the row
-  // that actually landed.
-  const row = await resolveCurrentCampaignRow(db, businessId);
-  return row!.id;
-}
-
 // plan.md Item 21 -- unconditionally creates a brand-new campaign row for a
 // business (always `draft`, never reuses/overwrites an existing row), for
 // the new "ایجاد کمپین" (create campaign) entry point on the campaign list
-// page. Unlike ensureCampaign, this never checks for an existing row first.
+// page. Unlike the legacy resolver above, this never checks for an existing row first.
 export async function createNewCampaign(db: D1Database, businessId: string): Promise<string> {
   const id = generateId();
   await execute(
@@ -339,7 +314,7 @@ async function listCampaignsForBusiness(db: D1Database, businessId: string) {
   }));
 }
 
-// Exported (plan.md Item 16 Step A) -- same reasoning as ensureCampaign above.
+// Exported (plan.md Item 16 Step A) -- same reasoning as findCurrentCampaignId above.
 export async function serializeCampaign(db: D1Database, campaignId: string) {
   const campaign = await queryFirst<{
     status: string;
@@ -415,7 +390,7 @@ export type CampaignUpdateBody = Partial<{
 
 export type CampaignUpdateResult =
   | { ok: true; campaign: Awaited<ReturnType<typeof serializeCampaign>> }
-  | { ok: false; status: 400 | 409; error: string };
+  | { ok: false; status: 400 | 404 | 409; error: string };
 
 // Extracted from the PUT /campaign route handler (plan.md Item 16 Step A) so
 // reviewAdminRouter's businessId-route-param PUT endpoint (Step B) can reuse
@@ -432,9 +407,16 @@ export async function applyCampaignUpdate(
 ): Promise<CampaignUpdateResult> {
   // plan.md Item 21 -- the new :campaignId-scoped PUT /campaigns/:campaignId
   // route passes its campaignId explicitly; legacy callers (PUT /campaign,
-  // reviewAdminRouter's businessId-only endpoint) fall back to ensureCampaign's
-  // single-"current"-campaign resolution, same as before Item 21.
-  const campaignId = explicitCampaignId ?? (await ensureCampaign(db, businessId));
+  // reviewAdminRouter's businessId-only endpoint) fall back to
+  // findCurrentCampaignId's single-"current"-campaign resolution.
+  // Decided 2026-09-15: no more create-on-write here (ensureCampaign
+  // removed) -- a legacy caller with no campaign yet gets a 404, forcing
+  // an explicit createNewCampaign() (POST /campaigns) instead of silently
+  // stubbing one into existence.
+  const campaignId = explicitCampaignId ?? (await findCurrentCampaignId(db, businessId));
+  if (!campaignId) {
+    return { ok: false, status: 404, error: "No campaign found for this business" };
+  }
 
   if (body.status !== undefined) {
     if (!["active", "draft", "ended"].includes(body.status)) {
@@ -482,8 +464,8 @@ export async function applyCampaignUpdate(
       }
       // The just-activated campaign becomes the one featured on the
       // microsite -- a business has only one "current" campaign at a time
-      // (see ensureCampaign's single-current-campaign model), so this is
-      // always the right campaign to feature going forward.
+      // (see findCurrentCampaignId's single-current-campaign resolution),
+      // so this is always the right campaign to feature going forward.
       const micrositeId = await ensureMicrosite(db, businessId);
       await execute(db, "UPDATE business_microsites SET featured_campaign_id = ?, updated_at = ? WHERE id = ?", [
         campaignId,
@@ -685,14 +667,14 @@ export async function applyCampaignUpdate(
   return { ok: true, campaign: await serializeCampaign(db, campaignId) };
 }
 
-businessRouter.put("/campaign", async (c) => {
-  const db = c.env.DB;
-  const businessId = c.get("auth").sub;
-  const body = await c.req.json<CampaignUpdateBody>();
-  const result = await applyCampaignUpdate(db, businessId, body);
-  if (!result.ok) return c.json({ error: result.error }, result.status);
-  return c.json(result.campaign);
-});
+// Decided 2026-09-15: the legacy write-side single-campaign route (PUT
+// /campaign) was removed -- it had no remaining caller once CampaignWizardForm's
+// mode='legacy' branch was retired (the only frontend flow that ever hit this
+// without first loading an existing campaign). The equivalent explicit-id
+// route, PUT /campaigns/:campaignId, is the only owner-facing campaign write
+// path now (plus review-admin's businessId-scoped PUT below, which still
+// legitimately needs applyCampaignUpdate's implicit-campaignId resolution
+// since admin has no :campaignId concept of its own).
 
 export type DeleteCampaignResult =
   | { ok: true; deletedCampaignId: string }
@@ -719,9 +701,11 @@ export type DeleteCampaignResult =
 //     *consumed into* this one only get their consumed_in_campaign_id
 //     cleared, not deleted -- that carryover's source campaign is untouched
 //     and its row still has a reason to exist.
-// After this runs, ensureCampaign()'s auto-provision-a-draft behavior means
-// the next GET /campaign (owner or admin) simply sees a brand-new empty
-// draft, same as a business that never had a campaign at all.
+// After this runs, the next GET /campaign (owner or admin) 404s -- same as
+// a business that never had a campaign at all -- since these legacy routes
+// no longer auto-provision a draft (ensureCampaign was removed 2026-09-15).
+// A new campaign only ever comes from an explicit createNewCampaign() call
+// (POST /campaigns) or POST /campaign/generate.
 export async function deleteCampaignForBusiness(db: D1Database, businessId: string): Promise<DeleteCampaignResult> {
   const current = await queryFirst<{ id: string }>(
     db,
@@ -830,15 +814,18 @@ export async function deleteCampaignForBusiness(db: D1Database, businessId: stri
 // (fixing routes/auth.ts's placeholder-name/arbitrary-category auto-create
 // gap), deterministically computes size tier + weighted tasks + reward
 // thresholds via lib/campaign-generator.ts, and persists the result onto
-// the business's current campaign as a fresh draft -- mirroring PUT
-// /campaign's own replace-tasks/replace-rewards logic so both endpoints
-// stay consistent. A separate PUT /campaign { status: 'active' } call (the
+// the given campaign (always a freshly-created row, see the required
+// campaignId param below) as a fresh draft -- mirroring applyCampaignUpdate's
+// own replace-tasks/replace-rewards logic so both stay consistent. A
+// separate PUT /campaigns/:campaignId { status: 'active' } call (the
 // wizard's existing "Launch" action) is what actually activates it.
 // ============================================================================
 
-// Body shape for POST /campaign/generate, shared by businessRouter (businessId
+// Body shape shared by POST /campaigns (create-new-campaign flow, businessId
 // = auth.sub) and reviewAdminRouter's businessId-route-param equivalent
-// (plan.md Item 16 Step B).
+// (plan.md Item 16 Step B). The legacy POST /campaign/generate route this
+// body originally described was removed 2026-09-15 (dead code -- no live
+// caller once ensureCampaign's auto-create-on-write behavior went away).
 export type CampaignGenerateBody = Partial<{
   businessName: string;
   businessAddress: string;
@@ -957,7 +944,7 @@ export async function generateCampaignForBusiness(
   env: Env,
   businessId: string,
   body: CampaignGenerateBody,
-  explicitCampaignId?: string
+  campaignId: string
 ): Promise<CampaignGenerateResult> {
   if (!body.businessName?.trim() || !body.categorySlug || !body.goal || !body.rewardPatternNames?.length) {
     return {
@@ -988,15 +975,15 @@ export async function generateCampaignForBusiness(
     }
   }
 
-  // Single-active-campaign guard (plan.md decision): ensureCampaign always
-  // resolves to the one "current" campaign for this business -- generation
-  // must not silently clobber a live campaign's tasks/rewards/dates out from
-  // under active customers. ensureCampaign's own auto-create-draft-if-none
-  // path is harmless here: a brand-new business has no campaign to clobber.
-  // plan.md Item 21 -- POST /campaigns (create-new-campaign flow) passes its
-  // freshly-created campaignId explicitly; the legacy POST /campaign/generate
-  // route falls back to ensureCampaign's single-"current"-campaign resolution.
-  const campaignId = explicitCampaignId ?? (await ensureCampaign(db, businessId));
+  // Single-active-campaign guard (plan.md decision): generation must not
+  // silently clobber a live campaign's tasks/rewards/dates out from under
+  // active customers. campaignId is a required param, always a freshly-
+  // created row from createNewCampaign -- the legacy POST /campaign/generate
+  // route (and review-admin's equivalent), which used to resolve it
+  // implicitly via findCurrentCampaignId, were removed 2026-09-15 as dead
+  // code once ensureCampaign's auto-create-on-write behavior went away
+  // (neither had a live UI caller left -- see the file's earlier decision
+  // note).
   const currentStatus = await queryFirst<{ status: string }>(db, "SELECT status FROM campaigns WHERE id = ?", [
     campaignId,
   ]);
@@ -1143,21 +1130,16 @@ export async function generateCampaignForBusiness(
   };
 }
 
-businessRouter.post("/campaign/generate", async (c) => {
-  const db = c.env.DB;
-  const businessId = c.get("auth").sub;
-  const body = await c.req.json<CampaignGenerateBody>();
-  const result = await generateCampaignForBusiness(db, c.env, businessId, body);
-  if (!result.ok) return c.json({ error: result.error }, result.status);
-  return c.json(result.result);
-});
-
 // ============================================================================
-// Campaign list + :campaignId-scoped routes (plan.md Item 21). The legacy
-// single-campaign routes above (GET/PUT /campaign, POST /campaign/generate)
-// remain in place, unchanged in behavior, for callers not yet migrated to an
-// explicit campaignId -- see ensureCampaign's comment for their
-// active-first/newest-else fallback order.
+// Campaign list + :campaignId-scoped routes (plan.md Item 21). GET /campaign
+// remains in place above for the dashboard's own single-"current"-campaign
+// summary view (see findCurrentCampaignId's comment for its active-first/
+// newest-else fallback order); its write-side siblings (PUT /campaign, POST
+// /campaign/generate) were removed 2026-09-15 as dead code -- see the
+// decision note above applyCampaignUpdate/generateCampaignForBusiness. These
+// :campaignId-scoped routes are the only way to write a campaign now, aside
+// from review-admin's businessId-scoped PUT (kept -- admin has no
+// :campaignId concept of its own).
 // ============================================================================
 
 businessRouter.get("/campaigns", async (c) => {
@@ -1168,8 +1150,11 @@ businessRouter.get("/campaigns", async (c) => {
 
 // Creates a brand-new campaign row and immediately generates its
 // tasks/rewards/copy from the wizard body, for the campaign list page's
-// "ایجاد کمپین" entry point -- unlike POST /campaign/generate, this never
-// reuses/overwrites an existing campaign.
+// "ایجاد کمپین" entry point -- this is now the only way to generate a
+// campaign's tasks/rewards/copy (the legacy POST /campaign/generate, which
+// generated into whatever campaign findCurrentCampaignId resolved to, was
+// removed 2026-09-15), so unlike that route this never reuses/overwrites an
+// existing campaign.
 businessRouter.post("/campaigns", async (c) => {
   const db = c.env.DB;
   const businessId = c.get("auth").sub;
