@@ -211,17 +211,11 @@ export function CampaignWizardForm({
   const [followerCount, setFollowerCount] = useState('')
 
   // plan.md Item 21 Step C -- pre-fill Step 3's size-signal inputs from the
-  // business's most-recently-created campaign, editable in place. Only
-  // fetched in mode==='new' (starting a fresh campaign for an
-  // already-existing business) -- mode==='legacy' is the from-scratch
-  // onboarding path for a business with no real campaign yet, where there's
-  // nothing meaningful to pre-fill from anyway (ensureCampaign's own
-  // auto-created draft has no recorded signals). Fetched once on mount, not
-  // re-fetched on startOver()/re-generation -- an owner who already adjusted
-  // the sliders this session shouldn't have their in-progress edits silently
-  // overwritten by a background refetch.
+  // business's most-recently-created campaign, editable in place. Fetched
+  // once on mount, not re-fetched on startOver()/re-generation -- an owner
+  // who already adjusted the sliders this session shouldn't have their
+  // in-progress edits silently overwritten by a background refetch.
   useEffect(() => {
-    if (mode !== 'new') return
     let cancelled = false
     getLatestCampaignSizeSignals(apiClient)
       .then((signals) => {
@@ -244,8 +238,7 @@ export function CampaignWizardForm({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode])
+  }, [])
   const [offerDescription, setOfferDescription] = useState('')
   const [showOfferDetail, setShowOfferDetail] = useState(false)
   const [rewardPatternNames, setRewardPatternNames] = useState<RewardPatternName[]>(['percentage_discount'])
@@ -370,20 +363,9 @@ export function CampaignWizardForm({
         rewardPatternNames,
         wantsSite,
       }
-      // Branched explicitly (rather than picking a function reference to
-      // call once) since createCampaign/generateCampaign return different
-      // shapes -- storing "whichever function" in a variable first collapses
-      // the call's return type inference and loses the CreatedCampaignProposal
-      // narrowing handleLaunch needs below.
-      let result: GeneratedCampaignProposal
-      if (mode === 'new') {
-        const created = await createCampaign(apiClient, requestBody)
-        setNewCampaignId(created.campaignId)
-        result = created
-      } else {
-        result = await generateCampaign(apiClient, requestBody)
-      }
-      setProposal(result)
+      const created = await createCampaign(apiClient, requestBody)
+      setNewCampaignId(created.campaignId)
+      setProposal(created)
       setSiteSlugInput(result.suggestedSiteSlug ?? '')
       setSiteSlugSaved(false)
       setSiteSlugSkipped(false)
@@ -453,11 +435,8 @@ export function CampaignWizardForm({
   async function handleLaunch() {
     setLaunching(true)
     try {
-      if (mode === 'new' && newCampaignId) {
-        await updateCampaignById(apiClient, newCampaignId, { status: 'active' })
-      } else {
-        await updateCampaign(apiClient, { status: 'active' })
-      }
+      if (!newCampaignId) throw new Error('کمپین هنوز ساخته نشده است.')
+      await updateCampaignById(apiClient, newCampaignId, { status: 'active' })
       showToast('کمپین با موفقیت راه‌اندازی شد!', 'success')
       onLaunched?.(newCampaignId ?? undefined)
     } catch (err) {
