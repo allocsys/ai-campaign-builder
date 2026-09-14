@@ -5,6 +5,7 @@ import { getBusinessProfile, getCampaign, updateBusinessProfile, updateCampaign 
 import type { BusinessProfile, Campaign } from '@ai-campaign-builder/api-client'
 import { CampaignEditor } from '@ai-campaign-builder/campaign-editor'
 import { CampaignWizardForm } from './CampaignWizardTab'
+import { CampaignChatAssistant } from './CampaignChatAssistant'
 import apiClient from '../../lib/api-client'
 
 /**
@@ -126,6 +127,12 @@ export function CampaignEditorTab() {
           تسک‌ها و پاداش‌های کمپین رو مستقیماً ویرایش کن. تغییرات تا وقتی «ذخیره تغییرات» رو نزنی روی کمپین واقعی اعمال نمی‌شه.
         </p>
       )}
+
+      {/* plan.md Open Item 20 Part B -- shown regardless of pro-mode: an NL
+          request is a different way to REACH a suggestion (via the existing
+          SuggestionsTab Apply/Dismiss flow), independent of whether this
+          owner also has manual field-level editing access below. */}
+      <CampaignChatAssistant />
 
       {readOnly ? (
         <CampaignWizardForm key="wizard" onLaunched={() => navigate('/dashboard')} />
