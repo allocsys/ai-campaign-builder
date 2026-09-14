@@ -29,15 +29,16 @@ interface AuthContextValue {
    * controls where the session is persisted: true -> localStorage, same as
    * today's always-on behavior, survives closing the browser entirely;
    * false -> sessionStorage, cleared as soon as the tab/browser closes.
-   * ownerFirstName/ownerLastName are only meaningful (and required by the
-   * backend) when the earlier requestOtp call reported isNewBusiness --
-   * omit them for an existing business signing back in. */
+   * ownerFirstName/ownerLastName/businessName are only meaningful (and
+   * required by the backend) when the earlier requestOtp call reported
+   * isNewBusiness -- omit them for an existing business signing back in. */
   verifyOtp: (
     phone: string,
     code: string,
     remember?: boolean,
     ownerFirstName?: string,
-    ownerLastName?: string
+    ownerLastName?: string,
+    businessName?: string
   ) => Promise<boolean>
   logout: () => void
   /** True once any API call has reported this business account no longer
@@ -96,13 +97,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     code: string,
     remember = true,
     ownerFirstName?: string,
-    ownerLastName?: string
+    ownerLastName?: string,
+    businessName?: string
   ) => {
     // Verify OTP via backend API. Deliberately NOT wrapped in a try/catch
     // that swallows the error into a bare `false` -- a failure here can mean
     // either a wrong OTP code OR (for a brand-new business) a missing
-    // owner name, and the backend's real error message distinguishes them.
-    // AuthScreen's handleOtpSubmit catches and displays it.
+    // owner name/business name, and the backend's real error message
+    // distinguishes them. AuthScreen's handleOtpSubmit catches and displays it.
     const res = await apiVerifyOtp(
       client,
       phone,
@@ -111,7 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       undefined,
       undefined,
       ownerFirstName,
-      ownerLastName
+      ownerLastName,
+      businessName
     )
     if (res.ok && res.token) {
       const next: StoredAuth = { phone, token: res.token }
