@@ -858,10 +858,10 @@ export function CampaignWizardForm({
  * in the multi-campaign world an owner can start a new campaign at any time
  * (the only real constraint -- at most one *active* campaign per business --
  * is enforced server-side, surfaced to `CampaignWizardForm` as
- * `generateError`/a launch failure like any other API error). Renders the
- * form in `mode="new"` so it always creates a fresh campaign row rather than
- * overwriting whatever the business's "current" campaign happens to be, and
- * navigates straight to that new campaign's own detail page once launched.
+ * `generateError`/a launch failure like any other API error). `CampaignWizardForm`
+ * always creates a fresh campaign row rather than overwriting whatever the
+ * business's "current" campaign happens to be, and this wrapper navigates
+ * straight to that new campaign's own detail page once launched.
  */
 export function CampaignWizardTab() {
   const navigate = useNavigate()
