@@ -419,7 +419,7 @@ packages/
 
     **Cleanup reminder, once the frontend is fully migrated to the new `:campaignId`-scoped routes (including Item 20's deferred chat-route fix from above):** delete the legacy single-campaign code path entirely rather than leaving both living side by side indefinitely. Concretely: remove `GET/PUT /campaign`, `POST /campaign/generate`, `GET /stats`, `POST /campaign/chat` from `businessRouter` (and their `review-admin.ts` businessId-only equivalents) once nothing calls them; at that point `ensureCampaign`'s active-then-newest fallback and the `explicitCampaignId`-optional parameters on `applyCampaignUpdate`/`generateCampaignForBusiness` can also be simplified back to a required, non-optional `campaignId` param, since every remaining caller will always have one. Not safe to do until every frontend call site (business-owner's `CampaignEditorTab.tsx`/`CampaignWizardTab.tsx`/`DashboardTab.tsx`/`AppShell.tsx`/`DashboardIndexRoute.tsx`, plus any review-console admin editor call sites) has moved off the old endpoints -- verify with a repo-wide search for the legacy paths before deleting, not just by memory of what was touched.
 
-    Not started -- this item captures the agreed design/decisions above as the basis for implementation, which begins next.
+    **Steps A and B (backend + frontend) closed 2026-09-14** -- see above for PR/commit detail. **Step C (wizard pre-fill schema change, deferred sub-item 1 above) is being scoped and started next.** Deferred sub-items 2-3 above remain open, not yet separately scoped as their own plan.md items.
 
 ---
 
