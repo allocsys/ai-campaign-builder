@@ -878,7 +878,7 @@ export type CampaignGenerateResult =
         suggestedSiteSlug?: string;
       };
     }
-  | { ok: false; status: 400 | 409; error: string };
+  | { ok: false; status: 400 | 404 | 409; error: string };
 
 // plan.md Open Item 18: turns the LLM's raw (Latin, hopefully DNS-safe-ish)
 // suggestion into something that's actually safe to hand the frontend as a
