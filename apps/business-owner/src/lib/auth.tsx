@@ -21,13 +21,24 @@ interface AuthContextValue {
   loading: boolean
   /** Requests an OTP code from the backend. Returns the TEMPORARY dev-mode
    * OTP code (see packages/api-client's RequestOtpResponse.devOtp) so the
-   * caller can surface it to the user until a real SMS provider exists. */
-  requestOtp: (phone: string) => Promise<string | undefined>
+   * caller can surface it to the user until a real SMS provider exists, plus
+   * isNewBusiness so the caller can decide whether to show the owner-name
+   * fields before the OTP step renders (see AuthScreen). */
+  requestOtp: (phone: string) => Promise<{ devOtp?: string; isNewBusiness?: boolean }>
   /** Verifies the OTP code with the backend. `remember` (default true)
    * controls where the session is persisted: true -> localStorage, same as
    * today's always-on behavior, survives closing the browser entirely;
-   * false -> sessionStorage, cleared as soon as the tab/browser closes. */
-  verifyOtp: (phone: string, code: string, remember?: boolean) => Promise<boolean>
+   * false -> sessionStorage, cleared as soon as the tab/browser closes.
+   * ownerFirstName/ownerLastName are only meaningful (and required by the
+   * backend) when the earlier requestOtp call reported isNewBusiness --
+   * omit them for an existing business signing back in. */
+  verifyOtp: (
+    phone: string,
+    code: string,
+    remember?: boolean,
+    ownerFirstName?: string,
+    ownerLastName?: string
+  ) => Promise<boolean>
   logout: () => void
   /** True once any API call has reported this business account no longer
    * exists (backend code business_account_deleted). Stays true across the
@@ -77,27 +88,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const requestOtp = async (phone: string) => {
     // Request OTP via backend API
     const res = await apiRequestOtp(client, phone, 'business_owner')
-    return res.devOtp
+    return { devOtp: res.devOtp, isNewBusiness: res.isNewBusiness }
   }
 
-  const verifyOtp = async (phone: string, code: string, remember = true) => {
-    // Verify OTP via backend API
-    try {
-      const res = await apiVerifyOtp(client, phone, 'business_owner', code)
-      if (res.ok && res.token) {
-        const next: StoredAuth = { phone, token: res.token }
-        // Clear the other storage first so a re-login with a different
-        // remember-me choice doesn't leave a stale copy of the session behind.
-        localStorage.removeItem(STORAGE_KEY)
-        sessionStorage.removeItem(STORAGE_KEY)
-        ;(remember ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(next))
-        setAuth(next)
-        return true
-      }
-      return false
-    } catch {
-      return false
+  const verifyOtp = async (
+    phone: string,
+    code: string,
+    remember = true,
+    ownerFirstName?: string,
+    ownerLastName?: string
+  ) => {
+    // Verify OTP via backend API. Deliberately NOT wrapped in a try/catch
+    // that swallows the error into a bare `false` -- a failure here can mean
+    // either a wrong OTP code OR (for a brand-new business) a missing
+    // owner name, and the backend's real error message distinguishes them.
+    // AuthScreen's handleOtpSubmit catches and displays it.
+    const res = await apiVerifyOtp(
+      client,
+      phone,
+      'business_owner',
+      code,
+      undefined,
+      undefined,
+      ownerFirstName,
+      ownerLastName
+    )
+    if (res.ok && res.token) {
+      const next: StoredAuth = { phone, token: res.token }
+      // Clear the other storage first so a re-login with a different
+      // remember-me choice doesn't leave a stale copy of the session behind.
+      localStorage.removeItem(STORAGE_KEY)
+      sessionStorage.removeItem(STORAGE_KEY)
+      ;(remember ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(next))
+      setAuth(next)
+      return true
     }
+    return false
   }
 
   const logout = () => {
