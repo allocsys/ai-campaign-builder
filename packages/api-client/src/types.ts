@@ -139,6 +139,18 @@ export interface GenerateCampaignRequest {
   /** Daily walk-in/existing-customer count -- always provided, average of the wizard's range-slider selection (plan.md "Signal model revised again", 2026-09-12). */
   dailyCustomerCount: number;
   monthlyRevenueToman: number;
+  /**
+   * plan.md Item 21 Step C -- the wizard's actual range-slider selection
+   * (not just the averages above), persisted onto the resulting campaign
+   * row so a future campaign's wizard can pre-fill Step 3 from it via GET
+   * /campaigns/latest-signals. Optional: omitting them just leaves those
+   * columns NULL server-side (same as any pre-migration-0015 campaign),
+   * never an error -- see business.ts's CampaignGenerateBody doc comment.
+   */
+  dailyCustomerCountMin?: number;
+  dailyCustomerCountMax?: number;
+  monthlyRevenueTomanMin?: number;
+  monthlyRevenueTomanMax?: number;
   /** Optional -- null unless the owner checked "has an Instagram page" and entered a count. Not every business has a page. */
   followerCount: number | null;
   /** Optional -- may be empty; only ever feeds LLM copy generation, never the deterministic reward/points math. */
