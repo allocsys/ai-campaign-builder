@@ -4,6 +4,7 @@ import { LandingPage } from './routes/LandingPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { AppShell } from './routes/AppShell'
 import { DashboardIndexRoute } from './routes/DashboardIndexRoute'
+import { CampaignListTab } from './routes/tabs/CampaignListTab'
 import { CampaignWizardTab } from './routes/tabs/CampaignWizardTab'
 import { CampaignEditorTab } from './routes/tabs/CampaignEditorTab'
 import { InsightsAndSuggestionsTab } from './routes/tabs/InsightsAndSuggestionsTab'
@@ -28,8 +29,23 @@ function App() {
           </ProtectedRoute>
         }
       />
+      {/* plan.md Item 21 -- '/dashboard/campaign' is now the campaign list
+          page (previously the from-scratch wizard); '/dashboard/campaign/new'
+          is the wizard (previously the fixed edit route lived at
+          '/dashboard/campaign/edit', now replaced by the :campaignId-scoped
+          route below). */}
       <Route
         path="/dashboard/campaign"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <CampaignListTab />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/campaign/new"
         element={
           <ProtectedRoute>
             <AppShell>
@@ -39,7 +55,7 @@ function App() {
         }
       />
       <Route
-        path="/dashboard/campaign/edit"
+        path="/dashboard/campaign/:campaignId"
         element={
           <ProtectedRoute>
             <AppShell>
