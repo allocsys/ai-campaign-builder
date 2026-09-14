@@ -867,7 +867,6 @@ export function CampaignWizardTab() {
   const navigate = useNavigate()
   return (
     <CampaignWizardForm
-      mode="new"
       onLaunched={(campaignId) =>
         navigate(campaignId ? `/dashboard/campaign/${campaignId}` : '/dashboard/campaign')
       }
