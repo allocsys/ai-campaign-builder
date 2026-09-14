@@ -390,5 +390,25 @@ packages/
 
 ---
 
+21. **Multi-campaign per business -- currently every business is hard-assumed to have exactly one campaign, even though the schema already fits multiple.** Found 2026-09-14 while reviewing Item 20's chat widget: `CampaignEditorTab.tsx` shows the AI chat assistant stacked directly above the onboarding wizard even when a real campaign already exists, because the wizard is reused inline as the only way to "redo" a campaign -- there's no concept of multiple distinct campaigns to switch between. Investigation confirmed the DB layer never actually enforced single-campaign: `campaigns.business_id` is a plain FK (not unique), and `status` already distinguishes `draft`/`active`/`ended`. The single-campaign assumption lives entirely in query/route/UI code -- `apps/backend/src/routes/business.ts` (multiple call sites) and `apps/backend/src/routes/staff-pos.ts` both resolve "the" campaign via `SELECT id FROM campaigns WHERE business_id = ? ORDER BY created_at ... LIMIT 1` instead of taking an explicit `campaignId`, and the business-owner frontend (`DashboardIndexRoute.tsx`, `CampaignWizardTab.tsx`, `DashboardTab.tsx`, `CampaignEditorTab.tsx`, `AppShell.tsx`) all assume a single campaign object per business.
+
+    **Decided 2026-09-14:**
+    - **No new bottom-nav tab.** The existing "کمپین" tab is repurposed to be a campaign list page (all of the business's campaigns, with status) instead of jumping straight into a single campaign's editor/wizard.
+    - **"ایجاد کمپین" button on that list page** opens `CampaignWizardTab`'s wizard scoped to creating a brand-new campaign row, not regenerating/overwriting the existing one.
+    - **Clicking an existing campaign from the list** goes to `CampaignEditorTab` scoped to that specific `campaignId` -- the wizard is no longer shown there at all; only Item 20's chat assistant (and, if pro mode is on, the manual `CampaignEditor`) is available to edit an already-created campaign. This directly resolves the confusing wizard+chat double-UI flagged going into this item.
+    - **Multiple campaigns can be active simultaneously** for one business (not just one "active" at a time) -- no forced end-date/status exclusivity between a business's campaigns.
+    - **Customer points are aggregated/summed across a business's campaigns for display**, even though each campaign keeps its own isolated ledger under the hood (`points_ledger` is already scoped per `customer_campaign_codes` row, one row per customer per campaign -- no schema change needed for per-campaign isolation, only a summing query for the aggregate view).
+    - **Reward redemption shortfall -- option (الف) chosen** (over introducing a true shared cross-campaign points pool, a bigger schema change): redemptions stay scoped to a specific `campaign_reward`/campaign balance as today, but when that campaign's own balance is insufficient, the shortfall is covered automatically via the existing `point_carryovers` mechanism (`source_campaign_id` -> `consumed_in_campaign_id`) pulling from the customer's other active campaigns with this business, rather than building a new shared-pool balance model. Chosen because the carryover infra already exists (built for the sequential relaunch case) and reuses it rather than reworking `reward_redemptions`/`points_ledger`'s per-campaign shape.
+
+    **Scope of work identified, not yet built:**
+    - Backend: every `... WHERE business_id = ? ORDER BY created_at ... LIMIT 1` call site in `business.ts` and `staff-pos.ts` needs to become an explicit `WHERE id = ? AND business_id = ?` lookup taking a `campaignId`, plus a new list endpoint (`GET` all campaigns for a business) for the new list page, plus a new aggregate-points-across-campaigns query for customer-facing display.
+    - Frontend (business-owner): repurpose the "کمپین" bottom-nav route into a campaign list page + "ایجاد کمپین" entry point into the wizard; `CampaignEditorTab.tsx` becomes campaign-scoped (`campaignId` route param) and drops the inline wizard fallback entirely (chat + optional manual editor only).
+    - Backend (redemption path): extend the existing redeem-time deduction logic (`routes/customer.ts`, decided under Phase 0.5's reward redemption note) to auto-draw a `point_carryovers` row from another active campaign when the target campaign's own balance falls short, instead of just rejecting the redemption.
+    - `staff-pos.ts`'s POS scan flow needs to resolve which of a business's (now potentially several) active campaigns a given task submission applies to -- not yet designed; POS-side campaign selection/disambiguation is an open sub-question once multiple campaigns can be active at once.
+
+    Not started -- this item captures the agreed design/decisions above as the basis for implementation, which begins next.
+
+---
+
 ## Architecture reference
 Full DB schema (35 tables) lives in `architecture.md`, not duplicated here.
