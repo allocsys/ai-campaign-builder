@@ -315,11 +315,13 @@ reviewAdminRouter.delete("/admins/:id", async (c) => {
 // with a business owner's own campaign access ("I'm the one making changes
 // so it's full access" -- user's decision, no partial/read-only subset).
 // Reuses business.ts's Step A exports (findCurrentCampaignId, serializeCampaign,
-// applyCampaignUpdate, generateCampaignForBusiness) so an admin edit goes
-// through the EXACT same validation and side effects as an owner edit
-// (join-slug generation, microsite featuring, campaign_highlight defaults
-// on activate, single-active-campaign guard, AI-constraints clamping, etc.)
-// -- nothing here reimplements that logic separately. No additional auth
+// applyCampaignUpdate) so an admin edit goes through the EXACT same
+// validation and side effects as an owner edit (join-slug generation,
+// microsite featuring, campaign_highlight defaults on activate,
+// single-active-campaign guard, etc.) -- nothing here reimplements that
+// logic separately. (generateCampaignForBusiness was part of this list
+// until 2026-09-15, when the admin-side generate route was removed as dead
+// code -- see the decision note further down.) No additional auth
 // restriction beyond the router-wide review_admin role check above (no
 // isRoot distinction for campaign access, per the full-access decision).
 // ----------------------------------------------------------------------------
