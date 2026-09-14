@@ -794,6 +794,19 @@ export type CampaignGenerateBody = Partial<{
   audienceDescription: string;
   dailyCustomerCount: number;
   monthlyRevenueToman: number;
+  /**
+   * plan.md Item 21 Step C -- the wizard's actual range-slider selection
+   * (not just the average above, which is what feeds the deterministic
+   * size-tier math). Optional/additive: an older client that only sends
+   * dailyCustomerCount/monthlyRevenueToman still works exactly as before,
+   * it just leaves these 4 columns NULL on the resulting campaign row, so
+   * a future wizard visit has nothing to pre-fill from this campaign (same
+   * as any campaign created before migration 0015).
+   */
+  dailyCustomerCountMin: number;
+  dailyCustomerCountMax: number;
+  monthlyRevenueTomanMin: number;
+  monthlyRevenueTomanMax: number;
   /** Optional -- omitted/null when the owner has no Instagram page. */
   followerCount: number | null;
   /** Optional (plan.md "Step 4 leads with AI deciding" decision) -- only ever feeds LLM copy, never the deterministic math, so it's not required. */
@@ -1004,13 +1017,34 @@ export async function generateCampaignForBusiness(
   // Always resets to 'draft' regardless of whether the prior campaign was
   // 'draft' or 'ended' -- generation always produces a fresh proposal cycle;
   // 'active' was already rejected above with a 409.
+  // plan.md Item 21 Step C -- persist the wizard's raw size-signal range
+  // (not just the average that fed generateCampaignProposal above) so a
+  // future campaign for this business can pre-fill Step 3 from it via GET
+  // /campaigns/latest-signals below. All 5 default to null when the client
+  // didn't send them (older client, or the min/max fields simply omitted),
+  // matching migration 0015's nullable columns -- never a required field.
   await execute(
     db,
     `UPDATE campaigns
      SET status = 'draft', goal = ?, point_multiplier = ?, start_date = ?, end_date = ?,
-         audience_description = ?, offer_description = ?
+         audience_description = ?, offer_description = ?,
+         daily_customer_count_min = ?, daily_customer_count_max = ?,
+         monthly_revenue_toman_min = ?, monthly_revenue_toman_max = ?, follower_count = ?
      WHERE id = ?`,
-    [body.goal, proposal.sizeTier.pointMultiplier, startDate, endDate, body.audienceDescription?.trim() ?? "", body.offerDescription?.trim() ?? "", campaignId]
+    [
+      body.goal,
+      proposal.sizeTier.pointMultiplier,
+      startDate,
+      endDate,
+      body.audienceDescription?.trim() ?? "",
+      body.offerDescription?.trim() ?? "",
+      body.dailyCustomerCountMin ?? null,
+      body.dailyCustomerCountMax ?? null,
+      body.monthlyRevenueTomanMin ?? null,
+      body.monthlyRevenueTomanMax ?? null,
+      body.followerCount ?? null,
+      campaignId,
+    ]
   );
 
   const taskPatternRows = await queryAll<{ id: string; name: string }>(db, "SELECT id, name FROM task_patterns");
@@ -1091,6 +1125,59 @@ businessRouter.post("/campaigns", async (c) => {
   const result = await generateCampaignForBusiness(db, c.env, businessId, body, campaignId);
   if (!result.ok) return c.json({ error: result.error }, result.status);
   return c.json({ campaignId, ...result.result }, 201);
+});
+
+// plan.md Item 21 Step C -- lets the wizard pre-fill Step 3's size-signal
+// inputs (daily-customer-count range, monthly-revenue range, follower count)
+// from the business's most-recently-created campaign, editable in place, per
+// this item's "wizard business-size signals ... pre-filled ... when starting
+// a new one" decision. Registered BEFORE the /campaigns/:campaignId route
+// below since Hono matches routes in registration order -- a static
+// "latest-signals" segment would otherwise be swallowed by the :campaignId
+// param route.
+async function getLatestCampaignSizeSignals(db: D1Database, businessId: string) {
+  const row = await queryFirst<{
+    daily_customer_count_min: number | null;
+    daily_customer_count_max: number | null;
+    monthly_revenue_toman_min: number | null;
+    monthly_revenue_toman_max: number | null;
+    follower_count: number | null;
+  }>(
+    db,
+    `SELECT daily_customer_count_min, daily_customer_count_max,
+            monthly_revenue_toman_min, monthly_revenue_toman_max, follower_count
+     FROM campaigns WHERE business_id = ?
+     ORDER BY created_at DESC, id DESC LIMIT 1`,
+    [businessId]
+  );
+  // No campaign yet (brand-new business), or the most recent campaign predates
+  // migration 0015 / never had any signal recorded -- nothing to pre-fill
+  // from either way, same as a business's very first-ever campaign. The
+  // wizard falls back to its own hardcoded defaults in both cases.
+  if (
+    !row ||
+    (row.daily_customer_count_min === null &&
+      row.daily_customer_count_max === null &&
+      row.monthly_revenue_toman_min === null &&
+      row.monthly_revenue_toman_max === null &&
+      row.follower_count === null)
+  ) {
+    return null;
+  }
+  return {
+    dailyCustomerCountMin: row.daily_customer_count_min,
+    dailyCustomerCountMax: row.daily_customer_count_max,
+    monthlyRevenueTomanMin: row.monthly_revenue_toman_min,
+    monthlyRevenueTomanMax: row.monthly_revenue_toman_max,
+    followerCount: row.follower_count,
+  };
+}
+
+businessRouter.get("/campaigns/latest-signals", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const signals = await getLatestCampaignSizeSignals(db, businessId);
+  return c.json(signals);
 });
 
 businessRouter.get("/campaigns/:campaignId", async (c) => {

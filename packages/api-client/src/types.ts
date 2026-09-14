@@ -87,6 +87,25 @@ export interface CampaignSummary {
   createdAt: string;
 }
 
+/**
+ * plan.md Item 21 Step C -- the wizard's Step 3 size-signal RANGE (not the
+ * averaged number that feeds the tier-threshold math), read back from the
+ * business's most-recently-created campaign so a new campaign's wizard can
+ * pre-fill Step 3's range sliders instead of starting from scratch every
+ * time. Every field is nullable/optional to mirror migration 0015's nullable
+ * columns -- a pre-migration campaign, or one where the owner never entered
+ * a given signal, simply has nothing recorded for it. GET /campaigns/latest-signals
+ * returns `null` outright (not this shape with all-null fields) when there's
+ * no campaign at all yet or nothing on it to pre-fill from.
+ */
+export interface CampaignSizeSignals {
+  dailyCustomerCountMin: number | null;
+  dailyCustomerCountMax: number | null;
+  monthlyRevenueTomanMin: number | null;
+  monthlyRevenueTomanMax: number | null;
+  followerCount: number | null;
+}
+
 // ============================================================================
 // Onboarding wizard / AI campaign generation (plan.md Open Item 8)
 // Shapes match apps/backend/src/routes/business.ts's POST /campaign/generate.
@@ -120,6 +139,18 @@ export interface GenerateCampaignRequest {
   /** Daily walk-in/existing-customer count -- always provided, average of the wizard's range-slider selection (plan.md "Signal model revised again", 2026-09-12). */
   dailyCustomerCount: number;
   monthlyRevenueToman: number;
+  /**
+   * plan.md Item 21 Step C -- the wizard's actual range-slider selection
+   * (not just the averages above), persisted onto the resulting campaign
+   * row so a future campaign's wizard can pre-fill Step 3 from it via GET
+   * /campaigns/latest-signals. Optional: omitting them just leaves those
+   * columns NULL server-side (same as any pre-migration-0015 campaign),
+   * never an error -- see business.ts's CampaignGenerateBody doc comment.
+   */
+  dailyCustomerCountMin?: number;
+  dailyCustomerCountMax?: number;
+  monthlyRevenueTomanMin?: number;
+  monthlyRevenueTomanMax?: number;
   /** Optional -- null unless the owner checked "has an Instagram page" and entered a count. Not every business has a page. */
   followerCount: number | null;
   /** Optional -- may be empty; only ever feeds LLM copy generation, never the deterministic reward/points math. */

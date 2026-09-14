@@ -5,6 +5,7 @@ import type {
   ChecklistItem,
   Campaign,
   CampaignSummary,
+  CampaignSizeSignals,
   CreatedCampaignProposal,
   GenerateCampaignRequest,
   GeneratedCampaignProposal,
@@ -116,6 +117,16 @@ export async function updateCampaignById(
 
 export async function getCampaignStatsById(client: ApiClient, campaignId: string): Promise<BusinessStats> {
   return client.request<BusinessStats>(`/api/business/campaigns/${encodeURIComponent(campaignId)}/stats`);
+}
+
+/**
+ * plan.md Item 21 Step C -- reads the business's most-recently-created
+ * campaign's size-tier signal range, for the wizard's Step 3 to pre-fill
+ * from when starting a new campaign. `null` when there's no campaign yet or
+ * nothing on it to pre-fill (see CampaignSizeSignals' doc comment).
+ */
+export async function getLatestCampaignSizeSignals(client: ApiClient): Promise<CampaignSizeSignals | null> {
+  return client.request<CampaignSizeSignals | null>('/api/business/campaigns/latest-signals');
 }
 
 export async function getInsights(client: ApiClient): Promise<Insight[]> {

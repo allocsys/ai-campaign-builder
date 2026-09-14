@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input, RangeSlider, useToast } from '@ai-campaign-builder/ui-kit'
-import { generateCampaign, updateCampaign, createCampaign, updateCampaignById, updateMicrositeState, addStaff } from '@ai-campaign-builder/api-client'
+import { generateCampaign, updateCampaign, createCampaign, updateCampaignById, updateMicrositeState, addStaff, getLatestCampaignSizeSignals } from '@ai-campaign-builder/api-client'
 import type {
   BusinessCategorySlug,
   GeneratedCampaignProposal,
@@ -205,6 +205,43 @@ export function CampaignWizardForm({
   const [monthlyRevenueMax, setMonthlyRevenueMax] = useState(80000000)
   const [hasInstagramPage, setHasInstagramPage] = useState(false)
   const [followerCount, setFollowerCount] = useState('')
+
+  // plan.md Item 21 Step C -- pre-fill Step 3's size-signal inputs from the
+  // business's most-recently-created campaign, editable in place. Only
+  // fetched in mode==='new' (starting a fresh campaign for an
+  // already-existing business) -- mode==='legacy' is the from-scratch
+  // onboarding path for a business with no real campaign yet, where there's
+  // nothing meaningful to pre-fill from anyway (ensureCampaign's own
+  // auto-created draft has no recorded signals). Fetched once on mount, not
+  // re-fetched on startOver()/re-generation -- an owner who already adjusted
+  // the sliders this session shouldn't have their in-progress edits silently
+  // overwritten by a background refetch.
+  useEffect(() => {
+    if (mode !== 'new') return
+    let cancelled = false
+    getLatestCampaignSizeSignals(apiClient)
+      .then((signals) => {
+        if (cancelled || !signals) return
+        if (signals.dailyCustomerCountMin !== null) setDailyCustomerMin(signals.dailyCustomerCountMin)
+        if (signals.dailyCustomerCountMax !== null) setDailyCustomerMax(signals.dailyCustomerCountMax)
+        if (signals.monthlyRevenueTomanMin !== null) setMonthlyRevenueMin(signals.monthlyRevenueTomanMin)
+        if (signals.monthlyRevenueTomanMax !== null) setMonthlyRevenueMax(signals.monthlyRevenueTomanMax)
+        if (signals.followerCount !== null) {
+          setHasInstagramPage(true)
+          setFollowerCount(String(signals.followerCount))
+        }
+      })
+      // Best-effort pre-fill -- a failed fetch (network hiccup, brand-new
+      // business with nothing to pre-fill from) just leaves the wizard's
+      // existing hardcoded defaults in place, same as today's behavior. Never
+      // surfaced as a toast/error -- this is a convenience, not a required
+      // step in launching a campaign.
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
   const [offerDescription, setOfferDescription] = useState('')
   const [showOfferDetail, setShowOfferDetail] = useState(false)
   const [rewardPatternNames, setRewardPatternNames] = useState<RewardPatternName[]>(['percentage_discount'])
@@ -317,6 +354,13 @@ export function CampaignWizardForm({
         audienceDescription: `${audienceDescription.trim()}${audienceDescription.trim() ? ' — ' : ''}${selectedCategory.conditionalQuestion} ${conditionalAnswer}`,
         dailyCustomerCount: Math.round((dailyCustomerMin + dailyCustomerMax) / 2),
         monthlyRevenueToman: Math.round((monthlyRevenueMin + monthlyRevenueMax) / 2),
+        // plan.md Item 21 Step C -- the raw range, not just the averages
+        // above, so this campaign's row has something for a future wizard
+        // visit to pre-fill Step 3 from via GET /campaigns/latest-signals.
+        dailyCustomerCountMin: dailyCustomerMin,
+        dailyCustomerCountMax: dailyCustomerMax,
+        monthlyRevenueTomanMin: monthlyRevenueMin,
+        monthlyRevenueTomanMax: monthlyRevenueMax,
         followerCount: hasInstagramPage ? Number(followerCount) || 0 : null,
         offerDescription: offerDescription.trim(),
         rewardPatternNames,
