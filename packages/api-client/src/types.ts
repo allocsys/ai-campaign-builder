@@ -594,6 +594,19 @@ export interface AdminBusinessListItem {
   manualEditorEnabled: boolean;
 }
 
+/**
+ * Admin customers page (review-admin.ts's GET /customers). Customers are
+ * global records, not business-scoped -- see AdminBusinessListItem's doc
+ * comment for the same "no per-business scoping" pattern.
+ */
+export interface AdminCustomerListItem {
+  id: string;
+  phoneNumber: string;
+  phoneVerified: boolean;
+  telegramOptedIn: boolean;
+  createdAt: string;
+}
+
 export type StaffPosActivityEntry =
   | {
       id: string;
