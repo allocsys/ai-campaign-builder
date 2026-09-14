@@ -1127,6 +1127,59 @@ businessRouter.post("/campaigns", async (c) => {
   return c.json({ campaignId, ...result.result }, 201);
 });
 
+// plan.md Item 21 Step C -- lets the wizard pre-fill Step 3's size-signal
+// inputs (daily-customer-count range, monthly-revenue range, follower count)
+// from the business's most-recently-created campaign, editable in place, per
+// this item's "wizard business-size signals ... pre-filled ... when starting
+// a new one" decision. Registered BEFORE the /campaigns/:campaignId route
+// below since Hono matches routes in registration order -- a static
+// "latest-signals" segment would otherwise be swallowed by the :campaignId
+// param route.
+async function getLatestCampaignSizeSignals(db: D1Database, businessId: string) {
+  const row = await queryFirst<{
+    daily_customer_count_min: number | null;
+    daily_customer_count_max: number | null;
+    monthly_revenue_toman_min: number | null;
+    monthly_revenue_toman_max: number | null;
+    follower_count: number | null;
+  }>(
+    db,
+    `SELECT daily_customer_count_min, daily_customer_count_max,
+            monthly_revenue_toman_min, monthly_revenue_toman_max, follower_count
+     FROM campaigns WHERE business_id = ?
+     ORDER BY created_at DESC, id DESC LIMIT 1`,
+    [businessId]
+  );
+  // No campaign yet (brand-new business), or the most recent campaign predates
+  // migration 0015 / never had any signal recorded -- nothing to pre-fill
+  // from either way, same as a business's very first-ever campaign. The
+  // wizard falls back to its own hardcoded defaults in both cases.
+  if (
+    !row ||
+    (row.daily_customer_count_min === null &&
+      row.daily_customer_count_max === null &&
+      row.monthly_revenue_toman_min === null &&
+      row.monthly_revenue_toman_max === null &&
+      row.follower_count === null)
+  ) {
+    return null;
+  }
+  return {
+    dailyCustomerCountMin: row.daily_customer_count_min,
+    dailyCustomerCountMax: row.daily_customer_count_max,
+    monthlyRevenueTomanMin: row.monthly_revenue_toman_min,
+    monthlyRevenueTomanMax: row.monthly_revenue_toman_max,
+    followerCount: row.follower_count,
+  };
+}
+
+businessRouter.get("/campaigns/latest-signals", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+  const signals = await getLatestCampaignSizeSignals(db, businessId);
+  return c.json(signals);
+});
+
 businessRouter.get("/campaigns/:campaignId", async (c) => {
   const db = c.env.DB;
   const businessId = c.get("auth").sub;
