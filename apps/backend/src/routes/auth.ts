@@ -122,11 +122,12 @@ authRouter.post("/verify-otp", async (c) => {
       );
 
       if (!business) {
-        // Brand-new signup -- owner's first + last name are required at this
-        // step (product decision: blocks OTP verification if missing, no
-        // placeholder fallback the way business name/category still have).
-        // Checked here (not earlier) so the phone/otp/role presence check
-        // above still fires first for a malformed request in general.
+        // Brand-new signup -- owner's first + last name are the ONLY two
+        // fields required at this step (product decision, revised
+        // 2026-09-14: signup asks for name, last name, and phone -- nothing
+        // else. No separate business-name field). Checked here (not earlier)
+        // so the phone/otp/role presence check above still fires first for a
+        // malformed request in general.
         const trimmedFirstName = ownerFirstName?.trim();
         const trimmedLastName = ownerLastName?.trim();
         if (!trimmedFirstName || !trimmedLastName) {
@@ -152,15 +153,20 @@ authRouter.post("/verify-otp", async (c) => {
         }
 
         const nowIso = new Date().toISOString();
-        // Business name/category are UNCHANGED (still the placeholder name +
-        // arbitrary first category, still fixed later via the wizard's Step 1,
-        // per business.ts's generateCampaignForBusiness comment) -- only the
-        // owner's own name (migration 0016's new columns) is new here.
+        // No business-name field exists on signup -- `businesses.name` (NOT
+        // NULL, no DB default) has to hold SOMETHING until the owner sets a
+        // real one via the wizard's Step 1 (business.ts's
+        // generateCampaignForBusiness) or Settings. Using the owner's own
+        // real name here (not a generic placeholder string like the old
+        // "کسب‌وکار جدید") means this interim value is at least real data the
+        // owner actually typed, not a fabricated record. Category is still
+        // an arbitrary first row, same as before -- no category picker on
+        // signup either.
         await execute(
           db,
           `INSERT INTO businesses (id, name, category_id, phone, phone_verified, phone_verified_at, sms_wallet_balance_toman, autopilot_enabled, size_tier, owner_first_name, owner_last_name, created_at)
            VALUES (?, ?, ?, ?, 1, ?, 0, 0, 'small', ?, ?, ?)`,
-          [userId, "کسب‌وکار جدید", categoryId, phone, nowIso, trimmedFirstName, trimmedLastName, nowIso]
+          [userId, `${trimmedFirstName} ${trimmedLastName}`, categoryId, phone, nowIso, trimmedFirstName, trimmedLastName, nowIso]
         );
       } else {
         userId = business.id;
