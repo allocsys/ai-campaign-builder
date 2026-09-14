@@ -59,6 +59,11 @@ businessRouter.use("/*", async (c, next) => {
 // Profile
 // ============================================================================
 
+// plan.md decision (2026-09-15, "defer business provisioning"): LEFT JOIN,
+// not JOIN -- `businesses.category_id` is now nullable (a brand-new business
+// has no category until the wizard's first campaign creation sets one), so
+// an inner JOIN here would silently 404 ("Business not found") a real,
+// freshly-signed-up business just because it hasn't picked a category yet.
 async function loadProfile(db: D1Database, businessId: string) {
   return queryFirst<{
     name: string;
@@ -66,13 +71,13 @@ async function loadProfile(db: D1Database, businessId: string) {
     size_tier: string | null;
     sms_wallet_balance_toman: number;
     sms_monthly_cap_toman: number | null;
-    name_fa: string;
+    name_fa: string | null;
     address: string | null;
     manual_editor_enabled: number;
   }>(
     db,
     `SELECT b.name, b.phone, b.size_tier, b.sms_wallet_balance_toman, b.sms_monthly_cap_toman, bc.name_fa, b.address, b.manual_editor_enabled
-     FROM businesses b JOIN business_categories bc ON bc.id = b.category_id
+     FROM businesses b LEFT JOIN business_categories bc ON bc.id = b.category_id
      WHERE b.id = ?`,
     [businessId]
   );
@@ -81,7 +86,9 @@ async function loadProfile(db: D1Database, businessId: string) {
 function serializeProfile(row: NonNullable<Awaited<ReturnType<typeof loadProfile>>>) {
   return {
     name: row.name,
-    categoryLabel: row.name_fa,
+    // null when the business hasn't picked a category yet (see loadProfile's
+    // LEFT JOIN comment above) -- frontend must handle an empty/unset label.
+    categoryLabel: row.name_fa ?? "",
     phone: row.phone,
     sizeTier: (row.size_tier ?? "small") as "micro" | "small" | "medium" | "large",
     smsWalletBalanceToman: row.sms_wallet_balance_toman,
