@@ -161,18 +161,32 @@ CREATE TABLE review_admins (
 -- Core business / campaign tables
 -- ============================================================
 
-CREATE TABLE businesses (
+-- Account/auth entity, split out from `businesses` 2026-09-15 (plan.md Item
+-- 23) -- this is what business_owner signup/login actually creates and
+-- authenticates against. A business_owners row can exist with no `businesses`
+-- row yet (owner signed up, hasn't described/created their business).
+CREATE TABLE business_owners (
   id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  -- Nullable: set at signup with no category yet. First populated when the
-  -- owner runs the campaign wizard for the first time (generateCampaignForBusiness
-  -- sets it from the wizard's categorySlug), not before.
-  category_id TEXT REFERENCES business_categories(id),
   phone TEXT NOT NULL UNIQUE,
   phone_verified INTEGER NOT NULL DEFAULT 0,
   phone_verified_at TEXT,
   sms_wallet_balance_toman REAL NOT NULL DEFAULT 0,
   sms_monthly_cap_toman REAL,
+  owner_first_name TEXT,
+  owner_last_name TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- Business profile, child of business_owners (1-to-1 for now -- see plan.md
+-- Item 23; left room to become 1-to-many later for multi-branch without
+-- another conflation-style rework). Only created once a real business
+-- exists (name + category known), never at signup time -- so unlike the
+-- pre-2026-09-15 shape, name/category_id are NOT NULL again.
+CREATE TABLE businesses (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL REFERENCES business_owners(id),
+  name TEXT NOT NULL,
+  category_id TEXT NOT NULL REFERENCES business_categories(id),
   instagram_handle TEXT,
   autopilot_enabled INTEGER NOT NULL DEFAULT 0,
   size_tier TEXT CHECK (size_tier IN ('micro', 'small', 'medium', 'large')),
@@ -188,11 +202,7 @@ CREATE TABLE businesses (
   -- Shared boolean gate for the manual campaign editor; settable by the
   -- owner (self-serve "حالت حرفه‌ای" toggle) or by review_admin on their
   -- behalf. review_admin's own editor access is unconditional regardless.
-  manual_editor_enabled INTEGER NOT NULL DEFAULT 0,
-  -- Nullable: collected at signup going forward; existing/legacy rows may
-  -- have neither, which is not an error condition.
-  owner_first_name TEXT,
-  owner_last_name TEXT
+  manual_editor_enabled INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE campaigns (

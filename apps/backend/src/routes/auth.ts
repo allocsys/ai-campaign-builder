@@ -32,7 +32,7 @@ const DEV_OTPS: Record<string, string> = {
 // have the side effect of provisioning a real row. The actual create-on-
 // write still only happens in verify-otp below, same as before.
 async function isNewBusinessPhone(db: D1Database, phone: string): Promise<boolean> {
-  const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM businesses WHERE phone = ?", [phone]);
+  const existing = await queryFirst<{ id: string }>(db, "SELECT id FROM business_owners WHERE phone = ?", [phone]);
   return !existing;
 }
 
@@ -114,20 +114,28 @@ authRouter.post("/verify-otp", async (c) => {
     let customerCampaignId: string | undefined;
 
     if (role === "business_owner") {
-      // Look up or create business by phone
-      let business = await queryFirst<{ id: string }>(
+      // plan.md Item 23 (2026-09-15, "business_owners / businesses split"):
+      // signup creates ONLY a business_owners row (account/auth identity --
+      // phone, name, sms wallet). It never creates a businesses row (the
+      // business PROFILE -- name, category, address) here -- that row is
+      // created exactly once, later, when the owner completes the wizard's
+      // first campaign (see business.ts's ensureBusinessForOwner, called
+      // from POST /campaigns), always with a real name+category, never a
+      // placeholder. This replaces the old approach (superseded PR #114) of
+      // creating a businesses row at signup with a nullable category_id and
+      // the owner's own name as a placeholder business name.
+      let owner = await queryFirst<{ id: string }>(
         db,
-        "SELECT id FROM businesses WHERE phone = ?",
+        "SELECT id FROM business_owners WHERE phone = ?",
         [phone]
       );
 
-      if (!business) {
+      if (!owner) {
         // Brand-new signup -- owner's first + last name are the ONLY two
         // fields required at this step (product decision, revised
         // 2026-09-14: signup asks for name, last name, and phone -- nothing
-        // else. No separate business-name field). Checked here (not earlier)
-        // so the phone/otp/role presence check above still fires first for a
-        // malformed request in general.
+        // else). Checked here (not earlier) so the phone/otp/role presence
+        // check above still fires first for a malformed request in general.
         const trimmedFirstName = ownerFirstName?.trim();
         const trimmedLastName = ownerLastName?.trim();
         if (!trimmedFirstName || !trimmedLastName) {
@@ -138,32 +146,16 @@ authRouter.post("/verify-otp", async (c) => {
         }
 
         userId = generateId();
-        const nowIso = new Date().toISOString();
-        // No business-name field exists on signup -- `businesses.name` (NOT
-        // NULL, no DB default) has to hold SOMETHING until the owner sets a
-        // real one via the wizard's Step 1 (business.ts's
-        // generateCampaignForBusiness) or Settings. Using the owner's own
-        // real name here (not a generic placeholder string like the old
-        // "کسب‌وکار جدید") means this interim value is at least real data the
-        // owner actually typed, not a fabricated record.
-        // plan.md decision (2026-09-15, "defer business provisioning"):
-        // category_id is no longer auto-assigned to an arbitrary first row
-        // here -- `businesses.category_id` is now nullable (see migration
-        // 0001_init.sql), and stays NULL until the owner picks a real
-        // category via the wizard's Step 1 (generateCampaignForBusiness's
-        // `UPDATE businesses SET category_id = ?`). Picking a meaningless
-        // placeholder category at signup was worse than having none: it
-        // silently mis-categorized a business before the owner ever made a
-        // real choice, with nothing forcing a later correction.
+        const nowIsoStr = new Date().toISOString();
         await execute(
           db,
-          `INSERT INTO businesses (id, name, phone, phone_verified, phone_verified_at, sms_wallet_balance_toman, autopilot_enabled, size_tier, owner_first_name, owner_last_name, created_at)
-           VALUES (?, ?, ?, 1, ?, 0, 0, 'small', ?, ?, ?)`,
-          [userId, `${trimmedFirstName} ${trimmedLastName}`, phone, nowIso, trimmedFirstName, trimmedLastName, nowIso]
+          `INSERT INTO business_owners (id, phone, phone_verified, phone_verified_at, sms_wallet_balance_toman, owner_first_name, owner_last_name, created_at)
+           VALUES (?, ?, 1, ?, 0, ?, ?, ?)`,
+          [userId, phone, nowIsoStr, trimmedFirstName, trimmedLastName, nowIsoStr]
         );
       } else {
-        userId = business.id;
-        await execute(db, "UPDATE businesses SET phone_verified = 1, phone_verified_at = ? WHERE id = ?", [new Date().toISOString(), userId]);
+        userId = owner.id;
+        await execute(db, "UPDATE business_owners SET phone_verified = 1, phone_verified_at = ? WHERE id = ?", [new Date().toISOString(), userId]);
       }
     } else if (role === "customer") {
       // Look up or create customer by phone_number
