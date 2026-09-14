@@ -354,6 +354,13 @@ export function CampaignWizardForm({
         audienceDescription: `${audienceDescription.trim()}${audienceDescription.trim() ? ' — ' : ''}${selectedCategory.conditionalQuestion} ${conditionalAnswer}`,
         dailyCustomerCount: Math.round((dailyCustomerMin + dailyCustomerMax) / 2),
         monthlyRevenueToman: Math.round((monthlyRevenueMin + monthlyRevenueMax) / 2),
+        // plan.md Item 21 Step C -- the raw range, not just the averages
+        // above, so this campaign's row has something for a future wizard
+        // visit to pre-fill Step 3 from via GET /campaigns/latest-signals.
+        dailyCustomerCountMin: dailyCustomerMin,
+        dailyCustomerCountMax: dailyCustomerMax,
+        monthlyRevenueTomanMin: monthlyRevenueMin,
+        monthlyRevenueTomanMax: monthlyRevenueMax,
         followerCount: hasInstagramPage ? Number(followerCount) || 0 : null,
         offerDescription: offerDescription.trim(),
         rewardPatternNames,
