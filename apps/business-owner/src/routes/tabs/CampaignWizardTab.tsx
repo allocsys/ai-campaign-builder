@@ -166,8 +166,11 @@ function selectClassName() {
  *
  * `mode` (plan.md Item 21): 'legacy' (default) targets the single-"current"-
  * campaign endpoints (generateCampaign/updateCampaign, resolved server-side
- * via ensureCampaign's active-then-newest fallback) -- unchanged behavior for
- * not-yet-migrated callers. 'new' targets the :campaignId-scoped endpoints
+ * via findCurrentCampaignId's active-then-newest fallback -- this mode is
+ * only ever reached from CampaignEditorTab, i.e. once a campaign already
+ * exists, so the 2026-09-15 removal of the old auto-create-on-write
+ * resolver doesn't affect it: there's always a campaign for it to resolve
+ * to). Unchanged behavior for not-yet-migrated callers. 'new' targets the :campaignId-scoped endpoints
  * (createCampaign always makes a fresh row; updateCampaignById activates
  * that exact row) for the campaign list page's "ایجاد کمپین" flow, which
  * must never reuse/overwrite an existing campaign. `onLaunched` receives the
