@@ -599,6 +599,16 @@ async function deleteCustomerCompletely(db: D1Database, customerId: string): Pro
   }
 
   await execute(db, "DELETE FROM customer_campaign_codes WHERE customer_id = ?", [customerId]);
+
+  // point_carryovers.customer_id is a real FK to customers.id (D1 runs with
+  // foreign_keys=ON) -- any row where this customer was the carryover's
+  // origin must go before the customers row itself. Any points_ledger row
+  // that credited via one of these carryovers was already removed above
+  // (points_ledger.customer_campaign_code_id is NOT NULL, so a carryover
+  // credit always lands on one of this same customer's own codes, already
+  // covered by the customer_campaign_code_id-scoped delete a few lines up).
+  await execute(db, "DELETE FROM point_carryovers WHERE customer_id = ?", [customerId]);
+
   await execute(db, "DELETE FROM customers WHERE id = ?", [customerId]);
 
   return { ok: true };
@@ -637,11 +647,30 @@ async function deleteBusinessCompletely(db: D1Database, businessId: string): Pro
   await deleteMicrositeForBusiness(db, businessId);
 
   await execute(db, "DELETE FROM staff WHERE business_id = ?", [businessId]);
+
+  // notifications_log.business_contact_id is a real FK to business_contacts.id
+  // (foreign_keys=ON) -- null it out (the column is nullable) rather than
+  // deleting the log rows outright, since sms_wallet_transactions.notification_log_id
+  // in turn references notifications_log.id and this keeps that side untouched.
+  await execute(
+    db,
+    "UPDATE notifications_log SET business_contact_id = NULL WHERE business_contact_id IN (SELECT id FROM business_contacts WHERE business_id = ?)",
+    [businessId]
+  );
   await execute(db, "DELETE FROM business_contacts WHERE business_id = ?", [businessId]);
   await execute(db, "DELETE FROM business_subscriptions WHERE business_id = ?", [businessId]);
   await execute(db, "DELETE FROM sms_wallet_transactions WHERE business_id = ?", [businessId]);
   await execute(db, "DELETE FROM business_checklist_progress WHERE business_id = ?", [businessId]);
   await execute(db, "DELETE FROM business_ai_constraints WHERE business_id = ?", [businessId]);
+
+  // Defensive only, expected to affect 0 rows in practice: the campaign-
+  // deletion loop above already removes every point_carryovers row sourced
+  // from one of this business's own campaigns (deleteCampaignForBusiness's
+  // own DELETE ... WHERE source_campaign_id = ?), and any points_ledger row
+  // crediting through one of those is cleared in that same function before
+  // the carryover row goes. This only catches a data-inconsistency edge
+  // case (a stray row whose business_id doesn't match any campaign this
+  // loop saw), so it's still guarded the same way.
   await execute(db, "DELETE FROM point_carryovers WHERE business_id = ?", [businessId]);
 
   await execute(db, "DELETE FROM businesses WHERE id = ?", [businessId]);
