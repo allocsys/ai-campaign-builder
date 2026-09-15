@@ -1482,9 +1482,18 @@ businessRouter.get("/suggestions", async (c) => {
 });
 
 async function loadOwnedSuggestion(db: D1Database, businessId: string, suggestionId: string) {
-  return queryFirst<{ id: string; risk_tier: string; change_type: string; rationale: string | null; status: string }>(
+  return queryFirst<{
+    id: string;
+    campaign_id: string;
+    risk_tier: string;
+    change_type: string;
+    target_id: string | null;
+    suggested_value: string | null;
+    rationale: string | null;
+    status: string;
+  }>(
     db,
-    `SELECT sc.id, sc.risk_tier, sc.change_type, sc.rationale, sc.status
+    `SELECT sc.id, sc.campaign_id, sc.risk_tier, sc.change_type, sc.target_id, sc.suggested_value, sc.rationale, sc.status
      FROM suggested_changes sc JOIN campaigns cp ON cp.id = sc.campaign_id
      WHERE sc.id = ? AND cp.business_id = ?`,
     [suggestionId, businessId]
