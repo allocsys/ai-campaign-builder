@@ -197,7 +197,6 @@ describe("Staff POS Routes (/api/staff)", () => {
       const posPatternRepeat = await env.DB.prepare("SELECT id FROM task_patterns WHERE name = 'repeat_purchase'").first();
       const posPatternStreak = await env.DB.prepare("SELECT id FROM task_patterns WHERE name = 'milestone_streak'").first();
 
-      await env.DB.prepare("INSERT INTO campaigns (id, business_id, goal, status) VALUES (?, ?, 'retention', 'active')").bind(streakCampaignId, bizId).run();
       // Different business than sp_biz_1's campaign -- findActiveCampaignId
       // picks the ACTIVE campaign for a business, and sp_biz_1 already has
       // one (sp_camp_1). Give this streak scenario its own business so both
@@ -206,7 +205,6 @@ describe("Staff POS Routes (/api/staff)", () => {
       const streakOwnerId = "sp_owner_streak";
       await env.DB.prepare("INSERT INTO business_owners (id, phone, phone_verified) VALUES (?, '09126660099', 1)").bind(streakOwnerId).run();
       await env.DB.prepare("INSERT INTO businesses (id, owner_id, name, category_id) VALUES (?, ?, 'Streak Test Gym', ?)").bind(streakBizId, streakOwnerId, cat?.id).run();
-      await env.DB.prepare("DELETE FROM campaigns WHERE id = ?").bind(streakCampaignId).run();
       await env.DB.prepare("INSERT INTO campaigns (id, business_id, goal, status) VALUES (?, ?, 'retention', 'active')").bind(streakCampaignId, streakBizId).run();
       await env.DB.prepare("INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name) VALUES ('pos_task_streak_first', ?, ?, 30, 1, 'First Purchase')").bind(streakCampaignId, posPatternFirstAction?.id).run();
       await env.DB.prepare("INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name) VALUES ('pos_task_streak_repeat', ?, ?, 15, 2, 'Repeat Purchase')").bind(streakCampaignId, posPatternRepeat?.id).run();
