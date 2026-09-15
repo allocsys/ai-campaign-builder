@@ -5,7 +5,7 @@ import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { generateCampaignProposal } from "../lib/campaign-generator";
-import { validateMicrositeSlug } from "@ai-campaign-builder/shared-config";
+import { validateMicrositeSlug, MICROSITE_ADDON_MONTHLY_PRICE_TOMAN } from "@ai-campaign-builder/shared-config";
 import { parseNaturalLanguageCampaignRequest } from "../lib/campaign-agent";
 import { loadChatHistory, appendChatTurns } from "../lib/chat-history";
 
