@@ -9,7 +9,7 @@
     "start": "wrangler dev",
     "typecheck": "react-router typegen && tsc -b --noEmit",
     "lint": "eslint .",
-    "test": "echo \"no tests yet\" && exit 0",
+    "test": "vitest run",
     "deploy": "wrangler deploy"
   },
   "dependencies": {
