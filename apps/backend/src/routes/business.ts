@@ -55,16 +55,27 @@ businessRouter.use("/*", async (c, next) => {
 // defensive/future-proofing rather than reachable today.
 businessRouter.use("/*", async (c, next) => {
   const auth = c.get("auth");
-  const ownerExists = await queryFirst<{ id: string }>(c.env.DB, "SELECT id FROM business_owners WHERE id = ?", [
-    auth.sub,
-  ]);
-  if (!ownerExists) {
+  // Perf fix (dashboard-perf branch): this used to be two sequential
+  // round-trips (SELECT business_owners, then SELECT businesses) on EVERY
+  // single /api/business/* request. A LEFT JOIN gets both answers -- does
+  // the owner still exist, and if so what's their business id (if any) --
+  // in one query. `business_id` is NULL both when the owner row itself
+  // doesn't exist (row is null entirely) and when the owner exists but has
+  // no business yet, so the ownerExists/business?.id distinction from the
+  // old code is preserved via `row` (null => 403) vs `row.business_id`
+  // (null => brand-new owner, same fallback as before).
+  const row = await queryFirst<{ business_id: string | null }>(
+    c.env.DB,
+    `SELECT b.id AS business_id
+     FROM business_owners bo
+     LEFT JOIN businesses b ON b.owner_id = bo.id
+     WHERE bo.id = ?`,
+    [auth.sub]
+  );
+  if (!row) {
     return c.json({ error: "This account no longer exists.", code: "business_account_deleted" }, 403);
   }
-  const business = await queryFirst<{ id: string }>(c.env.DB, "SELECT id FROM businesses WHERE owner_id = ?", [
-    auth.sub,
-  ]);
-  c.set("auth", { ...auth, ownerId: auth.sub, sub: business?.id ?? auth.sub });
+  c.set("auth", { ...auth, ownerId: auth.sub, sub: row.business_id ?? auth.sub });
   await next();
 });
 
