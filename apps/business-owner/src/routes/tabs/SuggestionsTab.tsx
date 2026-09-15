@@ -9,7 +9,12 @@ type Status = 'pending' | 'applied' | 'dismissed'
 /**
  * Phase 3 human-in-the-loop suggestions. Fetches suggested changes and handles Apply/Dismiss API calls.
  */
-export function SuggestionsTab() {
+export function SuggestionsTab({
+  onPendingCountChange,
+}: {
+  /** Called whenever the pending-suggestions count changes, so a parent (e.g. the tab header) can show a badge. */
+  onPendingCountChange?: (count: number) => void
+} = {}) {
   const [changes, setChanges] = useState<(SuggestedChange & { status: Status })[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +40,13 @@ export function SuggestionsTab() {
       mounted = false
     }
   }, [])
+
+  // Keep the caller (InsightsAndSuggestionsTab's header badge, per design.md)
+  // in sync with the live pending count -- fires on initial load and on every
+  // apply/dismiss, since those update `changes` too.
+  useEffect(() => {
+    onPendingCountChange?.(changes.filter((c) => c.status === 'pending').length)
+  }, [changes, onPendingCountChange])
 
   const handleApply = async (id: string) => {
     setItemErrors((prev) => ({ ...prev, [id]: '' }))
