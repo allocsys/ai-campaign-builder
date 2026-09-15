@@ -29,7 +29,7 @@ export function InsightsAndSuggestionsTab() {
           <h2 className="text-base font-bold text-slate-100">پیشنهادهای بهبود کمپین</h2>
           {pendingCount > 0 && (
             <Badge tone="warning" className="text-[11px] px-2 py-0.5">
-              {pendingCount > 99 ? '۹۹+' : pendingCount}
+              {pendingCount > 99 ? '99+' : pendingCount}
             </Badge>
           )}
         </div>
