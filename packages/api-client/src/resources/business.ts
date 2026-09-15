@@ -14,6 +14,7 @@ import type {
   CampaignChatResult,
   AutopilotState,
   MicrositeState,
+  MicrositeEligibility,
   Subscription,
   SendLogEntry,
   StaffMember,
@@ -186,6 +187,37 @@ export async function updateMicrositeState(
 ): Promise<MicrositeState> {
   return client.request<MicrositeState>('/api/business/microsite', {
     method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * "Request a microsite for an existing campaign" entry point -- checked by
+ * MicrositeBuilderTab only when getMicrositeState() has already 404d with
+ * code 'microsite_not_created', to decide whether to show the buy-and-
+ * activate card (a campaign exists) or the plain "create a campaign first"
+ * message (it doesn't).
+ */
+export async function getMicrositeEligibility(client: ApiClient): Promise<MicrositeEligibility> {
+  return client.request<MicrositeEligibility>('/api/business/microsite/eligibility');
+}
+
+/**
+ * Creates and activates the business's microsite (add-on turned on
+ * immediately) -- the counterpart to the campaign wizard's "wantsSite"
+ * checkbox, for a business that skipped it and wants one later. subdomainSlug
+ * is optional -- send the (possibly owner-edited) suggestedSlug from
+ * getMicrositeEligibility, or omit it to accept the server's own default.
+ * Once this resolves, the returned MicrositeState is the same shape
+ * getMicrositeState()/updateMicrositeState() already use, so the caller can
+ * drop straight into the normal builder view.
+ */
+export async function activateMicrosite(
+  client: ApiClient,
+  data: { subdomainSlug?: string }
+): Promise<MicrositeState> {
+  return client.request<MicrositeState>('/api/business/microsite/activate', {
+    method: 'POST',
     body: JSON.stringify(data),
   });
 }
