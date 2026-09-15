@@ -84,12 +84,28 @@ async function findEligiblePosScanTasks(
     [campaignId]
   );
 
+  // Notion issue ai-campaign-builder-issue-purchase-streak-points: 1st
+  // purchase = first_action, every purchase after that = repeat_purchase,
+  // EXCEPT every 3rd purchase (3rd, 6th, 9th, ...) which should re-award the
+  // bigger "streak" bonus (milestone_streak) INSTEAD of repeat_purchase, not
+  // in addition to it -- the issue's own wording ("دوباره ۳۰ امتیاز بشه",
+  // i.e. the purchase's award becomes the bonus amount again) describes a
+  // replacement, not a stack. Only kicks in when the campaign actually has a
+  // milestone_streak task configured (most don't, e.g. campaign "Harley" has
+  // none yet) -- campaigns without one keep the exact pre-existing behavior,
+  // repeat_purchase on every purchaseCount > 1.
+  const hasMilestoneStreakTask = rows.some((r) => r.pattern_name === "milestone_streak");
+  const isStreakPurchase = hasMilestoneStreakTask && purchaseCount > 0 && purchaseCount % 3 === 0;
+
   return rows.filter((r) => {
     if (r.pattern_name === "first_action") {
       return purchaseCount === 1;
     }
+    if (r.pattern_name === "milestone_streak") {
+      return isStreakPurchase;
+    }
     if (r.pattern_name === "repeat_purchase") {
-      return purchaseCount > 1;
+      return purchaseCount > 1 && !isStreakPurchase;
     }
     return false;
   });
