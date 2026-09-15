@@ -61,6 +61,13 @@ function makeKey() {
     : `k_${Math.random().toString(36).slice(2)}`
 }
 
+function taskPatternLabel(value: string): string {
+  return TASK_PATTERN_OPTIONS.find((p) => p.value === value)?.labelFa ?? value
+}
+function rewardPatternLabel(value: string): string {
+  return REWARD_PATTERN_OPTIONS.find((p) => p.value === value)?.labelFa ?? value
+}
+
 interface EditableTask extends CampaignTask {
   clientKey: string
 }
@@ -83,12 +90,16 @@ export interface CampaignEditorProps {
   /** Called after a successful save with the server's response. */
   onSaved?: (updated: Campaign) => void
   /**
-   * View-only mode -- disables every input, hides add/remove controls and
-   * the save/discard row entirely. Used by business-owner's CampaignEditorTab
-   * when the business's manualEditorEnabled is off but they still reached
-   * this page (e.g. via the bottom-nav Campaign button once a real campaign
-   * exists) -- lets them see current tasks/rewards without being able to
-   * change anything. review-console's admin view never sets this (admin
+   * View-only mode -- renders tasks/rewards as compact info rows (name,
+   * pattern, points/threshold badge) instead of the editable form fields,
+   * and hides add/remove controls and the save/discard row entirely. Used
+   * by business-owner's CampaignEditorTab when the business's
+   * manualEditorEnabled is off but they still reached this page (e.g. via
+   * the bottom-nav Campaign button once a real campaign exists) -- lets
+   * them see current tasks/rewards without the disabled-looking input
+   * boxes a plain `disabled` pass-through used to render (2026-09-15 fix:
+   * those looked like leftover editable fields and duplicated info already
+   * on the dashboard). review-console's admin view never sets this (admin
    * access is unconditional).
    */
   readOnly?: boolean
@@ -193,7 +204,20 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
           {tasks.length === 0 && (
             <p className="text-xs text-slate-500 text-center py-2">هنوز تسکی وجود ندارد.</p>
           )}
-          {tasks.map((t) => (
+          {readOnly
+            ? tasks.map((t) => (
+                <div
+                  key={t.clientKey}
+                  className="flex items-center justify-between gap-3 rounded-xl2 border border-glass-border bg-glass-light px-3.5 py-2.5"
+                >
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-sm text-slate-100 truncate">{t.name}</span>
+                    <span className="text-xs text-slate-500">{taskPatternLabel(t.pattern)}</span>
+                  </div>
+                  <Badge tone="brand" className="shrink-0">+{t.points}</Badge>
+                </div>
+              ))
+            : tasks.map((t) => (
             <div key={t.clientKey} className="flex flex-col gap-2 rounded-xl2 border border-glass-border p-3">
               <div className="flex items-end gap-2">
                 <div className="flex-1">
@@ -201,19 +225,17 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                     label="نام تسک"
                     value={t.name}
                     onChange={(e) => updateTask(t.clientKey, { name: e.target.value })}
-                    disabled={saving || readOnly}
+                    disabled={saving}
                   />
                 </div>
-                {!readOnly && (
-                  <button
-                    type="button"
-                    onClick={() => removeTask(t.clientKey)}
-                    disabled={saving}
-                    className="text-xs text-red-400 hover:text-red-300 shrink-0 py-2.5"
-                  >
-                    حذف
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removeTask(t.clientKey)}
+                  disabled={saving}
+                  className="text-xs text-red-400 hover:text-red-300 shrink-0 py-2.5"
+                >
+                  حذف
+                </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1.5">
@@ -222,7 +244,7 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                     className={selectClassName()}
                     value={t.pattern}
                     onChange={(e) => updateTask(t.clientKey, { pattern: e.target.value })}
-                    disabled={saving || readOnly}
+                    disabled={saving}
                   >
                     {TASK_PATTERN_OPTIONS.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -237,7 +259,7 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                   inputMode="numeric"
                   value={String(t.points)}
                   onChange={(e) => updateTask(t.clientKey, { points: Number(e.target.value) || 0 })}
-                  disabled={saving || readOnly}
+                  disabled={saving}
                 />
               </div>
             </div>
@@ -258,7 +280,20 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
           {rewards.length === 0 && (
             <p className="text-xs text-slate-500 text-center py-2">هنوز پاداشی وجود ندارد.</p>
           )}
-          {rewards.map((r) => (
+          {readOnly
+            ? rewards.map((r) => (
+                <div
+                  key={r.clientKey}
+                  className="flex items-center justify-between gap-3 rounded-xl2 border border-glass-border bg-glass-light px-3.5 py-2.5"
+                >
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-sm text-slate-100 truncate">{r.name}</span>
+                    <span className="text-xs text-slate-500">{rewardPatternLabel(r.pattern)}</span>
+                  </div>
+                  <Badge tone="warning" className="shrink-0">{r.threshold} امتیاز</Badge>
+                </div>
+              ))
+            : rewards.map((r) => (
             <div key={r.clientKey} className="flex flex-col gap-2 rounded-xl2 border border-glass-border p-3">
               <div className="flex items-end gap-2">
                 <div className="flex-1">
@@ -266,19 +301,17 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                     label="نام پاداش"
                     value={r.name}
                     onChange={(e) => updateReward(r.clientKey, { name: e.target.value })}
-                    disabled={saving || readOnly}
+                    disabled={saving}
                   />
                 </div>
-                {!readOnly && (
-                  <button
-                    type="button"
-                    onClick={() => removeReward(r.clientKey)}
-                    disabled={saving}
-                    className="text-xs text-red-400 hover:text-red-300 shrink-0 py-2.5"
-                  >
-                    حذف
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removeReward(r.clientKey)}
+                  disabled={saving}
+                  className="text-xs text-red-400 hover:text-red-300 shrink-0 py-2.5"
+                >
+                  حذف
+                </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1.5">
@@ -287,7 +320,7 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                     className={selectClassName()}
                     value={r.pattern}
                     onChange={(e) => updateReward(r.clientKey, { pattern: e.target.value })}
-                    disabled={saving || readOnly}
+                    disabled={saving}
                   >
                     {REWARD_PATTERN_OPTIONS.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -302,7 +335,7 @@ export function CampaignEditor({ campaign, onSave, onSaved, readOnly = false, cl
                   inputMode="numeric"
                   value={String(r.threshold)}
                   onChange={(e) => updateReward(r.clientKey, { threshold: Number(e.target.value) || 0 })}
-                  disabled={saving || readOnly}
+                  disabled={saving}
                 />
               </div>
             </div>
