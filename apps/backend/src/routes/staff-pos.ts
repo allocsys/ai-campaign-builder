@@ -52,16 +52,63 @@ async function findActiveCampaignId(db: D1Database, businessId: string): Promise
   return row?.id ?? null;
 }
 
-// The single pos_scan-verified task for a campaign -- same lookup pattern as
-// customer.ts's /retro-claims, and the source of the flat points-per-purchase
-// value (no amount-based formula exists anywhere else in this schema).
-async function findPosScanTask(db: D1Database, campaignId: string) {
-  return queryFirst<{ id: string; points_value: number }>(
+async function incrementPurchaseCount(db: D1Database, customerCampaignCodeId: string): Promise<number> {
+  await execute(
     db,
-    `SELECT ct.id, ct.points_value FROM campaign_tasks ct
+    `INSERT INTO customer_purchase_counts (customer_campaign_code_id, purchase_count, updated_at)
+     VALUES (?, 1, ?)
+     ON CONFLICT(customer_campaign_code_id) DO UPDATE SET
+       purchase_count = purchase_count + 1,
+       updated_at = excluded.updated_at`,
+    [customerCampaignCodeId, nowIso()]
+  );
+  const row = await queryFirst<{ purchase_count: number }>(
+    db,
+    "SELECT purchase_count FROM customer_purchase_counts WHERE customer_campaign_code_id = ?",
+    [customerCampaignCodeId]
+  );
+  return row?.purchase_count ?? 1;
+}
+
+async function findEligiblePosScanTasks(
+  db: D1Database,
+  campaignId: string,
+  purchaseCount: number
+): Promise<Array<{ id: string; points_value: number; pattern_name: string }>> {
+  const rows = await queryAll<{ id: string; points_value: number; pattern_name: string }>(
+    db,
+    `SELECT ct.id, ct.points_value, tp.name AS pattern_name
+     FROM campaign_tasks ct
      JOIN task_patterns tp ON tp.id = ct.task_pattern_id
-     WHERE ct.campaign_id = ? AND tp.verification_method = 'pos_scan' LIMIT 1`,
+     WHERE ct.campaign_id = ? AND tp.verification_method = 'pos_scan'`,
     [campaignId]
+  );
+
+  return rows.filter((r) => {
+    if (r.pattern_name === "first_action") {
+      return purchaseCount === 1;
+    }
+    if (r.pattern_name === "repeat_purchase") {
+      return purchaseCount > 1;
+    }
+    return false;
+  });
+}
+
+async function findPosScanTasksByNames(
+  db: D1Database,
+  campaignId: string,
+  patternNames: string[]
+): Promise<Array<{ id: string; points_value: number; pattern_name: string }>> {
+  if (!patternNames || patternNames.length === 0) return [];
+  const placeholders = patternNames.map(() => "?").join(", ");
+  return queryAll<{ id: string; points_value: number; pattern_name: string }>(
+    db,
+    `SELECT ct.id, ct.points_value, tp.name AS pattern_name
+     FROM campaign_tasks ct
+     JOIN task_patterns tp ON tp.id = ct.task_pattern_id
+     WHERE ct.campaign_id = ? AND tp.verification_method = 'pos_scan' AND tp.name IN (${placeholders})`,
+    [campaignId, ...patternNames]
   );
 }
 
@@ -121,6 +168,7 @@ staffPosRouter.post("/purchases", async (c) => {
     personalCode?: string;
     amountToman?: number;
     idempotencyKey?: string;
+    taskPatternNames?: string[];
   }>();
 
   if (!body.personalCode) {
@@ -148,34 +196,68 @@ staffPosRouter.post("/purchases", async (c) => {
     }
   }
 
-  const task = await findPosScanTask(db, campaignId);
-  if (!task) return c.json({ error: "No POS-verified task configured for this campaign" }, 400);
+  const purchaseCount = await incrementPurchaseCount(db, code.id);
+  const eligibleTasks = await findEligiblePosScanTasks(db, campaignId, purchaseCount);
+  let tasksToAward = [...eligibleTasks];
 
-  const submissionId = generateId();
-  await execute(
-    db,
-    `INSERT INTO task_submissions
-       (id, customer_campaign_code_id, campaign_task_id, submission_type, status, reviewed_by, reviewed_at, points_awarded, submitted_at, idempotency_key)
-     VALUES (?, ?, ?, 'pos_scan', 'approved', 'business_owner', ?, ?, ?, ?)`,
-    [submissionId, code.id, task.id, nowIso(), task.points_value, nowIso(), body.idempotencyKey ?? null]
-  );
-  await execute(
-    db,
-    `INSERT INTO purchase_logs (id, task_submission_id, amount, synced_from_offline, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
-    [generateId(), submissionId, body.amountToman ?? null, body.idempotencyKey ? 1 : 0, nowIso()]
-  );
-  await execute(
-    db,
-    `INSERT INTO points_ledger (id, customer_campaign_code_id, task_submission_id, entry_type, points, created_at)
-     VALUES (?, ?, ?, 'earned', ?, ?)`,
-    [generateId(), code.id, submissionId, task.points_value, nowIso()]
-  );
+  if (body.taskPatternNames && body.taskPatternNames.length > 0) {
+    const explicitTasks = await findPosScanTasksByNames(db, campaignId, body.taskPatternNames);
+    for (const t of explicitTasks) {
+      if (!tasksToAward.some((existing) => existing.id === t.id)) {
+        tasksToAward.push(t);
+      }
+    }
+  }
+
+  if (tasksToAward.length === 0) {
+    return c.json({ error: "No POS-verified task configured for this campaign" }, 400);
+  }
+
+  let totalPointsAwarded = 0;
+  const tasksAwarded: string[] = [];
+  let firstSubmissionId: string | null = null;
+
+  for (let i = 0; i < tasksToAward.length; i++) {
+    const task = tasksToAward[i];
+    const submissionId = generateId();
+    if (i === 0) {
+      firstSubmissionId = submissionId;
+    }
+
+    await execute(
+      db,
+      `INSERT INTO task_submissions
+         (id, customer_campaign_code_id, campaign_task_id, submission_type, status, reviewed_by, reviewed_at, points_awarded, submitted_at, idempotency_key)
+       VALUES (?, ?, ?, 'pos_scan', 'approved', 'business_owner', ?, ?, ?, ?)`,
+      [submissionId, code.id, task.id, nowIso(), task.points_value, nowIso(), i === 0 ? (body.idempotencyKey ?? null) : null]
+    );
+
+    if (i === 0) {
+      await execute(
+        db,
+        `INSERT INTO purchase_logs (id, task_submission_id, amount, synced_from_offline, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [generateId(), submissionId, body.amountToman ?? null, body.idempotencyKey ? 1 : 0, nowIso()]
+      );
+    }
+
+    await execute(
+      db,
+      `INSERT INTO points_ledger (id, customer_campaign_code_id, task_submission_id, entry_type, points, created_at)
+       VALUES (?, ?, ?, 'earned', ?, ?)`,
+      [generateId(), code.id, submissionId, task.points_value, nowIso()]
+    );
+
+    totalPointsAwarded += task.points_value;
+    tasksAwarded.push(task.pattern_name);
+  }
 
   return c.json({
     status: "synced" as const,
-    submissionId,
-    pointsAwarded: task.points_value,
+    submissionId: firstSubmissionId,
+    pointsAwarded: totalPointsAwarded,
+    tasksAwarded,
+    purchaseCount,
     loggedBy: staffId,
   });
 });
@@ -274,6 +356,7 @@ interface OfflineQueueItemIn {
   actionType: "purchase" | "fulfill_reward";
   amountToman?: number;
   redemptionCode?: string;
+  taskPatternNames?: string[];
 }
 
 staffPosRouter.post("/sync", async (c) => {
@@ -328,45 +411,80 @@ staffPosRouter.post("/sync", async (c) => {
         "SELECT id FROM customer_campaign_codes WHERE personal_code = ? AND campaign_id = ?",
         [item.personalCode, campaignId]
       );
-      const task = code ? await findPosScanTask(db, campaignId) : null;
-      if (!code || !task) {
+      if (!code) {
         results.push({
           itemId: item.id,
           idempotencyKey: item.idempotencyKey,
           actionType: item.actionType,
           status: "invalid_skipped",
-          reason: "Invalid customer code or no POS task configured for this campaign.",
+          reason: "Invalid customer code.",
         });
         continue;
       }
 
-      const submissionId = generateId();
-      await execute(
-        db,
-        `INSERT INTO task_submissions
-           (id, customer_campaign_code_id, campaign_task_id, submission_type, status, reviewed_by, reviewed_at, points_awarded, submitted_at, idempotency_key)
-         VALUES (?, ?, ?, 'pos_scan', 'approved', 'business_owner', ?, ?, ?, ?)`,
-        [submissionId, code.id, task.id, nowIso(), task.points_value, nowIso(), item.idempotencyKey]
-      );
-      await execute(
-        db,
-        `INSERT INTO purchase_logs (id, task_submission_id, amount, synced_from_offline, created_at)
-         VALUES (?, ?, ?, 1, ?)`,
-        [generateId(), submissionId, item.amountToman ?? null, nowIso()]
-      );
-      await execute(
-        db,
-        `INSERT INTO points_ledger (id, customer_campaign_code_id, task_submission_id, entry_type, points, created_at)
-         VALUES (?, ?, ?, 'earned', ?, ?)`,
-        [generateId(), code.id, submissionId, task.points_value, nowIso()]
-      );
+      const purchaseCount = await incrementPurchaseCount(db, code.id);
+      const eligibleTasks = await findEligiblePosScanTasks(db, campaignId, purchaseCount);
+      let tasksToAward = [...eligibleTasks];
+
+      if (item.taskPatternNames && item.taskPatternNames.length > 0) {
+        const explicitTasks = await findPosScanTasksByNames(db, campaignId, item.taskPatternNames);
+        for (const t of explicitTasks) {
+          if (!tasksToAward.some((existing) => existing.id === t.id)) {
+            tasksToAward.push(t);
+          }
+        }
+      }
+
+      if (tasksToAward.length === 0) {
+        results.push({
+          itemId: item.id,
+          idempotencyKey: item.idempotencyKey,
+          actionType: item.actionType,
+          status: "invalid_skipped",
+          reason: "No POS task configured or eligible for this purchase.",
+        });
+        continue;
+      }
+
+      let totalPointsAwarded = 0;
+
+      for (let i = 0; i < tasksToAward.length; i++) {
+        const task = tasksToAward[i];
+        const submissionId = generateId();
+
+        await execute(
+          db,
+          `INSERT INTO task_submissions
+             (id, customer_campaign_code_id, campaign_task_id, submission_type, status, reviewed_by, reviewed_at, points_awarded, submitted_at, idempotency_key)
+           VALUES (?, ?, ?, 'pos_scan', 'approved', 'business_owner', ?, ?, ?, ?)`,
+          [submissionId, code.id, task.id, nowIso(), task.points_value, nowIso(), i === 0 ? item.idempotencyKey : null]
+        );
+
+        if (i === 0) {
+          await execute(
+            db,
+            `INSERT INTO purchase_logs (id, task_submission_id, amount, synced_from_offline, created_at)
+             VALUES (?, ?, ?, 1, ?)`,
+            [generateId(), submissionId, item.amountToman ?? null, nowIso()]
+          );
+        }
+
+        await execute(
+          db,
+          `INSERT INTO points_ledger (id, customer_campaign_code_id, task_submission_id, entry_type, points, created_at)
+           VALUES (?, ?, ?, 'earned', ?, ?)`,
+          [generateId(), code.id, submissionId, task.points_value, nowIso()]
+        );
+
+        totalPointsAwarded += task.points_value;
+      }
 
       results.push({
         itemId: item.id,
         idempotencyKey: item.idempotencyKey,
         actionType: item.actionType,
         status: "synced",
-        pointsAwarded: task.points_value,
+        pointsAwarded: totalPointsAwarded,
         reason: "Purchase synced and points awarded.",
       });
     } else {
@@ -387,14 +505,6 @@ staffPosRouter.post("/sync", async (c) => {
         nowIso(),
         row.id,
       ]);
-      // Reward fulfillment doesn't create a task_submission (points were
-      // already deducted at redeem time), so there's no natural row to hang
-      // the idempotency_key off. Recorded on a lightweight marker instead:
-      // reuse task_submissions with a null campaign_task_id would violate
-      // the NOT NULL constraint, so instead we rely on reward_redemptions'
-      // own status check above (fulfilling an already-fulfilled redemption
-      // is itself naturally idempotent-safe) rather than the idempotency_key
-      // index for this action type.
       results.push({
         itemId: item.id,
         idempotencyKey: item.idempotencyKey,
@@ -467,9 +577,6 @@ staffPosRouter.get("/activity", async (c) => {
       amountToman: p.amount ?? null,
       pointsAwarded: p.points_awarded ?? 0,
       createdAt: p.created_at,
-      // All rows read here are already persisted in D1, so they're "synced"
-      // by definition -- a "queued" status only exists client-side, before
-      // an item has been sent to /sync at all.
       status: "synced" as const,
     })),
     ...fulfillments.map((f) => ({
@@ -487,24 +594,7 @@ staffPosRouter.get("/activity", async (c) => {
 });
 
 // ============================================================================
-// Firsthand verification queue -- social_proof/review_ugc screenshot
-// submissions (Instagram story/post shares, written reviews) AND
-// receipt_claim submissions (retroactive purchase claims) both land here now
-// instead of the central review console (review.ts) -- staff know their own
-// business's receipts/products firsthand, which the central review team
-// never could. AI-scored submissions only reach this queue at all when their
-// confidence score is below the auto-approve threshold, or scoring
-// failed/wasn't configured (see customer.ts's applyVisionScoreAndMaybeAutoApprove) --
-// high-confidence submissions are auto-approved before ever showing up here.
-// Scoped to this business only (unlike review.ts's old cross-business
-// review_team queue), same businessId-through-campaigns join pattern as the
-// rest of this router.
-//
-// receipt_claim rows aren't tied to a social_proof/review_ugc task_pattern
-// the way screenshot rows are (they're attached to the campaign's pos_scan
-// task instead -- see customer.ts's /retro-claims) -- so the two submission
-// types need separate join conditions, OR'd together, rather than one shared
-// tp.name filter.
+// Firsthand verification queue
 // ============================================================================
 
 staffPosRouter.get("/submissions", async (c) => {
@@ -566,10 +656,6 @@ staffPosRouter.get("/submissions", async (c) => {
   );
 });
 
-// Same private-B2-bucket proxy pattern as review.ts's evidence endpoint, but
-// scoped to this business -- the join through campaigns.business_id is what
-// prevents one business's staff from viewing another business's evidence
-// images by guessing submission ids.
 staffPosRouter.get("/submissions/:id/evidence", async (c) => {
   const db = c.env.DB;
   const businessId = c.get("auth").businessId as string;
@@ -641,13 +727,6 @@ staffPosRouter.post("/submissions/:id/resolve", async (c) => {
 
   const pointsAwarded = body.decision === "approved" ? task.points_value : 0;
 
-  // reviewed_by is a fixed-value CHECK column ('ai' | 'central_team' |
-  // 'business_owner' -- migration 0001_init.sql), with no distinct value for
-  // staff. Reusing 'business_owner' here follows the exact same convention
-  // already used a few lines up in /purchases and /sync for staff-initiated
-  // pos_scan approvals -- the real staff identity is captured in
-  // reviewed_by_user_id (auth.sub) instead, same as pos_scan does not track
-  // it at all today but review.ts's newer convention does.
   await execute(
     db,
     "UPDATE task_submissions SET status = ?, reviewed_by = 'business_owner', reviewed_by_user_id = ?, reviewed_at = ?, points_awarded = ? WHERE id = ?",
