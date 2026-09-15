@@ -1,6 +1,7 @@
 import { ApiClient } from '../client';
 import type {
   StaffPosCustomerLookupResponse,
+  StaffPosTaskOption,
   StaffPosLogPurchaseRequest,
   StaffPosLogPurchaseResponse,
   StaffPosRedemptionResponse,
@@ -19,6 +20,12 @@ export async function getCustomerByCode(
   return client.request<StaffPosCustomerLookupResponse>(
     `/api/staff/customers/${encodeURIComponent(code)}`
   );
+}
+
+export async function getPosTaskOptions(
+  client: ApiClient
+): Promise<StaffPosTaskOption[]> {
+  return client.request<StaffPosTaskOption[]>('/api/staff/pos-tasks');
 }
 
 export async function logPurchase(
