@@ -152,6 +152,31 @@ staffPosRouter.get("/customers/:code", async (c) => {
   });
 });
 
+staffPosRouter.get("/pos-tasks", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").businessId as string;
+
+  const campaignId = await findActiveCampaignId(db, businessId);
+  if (!campaignId) return c.json({ error: "No campaign found for this business" }, 404);
+
+  const rows = await queryAll<{ points_value: number; pattern_name: string; task_name: string }>(
+    db,
+    `SELECT ct.points_value, tp.name AS pattern_name, ct.name AS task_name
+     FROM campaign_tasks ct
+     JOIN task_patterns tp ON tp.id = ct.task_pattern_id
+     WHERE ct.campaign_id = ? AND tp.verification_method = 'pos_scan' AND tp.name NOT IN ('first_action', 'repeat_purchase')`,
+    [campaignId]
+  );
+
+  return c.json(
+    rows.map((r) => ({
+      patternName: r.pattern_name,
+      taskName: r.task_name,
+      pointsValue: r.points_value,
+    }))
+  );
+});
+
 // ============================================================================
 // Purchase logging (POS scan) -- creates an approved task_submission +
 // purchase_logs row + points_ledger entry in one go, same two-step

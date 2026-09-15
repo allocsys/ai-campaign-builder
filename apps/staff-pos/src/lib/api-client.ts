@@ -1,6 +1,7 @@
 import { ApiClient } from '@ai-campaign-builder/api-client'
 import {
   getCustomerByCode as _getCustomerByCode,
+  getPosTaskOptions as _getPosTaskOptions,
   logPurchase as _logPurchase,
   getRedemptionByCode as _getRedemptionByCode,
   fulfillRedemption as _fulfillRedemption,
@@ -30,6 +31,7 @@ export const apiClient = new ApiClient({
 })
 
 export const getCustomerByCode = (code: string) => _getCustomerByCode(apiClient, code)
+export const getPosTaskOptions = () => _getPosTaskOptions(apiClient)
 export const logPurchase = (data: any) => _logPurchase(apiClient, data)
 export const getRedemptionByCode = (code: string) => _getRedemptionByCode(apiClient, code)
 export const fulfillRedemption = (code: string) => _fulfillRedemption(apiClient, code)

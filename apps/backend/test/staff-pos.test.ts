@@ -75,6 +75,18 @@ describe("Staff POS Routes (/api/staff)", () => {
       expect(body.pointsBalance).toBe(0);
     });
 
+    it("lists only explicitly-selectable pos_scan task patterns, excluding first_action/repeat_purchase", async () => {
+      const res = await makeAppRequest("/api/staff/pos-tasks", {
+        headers: { Authorization: `Bearer ${staffToken}` },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json() as Array<{ patternName: string; taskName: string; pointsValue: number }>;
+      // first_action and repeat_purchase are auto-detected by purchase count
+      // and must never appear here -- only patterns staff must pick manually,
+      // like specific_product_push, are selectable.
+      expect(body).toEqual([{ patternName: "specific_product_push", taskName: "Specific Product", pointsValue: 10 }]);
+    });
+
     it("logs a customer's first-ever POS purchase and awards only the first_action task", async () => {
       const res = await makeAppRequest("/api/staff/purchases", {
         method: "POST",
