@@ -38,6 +38,16 @@ binding = "ASSETS"
 binding = "BACKEND"
 service = "ai-campaign-builder-backend"
 
+# Workers Logs -- was NOT enabled, same gap as apps/backend had before its
+# own 2026-09-15 fix (see that wrangler.toml's [observability] comment).
+# Without this, subdomain-resolution/template-selection logic in this SSR
+# renderer and its service-binding calls to the backend have zero log
+# visibility -- discovered while investigating the cafe-template-mismatch
+# and pos_scan points bugs, where backend logs helped confirm root causes
+# but this worker had nothing to check at all.
+[observability]
+enabled = true
+
 # TODO before first real deploy: set `routes` or a custom domain once business
 # domain/subdomain naming is decided (see plan.md Phase 5 "NEXT STEP" note —
 # not yet decided as of 2026-09-09). This app in particular needs a WILDCARD
