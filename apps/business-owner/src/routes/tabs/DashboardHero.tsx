@@ -74,7 +74,6 @@ export function DashboardHero({
 
       <div className="flex items-center gap-6 pt-3 border-t border-glass-border">
         <MiniStat label="هدف کمپین" value={goalLabel[campaign.goal]} tone="brand" />
-        <MiniStat label="ضریب امتیاز" value={`×${faDigits(campaign.pointMultiplier)}`} tone="success" />
         <MiniStat label="تسک‌های فعال" value={faDigits(campaign.tasks.length)} tone="warning" />
       </div>
 
