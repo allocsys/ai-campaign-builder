@@ -1377,37 +1377,43 @@ businessRouter.get("/campaigns/:campaignId/stats", async (c) => {
 // ============================================================================
 
 async function loadBusinessStats(db: D1Database, campaignId: string) {
-  const members = await queryFirst<{ count: number }>(
-    db,
-    "SELECT COUNT(*) AS count FROM customer_campaign_codes WHERE campaign_id = ?",
-    [campaignId]
-  );
-
-  const pointsIssued = await queryFirst<{ total: number }>(
-    db,
-    `SELECT COALESCE(SUM(pl.points), 0) AS total
-     FROM points_ledger pl JOIN customer_campaign_codes ccc ON ccc.id = pl.customer_campaign_code_id
-     WHERE ccc.campaign_id = ? AND pl.entry_type = 'earned'`,
-    [campaignId]
-  );
-
-  const redemptions = await queryFirst<{ count: number }>(
-    db,
-    `SELECT COUNT(*) AS count
-     FROM reward_redemptions rr JOIN customer_campaign_codes ccc ON ccc.id = rr.customer_campaign_code_id
-     WHERE ccc.campaign_id = ? AND rr.status = 'fulfilled'`,
-    [campaignId]
-  );
-
-  const funnel = await queryFirst<{ opportunities: number; conversions: number }>(
-    db,
-    `SELECT
-       COUNT(*) AS opportunities,
-       COALESCE(SUM(CASE WHEN ts.status = 'approved' THEN 1 ELSE 0 END), 0) AS conversions
-     FROM task_submissions ts JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
-     WHERE ccc.campaign_id = ?`,
-    [campaignId]
-  );
+  // Perf fix (dashboard-perf branch): these 4 queries are fully independent
+  // of each other (none reads a result the others produce), but used to run
+  // as 4 sequential awaits -- each paying its own D1 round-trip latency back
+  // to back. Promise.all fires them concurrently instead, so this function's
+  // total latency is roughly the slowest single query rather than the sum of
+  // all 4. Called on every dashboard load (GET /business/stats) plus GET
+  // /business/campaigns/:campaignId/stats.
+  const [members, pointsIssued, redemptions, funnel] = await Promise.all([
+    queryFirst<{ count: number }>(
+      db,
+      "SELECT COUNT(*) AS count FROM customer_campaign_codes WHERE campaign_id = ?",
+      [campaignId]
+    ),
+    queryFirst<{ total: number }>(
+      db,
+      `SELECT COALESCE(SUM(pl.points), 0) AS total
+       FROM points_ledger pl JOIN customer_campaign_codes ccc ON ccc.id = pl.customer_campaign_code_id
+       WHERE ccc.campaign_id = ? AND pl.entry_type = 'earned'`,
+      [campaignId]
+    ),
+    queryFirst<{ count: number }>(
+      db,
+      `SELECT COUNT(*) AS count
+       FROM reward_redemptions rr JOIN customer_campaign_codes ccc ON ccc.id = rr.customer_campaign_code_id
+       WHERE ccc.campaign_id = ? AND rr.status = 'fulfilled'`,
+      [campaignId]
+    ),
+    queryFirst<{ opportunities: number; conversions: number }>(
+      db,
+      `SELECT
+         COUNT(*) AS opportunities,
+         COALESCE(SUM(CASE WHEN ts.status = 'approved' THEN 1 ELSE 0 END), 0) AS conversions
+       FROM task_submissions ts JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
+       WHERE ccc.campaign_id = ?`,
+      [campaignId]
+    ),
+  ]);
 
   const opportunities = funnel?.opportunities ?? 0;
   const conversions = funnel?.conversions ?? 0;
