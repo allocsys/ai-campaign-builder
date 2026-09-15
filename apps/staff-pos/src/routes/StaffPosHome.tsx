@@ -3,6 +3,7 @@ import { Badge, Button, Card, Input, useToast } from '@ai-campaign-builder/ui-ki
 import { useAuth } from '../lib/auth'
 import {
   getCustomerByCode,
+  getPosTaskOptions,
   logPurchase,
   getRedemptionByCode,
   fulfillRedemption,
@@ -20,6 +21,12 @@ interface CustomerLookupData {
   name: string
   pointsBalance: number
   campaignId: string
+}
+
+interface PosTaskOptionData {
+  patternName: string
+  taskName: string
+  pointsValue: number
 }
 
 interface RedemptionLookupData {
@@ -48,6 +55,7 @@ interface OfflineQueueItemData {
   amountToman: number
   pointsAwarded: number
   createdAt: string
+  taskPatternNames?: string[]
 }
 
 interface SyncResultData {
@@ -133,6 +141,8 @@ export function StaffPosHome() {
   const [customerCode, setCustomerCode] = useState('48291')
   const [foundCustomer, setFoundCustomer] = useState<CustomerLookupData | null>(null)
   const [purchaseAmount, setPurchaseAmount] = useState('180000')
+  const [posTaskOptions, setPosTaskOptions] = useState<PosTaskOptionData[]>([])
+  const [selectedTaskPatterns, setSelectedTaskPatterns] = useState<Set<string>>(new Set())
 
   // Fulfill tab state
   const [redemptionCode, setRedemptionCode] = useState('')
@@ -161,6 +171,11 @@ export function StaffPosHome() {
       .catch(() => {
         // Non-fatal if offline on load
       })
+      
+    // Fetch task options
+    getPosTaskOptions()
+      .then(setPosTaskOptions)
+      .catch(() => {})
   }, [])
 
   // Load the pending screenshot queue the first time the tab is opened, and
@@ -283,6 +298,7 @@ export function StaffPosHome() {
     const code = customerCode.trim() || '48291'
     const amount = Number(purchaseAmount) || 180000
     const idempotencyKey = makeIdempotencyKey(code)
+    const taskPatternNames = selectedTaskPatterns.size > 0 ? Array.from(selectedTaskPatterns) : undefined
 
     if (isOffline) {
       setOfflineQueue((prev) => [
@@ -296,6 +312,7 @@ export function StaffPosHome() {
           amountToman: amount,
           pointsAwarded: ESTIMATED_PURCHASE_POINTS,
           createdAt: 'همین الان',
+          taskPatternNames,
         },
       ])
       addActivity({
@@ -316,6 +333,7 @@ export function StaffPosHome() {
           idempotencyKey,
           personalCode: code,
           amountToman: amount,
+          taskPatternNames,
         })
         setSyncedKeys((prev) => new Set(prev).add(idempotencyKey))
         if (result.status === 'duplicate_skipped') {
@@ -351,6 +369,7 @@ export function StaffPosHome() {
             amountToman: amount,
             pointsAwarded: ESTIMATED_PURCHASE_POINTS,
             createdAt: 'همین الان',
+            taskPatternNames,
           },
         ])
         addActivity({
@@ -365,6 +384,7 @@ export function StaffPosHome() {
 
     setCustomerCode('')
     setFoundCustomer(null)
+    setSelectedTaskPatterns(new Set())
   }
 
   const handleSubmitFulfill = async () => {
@@ -573,6 +593,42 @@ export function StaffPosHome() {
             value={purchaseAmount}
             onChange={(e) => setPurchaseAmount(e.target.value)}
           />
+          {posTaskOptions.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-slate-400 font-semibold">وظایف اضافی این خرید (اختیاری):</p>
+              {posTaskOptions.map((opt) => {
+                const checked = selectedTaskPatterns.has(opt.patternName)
+                return (
+                  <label
+                    key={opt.patternName}
+                    className="bg-white/5 border border-glass-border rounded-xl2 p-3 flex items-center gap-3 cursor-pointer text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        const isChecked = e.target.checked
+                        setSelectedTaskPatterns((prev) => {
+                          const next = new Set(prev)
+                          if (isChecked) {
+                            next.add(opt.patternName)
+                          } else {
+                            next.delete(opt.patternName)
+                          }
+                          return next
+                        })
+                      }}
+                      className="rounded border-glass-border bg-white/10 text-primary focus:ring-primary"
+                    />
+                    <div className="flex-1 flex justify-between items-center">
+                      <span>{opt.taskName}</span>
+                      <span className="text-xs text-emerald-400 font-medium">(+{opt.pointsValue} امتیاز)</span>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+          )}
           <p className="text-xs text-slate-400">
             <span aria-hidden="true">✨</span> به ازای این خرید حدود {ESTIMATED_PURCHASE_POINTS} امتیاز (تقریبی) ثبت می‌شود؛ مقدار دقیق پس از ثبت نمایش داده خواهد شد. (اگر این مشتری با کد معرف ثبت‌نام کرده باشد، پاداش معرفی معرف پس از این اولین خرید آزاد می‌شود.)
           </p>
