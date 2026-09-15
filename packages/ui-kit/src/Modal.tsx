@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useId, useRef } from 'react'
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { motionDuration, motionEasing } from './animation-tokens'
 
@@ -12,16 +12,38 @@ export interface ModalProps {
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
+const overlayVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+}
+
+const dialogVariants = {
+  hidden: { opacity: 0, scale: 0.96, y: 12 },
+  visible: { opacity: 1, scale: 1, y: 0 },
+}
+
 /**
  * Centered glass modal with backdrop blur. Closes on backdrop click or Escape.
  * A11y: role="dialog" + aria-modal, labelled by the title (when provided), traps
  * Tab focus inside while open, focuses the dialog on open, and restores focus to
  * whatever triggered it on close.
+ *
+ * Perf: `backdrop-blur` is only applied once the enter animation has fully settled,
+ * and is dropped immediately when closing starts. Animating opacity/scale/y on an
+ * element that also carries backdrop-filter forces the browser to re-sample the
+ * blur every frame (it can't be cached while the element is moving/scaling), which
+ * was the main source of dropped frames on open/close. Blur only "costs" anything
+ * while the modal is at rest, which is also the only time it needs to be there.
  */
 export function Modal({ open, onClose, title, children }: ModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const previouslyFocused = useRef<HTMLElement | null>(null)
+  const [settled, setSettled] = useState(false)
+
+  useEffect(() => {
+    if (!open) setSettled(false)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -60,10 +82,14 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
     <AnimatePresence>
       {open && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
+          variants={overlayVariants}
+          transition={{ duration: motionDuration.base, ease: motionEasing.out }}
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 ${
+            settled ? 'backdrop-blur-sm' : ''
+          }`}
           onClick={onClose}
         >
           <motion.div
@@ -72,12 +98,18 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
             aria-modal="true"
             aria-labelledby={title ? titleId : undefined}
             tabIndex={-1}
-            initial={{ opacity: 0, scale: 0.96, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 12 }}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={dialogVariants}
             transition={{ duration: motionDuration.base, ease: motionEasing.out }}
+            onAnimationComplete={(label) => {
+              if (label === 'visible') setSettled(true)
+            }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-slate-950/90 backdrop-blur-md border border-glass-border rounded-xl2 shadow-glass p-6 outline-none"
+            className={`w-full max-w-md bg-slate-950/90 border border-glass-border rounded-xl2 shadow-glass p-6 outline-none ${
+              settled ? 'backdrop-blur-md' : ''
+            }`}
           >
             {title && (
               <h2 id={titleId} className="text-lg font-semibold mb-3">

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useId, useRef } from 'react'
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { motionDuration, motionEasing } from './animation-tokens'
 import { Button } from './Button'
@@ -14,14 +14,35 @@ export interface DrawerProps {
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
+const overlayVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+}
+
+const panelVariants = {
+  hidden: { x: '100%' },
+  visible: { x: 0 },
+}
+
 /**
  * Slide-in Drawer component for the UI kit.
  * Slides in from the visual right (RTL app). Includes a backdrop overlay that closes the drawer on click.
+ *
+ * Perf: backdrop-blur is only applied once the slide-in has settled, and dropped the
+ * instant closing starts. The panel is 320px wide and slides across the full height
+ * of the screen -- blurring it while it's still translating forces a full re-sample
+ * of everything behind it on every frame of the slide, which is the expensive part.
+ * At rest, blurring a static region is comparatively cheap.
  */
 export function Drawer({ isOpen, onClose, title, children, className = '' }: DrawerProps) {
   const titleId = useId()
   const drawerRef = useRef<HTMLDivElement>(null)
   const previouslyFocused = useRef<HTMLElement | null>(null)
+  const [settled, setSettled] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) setSettled(false)
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -60,11 +81,12 @@ export function Drawer({ isOpen, onClose, title, children, className = '' }: Dra
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
+          variants={overlayVariants}
           transition={{ duration: motionDuration.base, ease: motionEasing.out }}
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          className={`fixed inset-0 z-50 bg-black/50 ${settled ? 'backdrop-blur-sm' : ''}`}
           onClick={onClose}
         >
           <motion.div
@@ -73,12 +95,18 @@ export function Drawer({ isOpen, onClose, title, children, className = '' }: Dra
             aria-modal="true"
             aria-labelledby={title ? titleId : undefined}
             tabIndex={-1}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={panelVariants}
             transition={{ duration: motionDuration.base, ease: motionEasing.out }}
+            onAnimationComplete={(label) => {
+              if (label === 'visible') setSettled(true)
+            }}
             onClick={(e) => e.stopPropagation()}
-            className={`fixed right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-slate-950/95 backdrop-blur-md border-l border-glass-border shadow-glass flex flex-col z-50 outline-none ${className}`}
+            className={`fixed right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-slate-950/95 border-l border-glass-border shadow-glass flex flex-col z-50 outline-none ${
+              settled ? 'backdrop-blur-md' : ''
+            } ${className}`}
           >
             <div className="flex items-center justify-between p-5 border-b border-glass-border">
               {title ? (

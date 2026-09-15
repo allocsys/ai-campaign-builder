@@ -23,6 +23,40 @@ const toneClasses: Record<ToastTone, string> = {
   danger: 'border-red-500/50',
 }
 
+const toastVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0 },
+}
+
+/**
+ * Individual toast. Perf: backdrop-blur is applied only once the slide/fade-in has
+ * settled and dropped as soon as it starts leaving -- see Modal/Drawer for why
+ * (blurring a moving element forces a full re-sample every frame).
+ */
+function ToastBubble({ id, message, tone }: ToastItem) {
+  const [settled, setSettled] = useState(false)
+
+  return (
+    <motion.div
+      key={id}
+      role={tone === 'danger' ? 'alert' : undefined}
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+      variants={toastVariants}
+      transition={{ duration: motionDuration.base, ease: motionEasing.out }}
+      onAnimationComplete={(label) => {
+        if (label === 'visible') setSettled(true)
+      }}
+      className={`bg-slate-950/90 border rounded-xl2 shadow-glass px-4 py-2.5 text-sm text-slate-100 max-w-sm w-full pointer-events-auto ${
+        settled ? 'backdrop-blur-md' : ''
+      } ${toneClasses[tone]}`}
+    >
+      {message}
+    </motion.div>
+  )
+}
+
 /** Wrap an app's root in this once; call useToast().show(...) anywhere below it. */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([])
@@ -44,17 +78,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       >
         <AnimatePresence>
           {toasts.map((t) => (
-            <motion.div
-              key={t.id}
-              role={t.tone === 'danger' ? 'alert' : undefined}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 16 }}
-              transition={{ duration: motionDuration.base, ease: motionEasing.out }}
-              className={`bg-slate-950/90 backdrop-blur-md border rounded-xl2 shadow-glass px-4 py-2.5 text-sm text-slate-100 max-w-sm w-full pointer-events-auto ${toneClasses[t.tone]}`}
-            >
-              {t.message}
-            </motion.div>
+            <ToastBubble key={t.id} {...t} />
           ))}
         </AnimatePresence>
       </div>
