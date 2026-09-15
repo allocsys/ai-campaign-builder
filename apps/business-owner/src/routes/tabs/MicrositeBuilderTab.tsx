@@ -1,43 +1,159 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Badge, Button, Card, Input } from '@ai-campaign-builder/ui-kit'
-import { ApiError, getMicrositeState, updateMicrositeState } from '@ai-campaign-builder/api-client'
-import type { MicrositeState } from '@ai-campaign-builder/api-client'
+import {
+  ApiError,
+  getMicrositeState,
+  updateMicrositeState,
+  getMicrositeEligibility,
+  activateMicrosite,
+} from '@ai-campaign-builder/api-client'
+import type { MicrositeState, MicrositeEligibility } from '@ai-campaign-builder/api-client'
 import { MICROSITE_DOMAIN, validateMicrositeSlug } from '@ai-campaign-builder/shared-config'
 import apiClient from '../../lib/api-client'
 
+const GOAL_LABELS_FA: Record<'acquisition' | 'retention' | 'acquisition_retention', string> = {
+  acquisition: 'جذب مشتری جدید',
+  retention: 'وفادارسازی مشتریان',
+  acquisition_retention: 'جذب و وفاداری مشتری',
+}
+
+const CAMPAIGN_STATUS_LABELS_FA: Record<'active' | 'draft' | 'ended', string> = {
+  active: 'فعال',
+  draft: 'پیش‌نویس',
+  ended: 'پایان‌یافته',
+}
+
 /**
- * Purely decorative stand-in for the blurred background on the "no
- * microsite yet" cover screen below -- same non-fetching-placeholder
- * principle as DashboardIndexRoute's DashboardBackgroundPlaceholder (see
- * its comment for why this can't just be the real builder UI wrapped in
- * blur: this route's own GET already 404s cleanly with no side effect, but
- * mounting real state/inputs behind a blur is still pointless work and
- * risks a future refactor accidentally wiring a real handler behind it).
- * Static shapes only, never real data.
+ * "Request a microsite for an existing campaign" -- shown when
+ * getMicrositeState() 404s with code 'microsite_not_created' AND
+ * getMicrositeEligibility() confirms there's actually a campaign to attach
+ * one to. Replaces the old blurred-placeholder dead-end (which only ever
+ * pointed the owner back at the campaigns list with no way to actually get
+ * a microsite outside the wizard) with a real, immediately-actionable card:
+ * the AI-suggested address is editable right here, and confirming both
+ * creates the microsite AND turns the add-on on in one step, dropping the
+ * owner straight into the normal builder view below on success.
  */
-function MicrositeBackgroundPlaceholder() {
+function MicrositeActivationCard({
+  eligibility,
+  onActivated,
+}: {
+  eligibility: Extract<MicrositeEligibility, { eligible: true }>
+  onActivated: (state: MicrositeState) => void
+}) {
+  const [slugInput, setSlugInput] = useState(eligibility.suggestedSlug)
+  const [slugError, setSlugError] = useState<string | null>(null)
+  const [activating, setActivating] = useState(false)
+  const [activateError, setActivateError] = useState<string | null>(null)
+
+  const handleActivate = async () => {
+    const trimmed = slugInput.trim().toLowerCase()
+    const validationError = validateMicrositeSlug(trimmed)
+    if (validationError) {
+      setSlugError(validationError)
+      return
+    }
+    setSlugError(null)
+    setActivateError(null)
+    setActivating(true)
+    try {
+      const created = await activateMicrosite(apiClient, { subdomainSlug: trimmed })
+      onActivated(created)
+    } catch (err) {
+      setActivateError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setActivating(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      <Card className="p-4 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="h-4 w-24 rounded bg-white/10" />
-          <Badge tone="neutral">پیش‌نویس</Badge>
+    <div className="min-h-[70vh] flex items-start justify-center pt-10 px-4">
+      <Card className="max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl border-brand-500/40 bg-gradient-to-b from-brand-500/10 to-transparent">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <span className="text-4xl" aria-hidden="true">
+            ✨
+          </span>
+          <h2 className="text-base font-bold text-slate-100">میکروسایت شما آماده ساخته‌شدن است</h2>
+          <p className="text-sm text-slate-400">
+            یک کمپین بدون میکروسایت پیدا کردیم. همین حالا یک آدرس اختصاصی برایش فعال کنید.
+          </p>
         </div>
-        <div className="h-8 w-32 rounded bg-white/10" />
+
+        <div className="rounded-xl bg-white/5 p-3.5 flex items-center justify-between">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-slate-500">کمپین</span>
+            <span className="text-sm font-medium text-slate-100">{eligibility.businessName}</span>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <Badge tone={eligibility.campaignStatus === 'active' ? 'success' : 'neutral'}>
+              {CAMPAIGN_STATUS_LABELS_FA[eligibility.campaignStatus]}
+            </Badge>
+            <span className="text-xs text-slate-500">{GOAL_LABELS_FA[eligibility.campaignGoal]}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-slate-200">آدرس پیشنهادی میکروسایت</label>
+          <p className="text-xs text-slate-500">
+            این آدرس را از نام کسب‌وکار شما پیشنهاد داده‌ایم؛ می‌توانید قبل از فعال‌سازی آن را ویرایش کنید.
+          </p>
+          <div dir="ltr">
+            <Input
+              value={slugInput}
+              onChange={(e) => {
+                setSlugInput(e.target.value)
+                setSlugError(null)
+              }}
+              error={slugError ?? undefined}
+              placeholder="cafetime"
+            />
+          </div>
+          <p className="text-xs text-brand-400 font-medium" dir="ltr">
+            {slugInput.trim() || '...'}.{MICROSITE_DOMAIN}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-white/10 p-3.5 flex items-center justify-between">
+          <span className="text-sm text-slate-300">هزینه اشتراک ماهانه</span>
+          <span className="text-sm font-bold text-slate-100">
+            {eligibility.addonMonthlyPriceToman.toLocaleString('fa-IR')} تومان / ماه
+          </span>
+        </div>
+
+        {activateError && <p className="text-xs text-red-400">{activateError}</p>}
+
+        <Button onClick={handleActivate} loading={activating} className="w-full justify-center">
+          خرید و فعال‌سازی میکروسایت
+        </Button>
       </Card>
-      <Card className="p-4 flex flex-col gap-2">
-        <div className="h-4 w-40 rounded bg-white/10" />
-        <div className="h-3 w-full rounded bg-white/10" />
+    </div>
+  )
+}
+
+/**
+ * Fallback for the (rarer) case where the owner has no campaign at all yet --
+ * nothing to attach a microsite to, so there's genuinely nothing actionable
+ * to offer here beyond pointing them at campaign creation.
+ */
+function NoCampaignYetCard() {
+  const navigate = useNavigate()
+  return (
+    <div className="min-h-[70vh] flex items-start justify-center pt-16 px-4">
+      <Card className="max-w-sm w-full p-6 flex flex-col items-center gap-4 text-center shadow-2xl border-brand-500/40">
+        <span className="text-3xl" aria-hidden="true">
+          🌐
+        </span>
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-base font-bold text-slate-100">هنوز کمپینی ندارید</h2>
+          <p className="text-sm text-slate-400">
+            برای فعال‌سازی میکروسایت، ابتدا باید یک کمپین بسازید.
+          </p>
+        </div>
+        <Button onClick={() => navigate('/dashboard/campaign')} className="w-full justify-center">
+          ساخت کمپین
+        </Button>
       </Card>
-      <div className="flex flex-col gap-2">
-        {[0, 1, 2, 3].map((i) => (
-          <Card key={i} className="flex items-center justify-between p-3.5">
-            <div className="h-3 w-24 rounded bg-white/10" />
-            <div className="h-7 w-14 rounded bg-white/10" />
-          </Card>
-        ))}
-      </div>
     </div>
   )
 }
@@ -48,17 +164,18 @@ function MicrositeBackgroundPlaceholder() {
  * TODO: wire to PATCH /business_microsite_modules once backend exists.
  */
 export function MicrositeBuilderTab() {
-  const navigate = useNavigate()
   const [state, setState] = useState<MicrositeState | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // plan.md decision (2026-09-15): microsite creation is no longer automatic
   // -- GET /microsite now 404s with code 'microsite_not_created' for any
   // business that hasn't checked the wizard's site checkbox yet. Tracked
-  // separately from `error` so it renders the same blurred-cover pattern
-  // DashboardIndexRoute already uses for "no campaign yet", instead of a
-  // raw red error string.
+  // separately from `error` so it renders the buy-and-activate flow (or the
+  // no-campaign fallback) instead of a raw red error string.
   const [notCreated, setNotCreated] = useState(false)
+  const [eligibility, setEligibility] = useState<MicrositeEligibility | null>(null)
+  const [eligLoading, setEligLoading] = useState(false)
+  const [eligError, setEligError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -72,12 +189,23 @@ export function MicrositeBuilderTab() {
         }
       })
       .catch((err) => {
-        if (mounted) {
-          if (err instanceof ApiError && err.code === 'microsite_not_created') {
-            setNotCreated(true)
-          } else {
-            setError(err instanceof Error ? err.message : String(err))
-          }
+        if (!mounted) return
+        if (err instanceof ApiError && err.code === 'microsite_not_created') {
+          setNotCreated(true)
+          setLoading(false)
+          setEligLoading(true)
+          getMicrositeEligibility(apiClient)
+            .then((elig) => {
+              if (mounted) setEligibility(elig)
+            })
+            .catch((eligErr) => {
+              if (mounted) setEligError(eligErr instanceof Error ? eligErr.message : String(eligErr))
+            })
+            .finally(() => {
+              if (mounted) setEligLoading(false)
+            })
+        } else {
+          setError(err instanceof Error ? err.message : String(err))
           setLoading(false)
         }
       })
@@ -85,6 +213,12 @@ export function MicrositeBuilderTab() {
       mounted = false
     }
   }, [])
+
+  const handleActivated = (created: MicrositeState) => {
+    setState(created)
+    setSlugInput(created.subdomainSlug)
+    setNotCreated(false)
+  }
 
   const [publishing, setPublishing] = useState(false)
 
@@ -163,29 +297,16 @@ export function MicrositeBuilderTab() {
   }
 
   if (notCreated) {
-    return (
-      <div className="relative min-h-[70vh]">
-        <div className="pointer-events-none select-none blur-md opacity-50" aria-hidden="true">
-          <MicrositeBackgroundPlaceholder />
-        </div>
-        <div className="absolute inset-0 flex items-start justify-center pt-16 px-4">
-          <Card className="max-w-sm w-full p-6 flex flex-col items-center gap-4 text-center shadow-2xl border-brand-500/40">
-            <span className="text-3xl" aria-hidden="true">
-              🌐
-            </span>
-            <div className="flex flex-col gap-1.5">
-              <h2 className="text-base font-bold text-slate-100">شما هنوز میکروسایتی نساخته‌اید</h2>
-              <p className="text-sm text-slate-400">
-                میکروسایت فقط هنگام ساخت کمپین، با فعال‌کردن گزینه «میکروسایت می‌خواهم» در دستیار هوشمند کمپین، ساخته می‌شود.
-              </p>
-            </div>
-            <Button onClick={() => navigate('/dashboard/campaign')} className="w-full justify-center">
-              مشاهده کمپین‌ها
-            </Button>
-          </Card>
-        </div>
-      </div>
-    )
+    if (eligLoading) {
+      return <div className="p-4 text-sm text-slate-400">در حال بررسی کمپین‌های شما...</div>
+    }
+    if (eligError) {
+      return <div className="p-4 text-sm text-red-400">{eligError}</div>
+    }
+    if (eligibility?.eligible) {
+      return <MicrositeActivationCard eligibility={eligibility} onActivated={handleActivated} />
+    }
+    return <NoCampaignYetCard />
   }
 
   if (error) {
