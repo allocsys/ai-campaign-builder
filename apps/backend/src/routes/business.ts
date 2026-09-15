@@ -2286,16 +2286,25 @@ businessRouter.put("/microsite", async (c) => {
     ]);
   }
   if (body.modules !== undefined) {
-    for (const m of body.modules) {
-      await execute(
-        db,
-        `UPDATE business_microsite_modules
-         SET enabled = ?
-         WHERE business_microsite_id = ?
-           AND website_module_id = (SELECT id FROM website_modules WHERE key = ?)`,
-        [m.enabled ? 1 : 0, micrositeId, m.key]
-      );
-    }
+    // Perf fix (dashboard-perf-batch2 branch): the frontend's toggle() always
+    // resends the FULL modules array even when only one switch changed, and
+    // this used to write each one with a sequential `await` -- flipping a
+    // single toggle meant N round-trips back to back. The writes are to
+    // different rows (keyed by website_module_id), so there's no ordering
+    // dependency between them -- Promise.all fires them concurrently
+    // instead, cutting this endpoint's latency from N round-trips to ~1.
+    await Promise.all(
+      body.modules.map((m) =>
+        execute(
+          db,
+          `UPDATE business_microsite_modules
+           SET enabled = ?
+           WHERE business_microsite_id = ?
+             AND website_module_id = (SELECT id FROM website_modules WHERE key = ?)`,
+          [m.enabled ? 1 : 0, micrositeId, m.key]
+        )
+      )
+    );
   }
 
   return c.json(await serializeMicrosite(db, micrositeId));
@@ -2514,6 +2523,24 @@ businessRouter.get("/subscription", async (c) => {
 businessRouter.get("/notifications-log", async (c) => {
   const db = c.env.DB;
   const businessId = c.get("auth").sub;
+  // Perf fix (dashboard-perf-batch2 branch): this used to be a single query
+  // FROM notifications_log with `WHERE cp.business_id = ? OR bc.business_id
+  // = ?` filtering on two different LEFT-JOINed tables. SQLite can't turn an
+  // OR spanning two different joined tables' columns into an indexed lookup
+  // here -- it has to scan every row of notifications_log (then sort all of
+  // them for ORDER BY) before the LIMIT can even apply, and that scan only
+  // gets more expensive as message volume grows.
+  //
+  // Rewritten as a UNION of two halves, each driven FROM the table its
+  // filter actually indexes (campaigns.business_id / business_contacts.
+  // business_id), joining OUT to notifications_log via its own indexed FK
+  // (idx_notifications_log_campaign_id / the new
+  // idx_notifications_log_business_contact_id) -- each half is now a
+  // genuinely indexed lookup instead of a full scan. UNION (not UNION ALL)
+  // preserves the original OR's de-dup behavior in case a single
+  // notifications_log row could ever satisfy both branches at once. The
+  // outer ORDER BY + LIMIT then only has to sort the (small) unioned result,
+  // helped further by the new idx_notifications_log_sent_at index.
   const rows = await queryAll<{
     id: string;
     channel: string;
@@ -2523,16 +2550,29 @@ businessRouter.get("/notifications-log", async (c) => {
     contact: string | null;
   }>(
     db,
-    `SELECT nl.id, nl.channel, nl.status, nl.sent_at, nt.trigger_type,
-            COALESCE(cust.phone_number, bc.phone_number) AS contact
-     FROM notifications_log nl
-     JOIN notification_templates nt ON nt.id = nl.notification_template_id
-     LEFT JOIN customer_campaign_codes ccc ON ccc.id = nl.customer_campaign_code_id
-     LEFT JOIN customers cust ON cust.id = ccc.customer_id
-     LEFT JOIN business_contacts bc ON bc.id = nl.business_contact_id
-     LEFT JOIN campaigns cp ON cp.id = nl.campaign_id
-     WHERE cp.business_id = ? OR bc.business_id = ?
-     ORDER BY nl.sent_at DESC
+    `SELECT * FROM (
+       SELECT nl.id, nl.channel, nl.status, nl.sent_at, nt.trigger_type,
+              COALESCE(cust.phone_number, bc.phone_number) AS contact
+       FROM campaigns cp
+       JOIN notifications_log nl ON nl.campaign_id = cp.id
+       JOIN notification_templates nt ON nt.id = nl.notification_template_id
+       LEFT JOIN customer_campaign_codes ccc ON ccc.id = nl.customer_campaign_code_id
+       LEFT JOIN customers cust ON cust.id = ccc.customer_id
+       LEFT JOIN business_contacts bc ON bc.id = nl.business_contact_id
+       WHERE cp.business_id = ?
+
+       UNION
+
+       SELECT nl.id, nl.channel, nl.status, nl.sent_at, nt.trigger_type,
+              COALESCE(cust.phone_number, bc.phone_number) AS contact
+       FROM business_contacts bc
+       JOIN notifications_log nl ON nl.business_contact_id = bc.id
+       JOIN notification_templates nt ON nt.id = nl.notification_template_id
+       LEFT JOIN customer_campaign_codes ccc ON ccc.id = nl.customer_campaign_code_id
+       LEFT JOIN customers cust ON cust.id = ccc.customer_id
+       WHERE bc.business_id = ?
+     )
+     ORDER BY sent_at DESC
      LIMIT 200`,
     [businessId, businessId]
   );
