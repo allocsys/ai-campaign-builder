@@ -14,10 +14,10 @@
 // migrations/0001_init.sql), so every change -- whether it originated here
 // or from Phase 2/3's analysis-driven insights -- goes through the exact
 // same human Apply/Dismiss confirmation in SuggestionsTab.tsx. The actual
-// INSERT into suggested_changes is the caller's responsibility (plan.md
-// Part B, not yet built) -- this file's job stops at producing a validated,
-// well-typed suggestion (or a clarifying question) for that caller to
-// persist.
+// INSERT into suggested_changes is the caller's responsibility (routes/
+// business.ts's POST /campaign/chat) -- this file's job stops at producing
+// a validated, well-typed suggestion (or a clarifying question) for that
+// caller to persist.
 //
 // If the model is unsure, or the request references something ambiguous or
 // nonexistent (e.g. "بهترش کن" with no clear target, or a task that doesn't
@@ -29,6 +29,20 @@
 // wording), there is no safe "default guess" for a money-affecting change,
 // so a total cascade failure here also surfaces as a (generic) clarifying
 // response rather than a fabricated confident suggestion.
+//
+// suggested_value / current_value SCHEMA (migrations/0003): as of migration
+// 0003, suggested_changes.current_value and .suggested_value ALWAYS hold a
+// JSON string (never a free-text Persian sentence) for every change_type --
+// see that migration's header comment for the exact per-change_type shape.
+// This changed because the previous "human-readable Persian sentence"
+// convention (e.g. "۵۰ امتیاز") made it impractical for
+// routes/business.ts's suggestions/:id/apply handler to actually parse a
+// number back out and perform the real DB mutation for anything but
+// add_task (the one type that already happened to use JSON). Neither column
+// is ever shown to a user directly -- serializeSuggestion (routes/
+// business.ts) only ever exposes id/riskTier/changeType/rationale/status,
+// with `rationale` (always a plain Persian sentence, unaffected by this
+// change) being the only user-facing explanation of what a suggestion does.
 // ============================================================================
 
 import type { Env } from "../types";
@@ -54,6 +68,21 @@ export type RiskTier = "low" | "high";
 // equivalent shape that could drift from the real one.
 export type CampaignState = Awaited<ReturnType<typeof serializeCampaign>>;
 
+// Mirrors task_patterns.name's CHECK constraint exactly (migrations/
+// 0001_init.sql) -- the only pattern names add_task's structured value may
+// legally reference.
+const VALID_TASK_PATTERN_NAMES = [
+  "social_proof",
+  "referral",
+  "repeat_purchase",
+  "milestone_streak",
+  "specific_product_push",
+  "review_ugc",
+  "first_action",
+  "off_peak",
+  "anniversary_birthday",
+] as const;
+
 export interface ParsedCampaignChangeSuggestion {
   needsClarification: false;
   changeType: CampaignChangeType;
@@ -65,13 +94,17 @@ export interface ParsedCampaignChangeSuggestion {
    * not row-level).
    */
   targetId?: string;
-  /** Human-readable current value, e.g. "۵۰ امتیاز" or "۱۴ روز". Stored as-is in suggested_changes.current_value (TEXT). */
+  /**
+   * JSON-string snapshot of the value being changed FROM, computed
+   * deterministically from the current campaign state (never trusted from
+   * the model) -- see migration 0003's header comment for the exact shape
+   * per change_type. Stored as-is in suggested_changes.current_value (TEXT).
+   */
   currentValue: string;
   /**
-   * Human-readable proposed value, same TEXT-column convention as
-   * currentValue. For add_task, this is a compact JSON string describing
-   * the new task ({"pattern":"...","name":"...","points":N}) since there's
-   * no existing row to describe a single scalar diff against.
+   * JSON-string of the proposed new value -- see migration 0003's header
+   * comment for the exact shape per change_type. Stored as-is in
+   * suggested_changes.suggested_value (TEXT).
    */
   suggestedValue: string;
   /** Persian, shown to the owner alongside the suggestion (mirrors insights.suggested_action / suggested_changes.rationale). */
@@ -88,7 +121,7 @@ export interface ClarificationNeeded {
 
 export type ParsedCampaignChangeResult = ParsedCampaignChangeSuggestion | ClarificationNeeded;
 
-/** One prior turn in the chat -- optional context for a follow-up message answering a clarifying question. Storage/persistence of this history (plan.md: Workers KV, keyed chat:{campaignId}:{sessionId}, short TTL) is Part B's concern, not this file's -- this function is stateless per call and simply accepts whatever turns the caller already has in hand. */
+/** One prior turn in the chat -- optional context for a follow-up message answering a clarifying question. Storage/persistence of this history (Workers KV, keyed chat:{campaignId}:{sessionId}, short TTL, see lib/chat-history.ts) is the caller's concern, not this file's -- this function is stateless per call and simply accepts whatever turns the caller already has in hand. */
 export interface ChatTurn {
   role: "owner" | "assistant";
   content: string;
@@ -146,10 +179,16 @@ function buildPrompt(text: string, state: CampaignState, history: ChatTurn[]): s
     `(3) If the request is clear and maps to exactly one concrete change, respond with ONLY a JSON object in this exact shape: ` +
     `{"needsClarification": false, "changeType": "<one of: task_points, reward_threshold, add_task, remove_task, campaign_duration, reward_depth>", ` +
     `"targetId": "<the matching id from tasks/rewards above -- omit entirely for add_task and campaign_duration>", ` +
-    `"currentValue": "<short human-readable Persian description of the current value>", ` +
-    `"suggestedValue": "<short human-readable Persian description of the proposed value -- for add_task, instead put a JSON string like {\\"pattern\\":\\"referral\\",\\"name\\":\\"...\\",\\"points\\":30}>", ` +
+    `"value": <the new value -- shape depends on changeType, see below>, ` +
     `"rationale": "<1 short Persian sentence explaining why this change addresses the request>", ` +
     `"confidence": <number between 0 and 1 reflecting how sure you are this is exactly what the owner wants>}. ` +
+    `The shape of "value" depends on changeType: ` +
+    `for task_points, a plain number -- the task's NEW total points value (not a delta); ` +
+    `for reward_threshold, a plain number -- the reward's NEW total threshold_points (not a delta); ` +
+    `for campaign_duration, a plain integer number of days to extend the campaign by (negative to shorten it, not a new date); ` +
+    `for reward_depth, a short Persian string -- the reward's complete new description text (e.g. "۳۰٪ تخفیف کل فاکتور تا سقف ۵۰۰ هزار تومان"); ` +
+    `for add_task, an object {"pattern": "<one of: ${VALID_TASK_PATTERN_NAMES.join(", ")}>", "name": "<short Persian task label>", "points": <integer>}; ` +
+    `for remove_task, omit "value" entirely (targetId alone identifies what to remove). ` +
     `(4) Respond with ONLY the JSON object (one of the two shapes above) and nothing else -- no markdown, no commentary.`
   );
 }
@@ -159,8 +198,7 @@ interface RawModelResponse {
   clarifyingQuestion?: string;
   changeType?: string;
   targetId?: string;
-  currentValue?: string;
-  suggestedValue?: string;
+  value?: unknown;
   rationale?: string;
   confidence?: number;
 }
@@ -177,6 +215,9 @@ const VALID_CHANGE_TYPES: CampaignChangeType[] = [
 // Change types that must reference an existing campaign_tasks/campaign_rewards row.
 const REQUIRES_TARGET_ID: CampaignChangeType[] = ["task_points", "remove_task", "reward_threshold", "reward_depth"];
 
+const GENERIC_CLARIFICATION =
+  "متوجه دقیق درخواستتون نشدم -- می‌تونید به شکل دیگه‌ای توضیح بدید؟";
+
 function parseAndValidate(rawText: string, state: CampaignState): ParsedCampaignChangeResult {
   const match = rawText.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("no JSON object found in model response");
@@ -192,8 +233,6 @@ function parseAndValidate(rawText: string, state: CampaignState): ParsedCampaign
   if (
     typeof parsed.changeType !== "string" ||
     !VALID_CHANGE_TYPES.includes(parsed.changeType as CampaignChangeType) ||
-    typeof parsed.currentValue !== "string" ||
-    typeof parsed.suggestedValue !== "string" ||
     typeof parsed.rationale !== "string" ||
     typeof parsed.confidence !== "number"
   ) {
@@ -204,11 +243,13 @@ function parseAndValidate(rawText: string, state: CampaignState): ParsedCampaign
 
   // Target-existence check (prompt rule 2, enforced again here in code --
   // never trust the model to have actually followed its own instructions).
+  let targetTask: CampaignState["tasks"][number] | undefined;
+  let targetReward: CampaignState["rewards"][number] | undefined;
   if (REQUIRES_TARGET_ID.includes(changeType)) {
     const targetId = parsed.targetId;
-    const existsInTasks = state.tasks.some((t) => t.id === targetId);
-    const existsInRewards = state.rewards.some((r) => r.id === targetId);
-    if (typeof targetId !== "string" || !targetId || (!existsInTasks && !existsInRewards)) {
+    targetTask = state.tasks.find((t) => t.id === targetId);
+    targetReward = state.rewards.find((r) => r.id === targetId);
+    if (typeof targetId !== "string" || !targetId || (!targetTask && !targetReward)) {
       return {
         needsClarification: true,
         clarifyingQuestion: "متوجه نشدم منظورتون دقیقاً کدوم تسک یا پاداشه -- می‌تونید مشخص‌تر بگید؟",
@@ -224,12 +265,101 @@ function parseAndValidate(rawText: string, state: CampaignState): ParsedCampaign
     };
   }
 
+  // Build currentValue/suggestedValue as JSON strings, per migration 0003's
+  // documented shape -- currentValue is always computed HERE from the real
+  // campaign state, never taken from the model, since the model has no
+  // reason to be trusted for a value it isn't proposing. suggestedValue's
+  // shape is validated per change_type below; an invalid/missing "value"
+  // for a type that requires one is treated as a clarification rather than
+  // silently coercing something wrong.
+  let currentValue: string;
+  let suggestedValue: string;
+
+  switch (changeType) {
+    case "task_points": {
+      if (!targetTask) throw new Error("unreachable: task_points requires targetTask");
+      const points = parsed.value;
+      if (typeof points !== "number" || !Number.isFinite(points) || !Number.isInteger(points) || points <= 0) {
+        return { needsClarification: true, clarifyingQuestion: GENERIC_CLARIFICATION };
+      }
+      currentValue = JSON.stringify({ taskId: targetTask.id, points: targetTask.points });
+      suggestedValue = JSON.stringify({ points });
+      break;
+    }
+    case "reward_threshold": {
+      if (!targetReward) throw new Error("unreachable: reward_threshold requires targetReward");
+      const threshold = parsed.value;
+      if (
+        typeof threshold !== "number" ||
+        !Number.isFinite(threshold) ||
+        !Number.isInteger(threshold) ||
+        threshold <= 0
+      ) {
+        return { needsClarification: true, clarifyingQuestion: GENERIC_CLARIFICATION };
+      }
+      currentValue = JSON.stringify({ rewardId: targetReward.id, threshold: targetReward.threshold });
+      suggestedValue = JSON.stringify({ threshold });
+      break;
+    }
+    case "reward_depth": {
+      if (!targetReward) throw new Error("unreachable: reward_depth requires targetReward");
+      const description = parsed.value;
+      if (typeof description !== "string" || !description.trim()) {
+        return { needsClarification: true, clarifyingQuestion: GENERIC_CLARIFICATION };
+      }
+      currentValue = JSON.stringify({ rewardId: targetReward.id });
+      suggestedValue = JSON.stringify({ description: description.trim() });
+      break;
+    }
+    case "remove_task": {
+      if (!targetTask) throw new Error("unreachable: remove_task requires targetTask");
+      currentValue = JSON.stringify({ taskId: targetTask.id, name: targetTask.name });
+      suggestedValue = JSON.stringify({});
+      break;
+    }
+    case "campaign_duration": {
+      const deltaDays = parsed.value;
+      if (
+        typeof deltaDays !== "number" ||
+        !Number.isFinite(deltaDays) ||
+        !Number.isInteger(deltaDays) ||
+        deltaDays === 0
+      ) {
+        return { needsClarification: true, clarifyingQuestion: GENERIC_CLARIFICATION };
+      }
+      currentValue = JSON.stringify({ endDate: state.endDate });
+      suggestedValue = JSON.stringify({ deltaDays });
+      break;
+    }
+    case "add_task": {
+      const value = parsed.value as { pattern?: unknown; name?: unknown; points?: unknown } | undefined;
+      const pattern = value?.pattern;
+      const name = value?.name;
+      const points = value?.points;
+      if (
+        typeof pattern !== "string" ||
+        !(VALID_TASK_PATTERN_NAMES as readonly string[]).includes(pattern) ||
+        typeof name !== "string" ||
+        !name.trim() ||
+        typeof points !== "number" ||
+        !Number.isFinite(points) ||
+        !Number.isInteger(points) ||
+        points <= 0
+      ) {
+        return { needsClarification: true, clarifyingQuestion: GENERIC_CLARIFICATION };
+      }
+      currentValue = JSON.stringify(null);
+      suggestedValue = JSON.stringify({ pattern, name: name.trim(), points });
+      break;
+    }
+  }
+
   return {
     needsClarification: false,
     changeType,
     targetId: parsed.targetId,
-    currentValue: parsed.currentValue,
-    suggestedValue: parsed.suggestedValue,
+    currentValue,
+    suggestedValue,
     rationale: parsed.rationale,
     riskTier: computeRiskTier(changeType),
     confidence,
@@ -296,9 +426,9 @@ async function runCascade(env: Env, prompt: string): Promise<string | null> {
 /**
  * Parses a free-text campaign-editing request into either a structured,
  * ready-to-review change suggestion, or a clarifying question -- never both,
- * never neither, and never a silent failure. The caller (Part B's chat
- * route, not yet built) is responsible for: (a) supplying `history` if this
- * is a follow-up turn (loaded from Workers KV per plan.md's decision), and
+ * never neither, and never a silent failure. The caller (routes/business.ts's
+ * POST /campaign/chat) is responsible for: (a) supplying `history` if this
+ * is a follow-up turn (loaded from Workers KV, see lib/chat-history.ts), and
  * (b) on a non-clarification result, inserting a `pending` row into
  * suggested_changes with these exact fields -- this function never writes
  * to the database itself.
@@ -336,7 +466,7 @@ export async function parseNaturalLanguageCampaignRequest(
     console.error("campaign-agent: model response failed validation:", err, "raw:", raw);
     return {
       needsClarification: true,
-      clarifyingQuestion: "متوجه دقیق درخواستتون نشدم -- می‌تونید به شکل دیگه‌ای توضیح بدید؟",
+      clarifyingQuestion: GENERIC_CLARIFICATION,
     };
   }
 }
