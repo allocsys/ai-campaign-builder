@@ -128,7 +128,7 @@ export async function ensureCustomerCampaignCode(
   customerId: string,
   campaignId: string,
   referralCode?: string
-): Promise<{ id: string; capped: boolean } | null> {
+): Promise<{ id: string; capped: boolean; campaignId: string } | null> {
   const campaign = await queryFirst<{ id: string; max_referrals_per_customer: number }>(
     db,
     "SELECT id, max_referrals_per_customer FROM campaigns WHERE id = ?",
@@ -144,7 +144,7 @@ export async function ensureCustomerCampaignCode(
     "SELECT id FROM customer_campaign_codes WHERE customer_id = ? AND campaign_id = ?",
     [customerId, campaign.id]
   );
-  if (existing) return { id: existing.id, capped: false };
+  if (existing) return { id: existing.id, capped: false, campaignId: campaign.id };
 
   let referredByCodeId: string | null = null;
   let capped = false;
@@ -189,7 +189,7 @@ export async function ensureCustomerCampaignCode(
   // not create. Both are real gaps, tracked here rather than silently
   // dropped.
 
-  return { id, capped };
+  return { id, capped, campaignId: campaign.id };
 }
 
 // Resolves the campaign_id to use for an already-authenticated customer
@@ -226,49 +226,54 @@ customerRouter.get("/profile", async (c) => {
   const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
-  const row = await queryFirst<{
-    business_name: string;
-    personal_code: string;
-    qr_payload: string;
-    max_referrals_per_customer: number;
-    business_id: string;
-    campaign_id: string;
-    public_join_slug: string;
-    microsite_slug: string | null;
-  }>(
-    db,
-    `SELECT b.name AS business_name, ccc.personal_code, ccc.qr_payload,
-            cp.max_referrals_per_customer, b.id AS business_id, cp.id AS campaign_id,
-            cp.public_join_slug, bm.subdomain_slug AS microsite_slug
-     FROM customer_campaign_codes ccc
-     JOIN campaigns cp ON cp.id = ccc.campaign_id
-     JOIN businesses b ON b.id = cp.business_id
-     LEFT JOIN business_microsites bm ON bm.business_id = b.id
-     WHERE ccc.id = ?`,
-    [code.id]
-  );
+  // Only carryoverRow actually depends on another query's result here
+  // (row.business_id) -- the rest only need code.id/customerId, so they run
+  // as one parallel batch instead of five sequential round-trips.
+  const [row, balanceRow, referralCountRow, customerRow] = await Promise.all([
+    queryFirst<{
+      business_name: string;
+      personal_code: string;
+      qr_payload: string;
+      max_referrals_per_customer: number;
+      business_id: string;
+      campaign_id: string;
+      public_join_slug: string;
+      microsite_slug: string | null;
+    }>(
+      db,
+      `SELECT b.name AS business_name, ccc.personal_code, ccc.qr_payload,
+              cp.max_referrals_per_customer, b.id AS business_id, cp.id AS campaign_id,
+              cp.public_join_slug, bm.subdomain_slug AS microsite_slug
+       FROM customer_campaign_codes ccc
+       JOIN campaigns cp ON cp.id = ccc.campaign_id
+       JOIN businesses b ON b.id = cp.business_id
+       LEFT JOIN business_microsites bm ON bm.business_id = b.id
+       WHERE ccc.id = ?`,
+      [code.id]
+    ),
+    queryFirst<{ total: number | null }>(
+      db,
+      "SELECT SUM(points) AS total FROM points_ledger WHERE customer_campaign_code_id = ?",
+      [code.id]
+    ),
+    queryFirst<{ n: number }>(
+      db,
+      "SELECT COUNT(*) AS n FROM customer_campaign_codes WHERE referred_by_code_id = ?",
+      [code.id]
+    ),
+    queryFirst<{ telegram_opted_in: number }>(
+      db,
+      "SELECT telegram_opted_in FROM customers WHERE id = ?",
+      [customerId]
+    ),
+  ]);
   if (!row) return c.json({ error: "Campaign code vanished mid-request" }, 500);
 
-  const balanceRow = await queryFirst<{ total: number | null }>(
-    db,
-    "SELECT SUM(points) AS total FROM points_ledger WHERE customer_campaign_code_id = ?",
-    [code.id]
-  );
-  const referralCountRow = await queryFirst<{ n: number }>(
-    db,
-    "SELECT COUNT(*) AS n FROM customer_campaign_codes WHERE referred_by_code_id = ?",
-    [code.id]
-  );
   const carryoverRow = await queryFirst<{ total: number | null }>(
     db,
     `SELECT SUM(points) AS total FROM point_carryovers
      WHERE customer_id = ? AND business_id = ? AND consumed_in_campaign_id IS NULL`,
     [customerId, row.business_id]
-  );
-  const customerRow = await queryFirst<{ telegram_opted_in: number }>(
-    db,
-    "SELECT telegram_opted_in FROM customers WHERE id = ?",
-    [customerId]
   );
 
   return c.json({
@@ -318,13 +323,6 @@ customerRouter.get("/tasks", async (c) => {
   const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
-  const campaign = await queryFirst<{ campaign_id: string }>(
-    db,
-    "SELECT campaign_id FROM customer_campaign_codes WHERE id = ?",
-    [code.id]
-  );
-  if (!campaign) return c.json({ error: "Campaign code vanished mid-request" }, 500);
-
   const rows = await queryAll<{
     id: string;
     name: string;
@@ -340,7 +338,7 @@ customerRouter.get("/tasks", async (c) => {
      FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
      WHERE ct.campaign_id = ?
      ORDER BY ct.display_order ASC`,
-    [code.id, campaign.campaign_id]
+    [code.id, code.campaignId]
   );
 
   return c.json(
@@ -483,13 +481,6 @@ customerRouter.get("/rewards", async (c) => {
   const code = await resolveCode(db, customerId, c.get("auth").campaignId);
   if (!code) return c.json({ error: "No campaign available yet" }, 404);
 
-  const campaign = await queryFirst<{ campaign_id: string }>(
-    db,
-    "SELECT campaign_id FROM customer_campaign_codes WHERE id = ?",
-    [code.id]
-  );
-  if (!campaign) return c.json({ error: "Campaign code vanished mid-request" }, 500);
-
   const balanceRow = await queryFirst<{ total: number | null }>(
     db,
     "SELECT SUM(points) AS total FROM points_ledger WHERE customer_campaign_code_id = ?",
@@ -500,7 +491,7 @@ customerRouter.get("/rewards", async (c) => {
   const rows = await queryAll<{ id: string; name: string; threshold_points: number }>(
     db,
     "SELECT id, name, threshold_points FROM campaign_rewards WHERE campaign_id = ? ORDER BY threshold_points ASC",
-    [campaign.campaign_id]
+    [code.campaignId]
   );
 
   return c.json(
@@ -619,18 +610,11 @@ customerRouter.post("/retro-claims", async (c) => {
   // to the campaign's pos_scan-verified task (the one a retro claim is a
   // fallback for), same task pattern the mockup uses for the POS-scanned
   // "repeat purchase" task.
-  const campaign = await queryFirst<{ campaign_id: string }>(
-    db,
-    "SELECT campaign_id FROM customer_campaign_codes WHERE id = ?",
-    [code.id]
-  );
-  if (!campaign) return c.json({ error: "Campaign code vanished mid-request" }, 500);
-
   const posTask = await queryFirst<{ id: string; points_value: number }>(
     db,
     `SELECT ct.id, ct.points_value FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
      WHERE ct.campaign_id = ? AND tp.verification_method = 'pos_scan' LIMIT 1`,
-    [campaign.campaign_id]
+    [code.campaignId]
   );
   if (!posTask) {
     return c.json({ error: "No POS-verified task configured for this campaign" }, 400);
