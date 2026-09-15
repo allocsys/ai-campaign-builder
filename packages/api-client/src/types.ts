@@ -189,7 +189,7 @@ export interface GeneratedCampaignProposal extends Campaign {
   discountClamped: boolean;
   copyGeneratedByAi: boolean;
   /**
-   * plan.md Open Item 18 -- already validated + uniqueness-checked server-side
+   * plan.md Open Item 18 -- average of the wizard's range-slider selection
    * (safe to hand straight to updateMicrositeState({ subdomainSlug }) as a
    * pre-filled default). Absent when wantsSite was false/omitted, the
    * microsite's slug is already owner-set, or no clean suggestion could be
@@ -421,10 +421,17 @@ export interface StaffPosCustomerLookupResponse {
   campaignId: string;
 }
 
+export interface StaffPosTaskOption {
+  patternName: string;
+  taskName: string;
+  pointsValue: number;
+}
+
 export interface StaffPosLogPurchaseRequest {
   personalCode: string;
   amountToman?: number;
   idempotencyKey?: string;
+  taskPatternNames?: string[];
 }
 
 export interface StaffPosLogPurchaseResponse {
@@ -432,6 +439,8 @@ export interface StaffPosLogPurchaseResponse {
   submissionId?: string;
   pointsAwarded?: number;
   loggedBy?: string;
+  tasksAwarded?: string[];
+  purchaseCount?: number;
 }
 
 export interface StaffPosRedemptionResponse {
@@ -460,6 +469,7 @@ export interface OfflineQueueItemIn {
   actionType: 'purchase' | 'fulfill_reward';
   amountToman?: number;
   redemptionCode?: string;
+  taskPatternNames?: string[];
 }
 
 export interface StaffPosSyncRequest {
