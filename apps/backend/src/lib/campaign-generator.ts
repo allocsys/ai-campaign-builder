@@ -276,13 +276,43 @@ async function selectTasks(
 // pattern (cycling back to index 0 for any tier beyond the selected list's
 // length). Selecting 3+ patterns produces 3+ tiers, one per pattern, rather
 // than capping at 2 and silently dropping the extra selections.
-function buildRewards(
+export function buildRewards(
   rewardPatternNames: string[],
   tasks: GeneratedTask[],
   tier: SizeTier,
   maxDiscountPercent: number | null
 ): { rewards: GeneratedRewardTier[]; discountClamped: boolean } {
-  const totalPoints = tasks.reduce((sum, t) => sum + t.points, 0) || 1;
+  // Root cause fix / threshold rebalance (ai-campaign-builder-issue-points-threshold-mismatch):
+  // buildRewards previously computed totalPoints as the SUM of all 4 selected tasks' points,
+  // assuming a customer earns all tasks' points together. In reality, first_action only fires once
+  // (1st purchase ever), and only repeat_purchase (or milestone_streak every 3rd purchase) is
+  // auto-awarded on every repeat visit; other tasks (off_peak, specific_product_push, etc.)
+  // require explicit staff selection and are not part of the reliable per-visit earn rate.
+  // We compute a realistic steady-state pacing target: one-time first-purchase bonus + ~2 typical repeat purchases.
+  // Note: "assume ~2 repeat purchases" is a pacing heuristic pending real completion-rate data
+  // from benchmark_stats, not a proven number -- flag for revisiting once real usage data exists,
+  // same caveat Phase 2's benchmark-data strategy carries for other numbers.
+  const firstActionTask = tasks.find((t) => t.patternName === "first_action");
+  const oneTimeBonus = firstActionTask?.points ?? 0;
+
+  const repeatPurchaseTask = tasks.find((t) => t.patternName === "repeat_purchase");
+  const milestoneStreakTask = tasks.find((t) => t.patternName === "milestone_streak");
+
+  let perPurchaseRate = 0;
+  if (repeatPurchaseTask) {
+    perPurchaseRate = repeatPurchaseTask.points;
+  } else if (milestoneStreakTask) {
+    perPurchaseRate = milestoneStreakTask.points / 3;
+  } else {
+    const recurringTasks = tasks.filter((t) => t.patternName !== "first_action");
+    if (recurringTasks.length > 0) {
+      perPurchaseRate = recurringTasks.reduce((sum, t) => sum + t.points, 0) / recurringTasks.length;
+    } else {
+      perPurchaseRate = oneTimeBonus;
+    }
+  }
+
+  const totalPoints = Math.max(oneTimeBonus + perPurchaseRate * 2, 10);
   const tierCount = Math.max(2, rewardPatternNames.length);
 
   let discountClamped = false;
