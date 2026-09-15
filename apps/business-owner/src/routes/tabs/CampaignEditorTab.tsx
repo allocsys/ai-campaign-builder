@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Badge, Card, useToast } from '@ai-campaign-builder/ui-kit'
+import { Badge, Button, Card, useToast } from '@ai-campaign-builder/ui-kit'
 import {
   getBusinessProfile,
   getCampaignById,
@@ -66,6 +66,20 @@ function StatCard({ label, value, tone }: { label: string; value: string; tone: 
  * The top-right pill doubles as the toggle for pro mode itself (added so
  * owners don't have to detour through Settings just to flip it -- same
  * `updateBusinessProfile({ manualEditorEnabled })` call SettingsTab uses).
+ *
+ * Bug fix (2026-09-15): the design doc's review screen offers exactly one
+ * owner action -- Launch -- as a one-time step right after generation
+ * (CampaignWizardForm's handleLaunch). That action only ever lived in the
+ * wizard's in-memory `proposal` state, so a refresh or navigate-away between
+ * "کمپین ساخته شد" and hitting "تایید و راه‌اندازی" orphaned the campaign in
+ * `draft` forever -- the row exists (createCampaign already made it) but
+ * nothing on this detail page could ever flip it to `active`. Fix is scoped
+ * to exactly that: re-expose the same one-directional Launch action here
+ * when `campaign.status === 'draft'`, calling the same
+ * `updateCampaignById(id, { status: 'active' })` the wizard used. This is
+ * NOT a general status toggle -- there's deliberately no way to pause an
+ * active campaign back to draft from here, since the design doc never
+ * described that as an owner-facing action.
  */
 export function CampaignEditorTab() {
   const { campaignId } = useParams<{ campaignId: string }>()
@@ -76,6 +90,7 @@ export function CampaignEditorTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [togglingManualEditor, setTogglingManualEditor] = useState(false)
+  const [launching, setLaunching] = useState(false)
 
   useEffect(() => {
     if (!campaignId) {
@@ -130,6 +145,20 @@ export function CampaignEditorTab() {
     }
   }
 
+  const handleLaunch = async () => {
+    if (!campaign || !campaignId) return
+    setLaunching(true)
+    try {
+      const updated = await updateCampaignById(apiClient, campaignId, { status: 'active' })
+      setCampaign(updated)
+      showToast('کمپین با موفقیت راه‌اندازی شد!', 'success')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : String(err), 'danger')
+    } finally {
+      setLaunching(false)
+    }
+  }
+
   if (loading) {
     return <div className="p-4 text-sm text-slate-400">در حال بارگذاری...</div>
   }
@@ -169,6 +198,21 @@ export function CampaignEditorTab() {
           </Badge>
         </button>
       </div>
+
+      {campaign.status === 'draft' && (
+        <Card className="p-4 flex items-center justify-between gap-3 border-2 border-brand-500/40">
+          <div>
+            <p className="text-sm font-medium">این کمپین هنوز راه‌اندازی نشده</p>
+            <p className="text-xs text-slate-400 mt-1">
+              کمپین ساخته شده ولی هنوز به عنوان کمپین فعال راه‌اندازی نشده. با زدن دکمه زیر آن را فعال کن.
+            </p>
+          </div>
+          <Button onClick={handleLaunch} loading={launching}>
+            🚀 راه‌اندازی کمپین
+          </Button>
+        </Card>
+      )}
+
       {readOnly ? (
         <p className="text-xs text-slate-400 -mt-2">
           از دستیار هوشمند زیر برای ویرایش این کمپین با زبان طبیعی استفاده کن. برای ویرایش دستی تسک‌ها و پاداش‌ها، روی «فعال‌سازی حالت حرفه‌ای» بالا بزن.
