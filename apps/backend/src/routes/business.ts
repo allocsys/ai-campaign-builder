@@ -2286,16 +2286,25 @@ businessRouter.put("/microsite", async (c) => {
     ]);
   }
   if (body.modules !== undefined) {
-    for (const m of body.modules) {
-      await execute(
-        db,
-        `UPDATE business_microsite_modules
-         SET enabled = ?
-         WHERE business_microsite_id = ?
-           AND website_module_id = (SELECT id FROM website_modules WHERE key = ?)`,
-        [m.enabled ? 1 : 0, micrositeId, m.key]
-      );
-    }
+    // Perf fix (dashboard-perf-batch2 branch): the frontend's toggle() always
+    // resends the FULL modules array even when only one switch changed, and
+    // this used to write each one with a sequential `await` -- flipping a
+    // single toggle meant N round-trips back to back. The writes are to
+    // different rows (keyed by website_module_id), so there's no ordering
+    // dependency between them -- Promise.all fires them concurrently
+    // instead, cutting this endpoint's latency from N round-trips to ~1.
+    await Promise.all(
+      body.modules.map((m) =>
+        execute(
+          db,
+          `UPDATE business_microsite_modules
+           SET enabled = ?
+           WHERE business_microsite_id = ?
+             AND website_module_id = (SELECT id FROM website_modules WHERE key = ?)`,
+          [m.enabled ? 1 : 0, micrositeId, m.key]
+        )
+      )
+    );
   }
 
   return c.json(await serializeMicrosite(db, micrositeId));
