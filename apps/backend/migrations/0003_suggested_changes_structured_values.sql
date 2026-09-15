@@ -1,0 +1,35 @@
+-- No schema change needed -- suggested_changes.current_value and
+-- suggested_value are already generic TEXT columns (see 0001_init.sql).
+-- This migration is a documentation-only marker for a MEANING change, not a
+-- shape change: as of this migration, both columns always hold a JSON
+-- string (never a free-text Persian sentence) for every change_type,
+-- keyed per change_type as follows:
+--
+--   task_points:        current = {"taskId":"...","points":N}       suggested = {"points":N}
+--   reward_threshold:    current = {"rewardId":"...","threshold":N}  suggested = {"threshold":N}
+--   add_task:            current = null                             suggested = {"pattern":"...","name":"...","points":N}
+--   remove_task:         current = {"taskId":"...","name":"..."}     suggested = {}
+--   campaign_duration:   current = {"endDate":"..."}                 suggested = {"deltaDays":N}
+--   reward_depth:        current = {"rewardId":"...","description":"..."} suggested = {"description":"..."}
+--
+-- Why: POST /api/business/suggestions/:id/apply (routes/business.ts) never
+-- actually mutated campaign_tasks/campaign_rewards/campaigns -- it only
+-- flipped suggested_changes.status to 'applied'. Fixing that requires the
+-- apply handler to parse suggested_value programmatically, which the old
+-- human-readable-Persian-sentence convention (e.g. "۵۰ امتیاز") made
+-- impractical for anything but add_task (the one type that already used
+-- JSON). See lib/campaign-agent.ts's buildPrompt for the model-facing side
+-- of this change, and routes/business.ts's applySuggestionMutation for the
+-- consuming side.
+--
+-- These columns were never returned to any frontend (serializeSuggestion in
+-- routes/business.ts only ever exposed id/riskTier/changeType/rationale/
+-- status), so this is safe to change in place with no caller to update --
+-- same "product has no real users yet" reasoning as 0001_init.sql's own
+-- header comment.
+--
+-- No ALTER TABLE statement follows because none is needed -- this file
+-- exists purely so the migrations directory has a record of when/why this
+-- convention changed, matching this project's numbered-migration convention
+-- for anything after the 0001 baseline collapse.
+SELECT 1;
