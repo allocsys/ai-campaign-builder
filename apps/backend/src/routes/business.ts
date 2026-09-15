@@ -1482,9 +1482,18 @@ businessRouter.get("/suggestions", async (c) => {
 });
 
 async function loadOwnedSuggestion(db: D1Database, businessId: string, suggestionId: string) {
-  return queryFirst<{ id: string; risk_tier: string; change_type: string; rationale: string | null; status: string }>(
+  return queryFirst<{
+    id: string;
+    campaign_id: string;
+    risk_tier: string;
+    change_type: string;
+    target_id: string | null;
+    suggested_value: string | null;
+    rationale: string | null;
+    status: string;
+  }>(
     db,
-    `SELECT sc.id, sc.risk_tier, sc.change_type, sc.rationale, sc.status
+    `SELECT sc.id, sc.campaign_id, sc.risk_tier, sc.change_type, sc.target_id, sc.suggested_value, sc.rationale, sc.status
      FROM suggested_changes sc JOIN campaigns cp ON cp.id = sc.campaign_id
      WHERE sc.id = ? AND cp.business_id = ?`,
     [suggestionId, businessId]
@@ -1592,6 +1601,162 @@ businessRouter.post("/campaign/chat", async (c) => {
   return c.json({ needsClarification: false, suggestion: serializeSuggestion(created) });
 });
 
+type SuggestionMutationResult = { ok: true } | { ok: false; status: 400 | 404 | 409; error: string };
+
+// Actually performs the DB mutation a suggested_changes row describes --
+// the gap this whole feature was missing (see this route's own commit
+// message / the checkpoint notes for the bug history). Parses
+// suggested_value per the JSON shape migration 0003 documents (produced by
+// campaign-agent.ts's buildPrompt for chat-originated suggestions; any
+// future analysis-driven-insight producer of suggested_changes rows must
+// follow the same shape). Returns a discriminated result rather than
+// throwing, since an invalid/stale suggestion (edited target deleted out
+// from under it, malformed JSON) is a routine, expected failure mode here,
+// not a crash -- the caller decides what status/message to surface and,
+// critically, does NOT flip status to 'applied' on failure.
+async function applySuggestionMutation(
+  db: D1Database,
+  campaignId: string,
+  changeType: string,
+  targetId: string | null,
+  suggestedValueRaw: string | null
+): Promise<SuggestionMutationResult> {
+  let value: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(suggestedValueRaw ?? "{}");
+    value = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return { ok: false, status: 400, error: "Suggestion has malformed suggested_value and cannot be applied" };
+  }
+
+  switch (changeType) {
+    case "task_points": {
+      const points = value.points;
+      if (typeof points !== "number" || !Number.isInteger(points) || points <= 0 || !targetId) {
+        return { ok: false, status: 400, error: "Suggestion is missing a valid points value or target task" };
+      }
+      const task = await queryFirst<{ id: string }>(db, "SELECT id FROM campaign_tasks WHERE id = ? AND campaign_id = ?", [
+        targetId,
+        campaignId,
+      ]);
+      if (!task) return { ok: false, status: 404, error: "Target task no longer exists in this campaign" };
+      await execute(db, "UPDATE campaign_tasks SET points_value = ? WHERE id = ?", [points, targetId]);
+      return { ok: true };
+    }
+    case "reward_threshold": {
+      const threshold = value.threshold;
+      if (typeof threshold !== "number" || !Number.isInteger(threshold) || threshold <= 0 || !targetId) {
+        return { ok: false, status: 400, error: "Suggestion is missing a valid threshold value or target reward" };
+      }
+      const reward = await queryFirst<{ id: string }>(
+        db,
+        "SELECT id FROM campaign_rewards WHERE id = ? AND campaign_id = ?",
+        [targetId, campaignId]
+      );
+      if (!reward) return { ok: false, status: 404, error: "Target reward no longer exists in this campaign" };
+      await execute(db, "UPDATE campaign_rewards SET threshold_points = ? WHERE id = ?", [threshold, targetId]);
+      return { ok: true };
+    }
+    case "reward_depth": {
+      const description = value.description;
+      if (typeof description !== "string" || !description.trim() || !targetId) {
+        return { ok: false, status: 400, error: "Suggestion is missing a valid description or target reward" };
+      }
+      const reward = await queryFirst<{ id: string }>(
+        db,
+        "SELECT id FROM campaign_rewards WHERE id = ? AND campaign_id = ?",
+        [targetId, campaignId]
+      );
+      if (!reward) return { ok: false, status: 404, error: "Target reward no longer exists in this campaign" };
+      // reward_depth (discount/gift depth) has no dedicated column on
+      // campaign_rewards -- description is the free-text field that already
+      // carries this information for display (see migration 0001's schema
+      // and campaignRewards seed examples), so that's what this writes to.
+      await execute(db, "UPDATE campaign_rewards SET description = ? WHERE id = ?", [description.trim(), targetId]);
+      return { ok: true };
+    }
+    case "remove_task": {
+      if (!targetId) return { ok: false, status: 400, error: "Suggestion is missing a target task" };
+      const task = await queryFirst<{ id: string; name: string }>(
+        db,
+        "SELECT id, name FROM campaign_tasks WHERE id = ? AND campaign_id = ?",
+        [targetId, campaignId]
+      );
+      if (!task) return { ok: false, status: 404, error: "Target task no longer exists in this campaign" };
+      // Same guard applyCampaignUpdate's tasks block uses -- do not delete a
+      // task that already has recorded customer activity (task_submissions
+      // references it via campaign_task_id), or the DELETE throws an
+      // uncaught FOREIGN KEY constraint error. Reused verbatim rather than
+      // reimplemented, per this route's own commit message.
+      const referenced = await queryFirst<{ c: number }>(
+        db,
+        "SELECT COUNT(*) AS c FROM task_submissions WHERE campaign_task_id = ?",
+        [targetId]
+      );
+      if (referenced && referenced.c > 0) {
+        return {
+          ok: false,
+          status: 409,
+          error: `Cannot remove task "${task.name}": it already has recorded customer activity. Edit it instead of removing, or leave it in place.`,
+        };
+      }
+      await execute(db, "DELETE FROM campaign_tasks WHERE id = ?", [targetId]);
+      return { ok: true };
+    }
+    case "campaign_duration": {
+      const deltaDays = value.deltaDays;
+      if (typeof deltaDays !== "number" || !Number.isInteger(deltaDays) || deltaDays === 0) {
+        return { ok: false, status: 400, error: "Suggestion is missing a valid day delta" };
+      }
+      const campaign = await queryFirst<{ end_date: string | null }>(db, "SELECT end_date FROM campaigns WHERE id = ?", [
+        campaignId,
+      ]);
+      if (!campaign) return { ok: false, status: 404, error: "Campaign no longer exists" };
+      // No current end_date to extend from (shouldn't normally happen --
+      // every campaign gets one at creation/generation time) -- rather than
+      // guess a base date, reject cleanly so the owner can set dates via the
+      // campaign editor instead.
+      if (!campaign.end_date) {
+        return { ok: false, status: 400, error: "Campaign has no end date to extend" };
+      }
+      const newEndDate = new Date(new Date(campaign.end_date).getTime() + deltaDays * 24 * 60 * 60 * 1000).toISOString();
+      await execute(db, "UPDATE campaigns SET end_date = ? WHERE id = ?", [newEndDate, campaignId]);
+      return { ok: true };
+    }
+    case "add_task": {
+      const pattern = value.pattern;
+      const name = value.name;
+      const points = value.points;
+      if (
+        typeof pattern !== "string" ||
+        typeof name !== "string" ||
+        !name.trim() ||
+        typeof points !== "number" ||
+        !Number.isInteger(points) ||
+        points <= 0
+      ) {
+        return { ok: false, status: 400, error: "Suggestion is missing a valid pattern/name/points for the new task" };
+      }
+      const patternRow = await queryFirst<{ id: string }>(db, "SELECT id FROM task_patterns WHERE name = ?", [pattern]);
+      if (!patternRow) return { ok: false, status: 400, error: `Unknown task pattern: ${pattern}` };
+      const maxOrder = await queryFirst<{ max_order: number | null }>(
+        db,
+        "SELECT MAX(display_order) AS max_order FROM campaign_tasks WHERE campaign_id = ?",
+        [campaignId]
+      );
+      await execute(
+        db,
+        `INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [generateId(), campaignId, patternRow.id, points, (maxOrder?.max_order ?? -1) + 1, name.trim()]
+      );
+      return { ok: true };
+    }
+    default:
+      return { ok: false, status: 400, error: `Unsupported change_type: ${changeType}` };
+  }
+}
+
 businessRouter.post("/suggestions/:id/apply", async (c) => {
   const db = c.env.DB;
   const businessId = c.get("auth").sub;
@@ -1601,6 +1766,21 @@ businessRouter.post("/suggestions/:id/apply", async (c) => {
   if (!existing) return c.json({ error: "Suggestion not found" }, 404);
   if (existing.status !== "pending") {
     return c.json({ error: `Suggestion is already ${existing.status}` }, 409);
+  }
+
+  // Perform the real mutation FIRST -- status only flips to 'applied' (and
+  // manual_apply_count only increments) if this actually succeeds. Fixes
+  // the bug where every apply unconditionally marked itself 'applied' even
+  // though nothing underneath it had changed.
+  const mutation = await applySuggestionMutation(
+    db,
+    existing.campaign_id,
+    existing.change_type,
+    existing.target_id,
+    existing.suggested_value
+  );
+  if (!mutation.ok) {
+    return c.json({ error: mutation.error }, mutation.status);
   }
 
   await execute(
