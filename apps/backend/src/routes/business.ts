@@ -5,7 +5,7 @@ import type { JWTPayload } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { generateId, queryAll, queryFirst, execute } from "../lib/db";
 import { generateCampaignProposal } from "../lib/campaign-generator";
-import { validateMicrositeSlug } from "@ai-campaign-builder/shared-config";
+import { validateMicrositeSlug, MICROSITE_ADDON_MONTHLY_PRICE_TOMAN } from "@ai-campaign-builder/shared-config";
 import { parseNaturalLanguageCampaignRequest } from "../lib/campaign-agent";
 import { loadChatHistory, appendChatTurns } from "../lib/chat-history";
 
@@ -2095,6 +2095,156 @@ businessRouter.put("/microsite", async (c) => {
   }
 
   return c.json(await serializeMicrosite(db, micrositeId));
+});
+
+// ============================================================================
+// Microsite activation ("request a microsite for an existing campaign").
+// Fixes the gap where a business that skipped the wizard's "wantsSite"
+// checkbox had no way back in -- GET/PUT /microsite above only ever 404
+// with code 'microsite_not_created' and neither may create one as a side
+// effect (see ensureMicrosite's own comment). These two routes are the
+// explicit, owner-initiated alternative entry point: GET /microsite/eligibility
+// tells the frontend whether there's anything to offer (a campaign exists,
+// no microsite yet) plus a ready-to-edit suggested slug; POST
+// /microsite/activate does the actual create-and-turn-on-the-addon step,
+// reusing ensureMicrosite (same idempotent creator the wizard path already
+// uses) rather than a second, parallel creation path.
+// ============================================================================
+
+// Slugify a business name into a candidate subdomain slug, same shape rules
+// as resolveSuggestedMicrositeSlug's slugify step above (lowercase,
+// spaces->hyphens, strip anything not DNS-label-safe, collapse/trim
+// hyphens) but usable BEFORE a microsite row exists -- resolveSuggestedMicrositeSlug
+// requires an existing micrositeId (to exclude from its own clash check and
+// to check the owner-lock flag), neither of which applies here since this
+// only ever runs pre-creation. Same 5-attempt numbered-suffix retry against
+// the live table; falls back to a random `biz-xxxxxxxx` (matching
+// ensureMicrosite's own default shape) if every attempt collides or the
+// business name doesn't yield any DNS-safe characters at all (e.g. an
+// all-Persian name with no Latin transliteration).
+async function suggestMicrositeSlugForBusinessName(db: D1Database, businessName: string): Promise<string> {
+  const fallback = `biz-${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
+
+  const base = businessName
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!base) return fallback;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    if (validateMicrositeSlug(candidate)) continue;
+    const clash = await queryFirst<{ id: string }>(db, "SELECT id FROM business_microsites WHERE subdomain_slug = ?", [
+      candidate,
+    ]);
+    if (!clash) return candidate;
+  }
+  return fallback;
+}
+
+export type MicrositeEligibility =
+  | { eligible: false; reason: "already_created" | "no_campaign" }
+  | {
+      eligible: true;
+      businessName: string;
+      campaignGoal: "acquisition" | "retention" | "acquisition_retention";
+      campaignStatus: "active" | "draft" | "ended";
+      suggestedSlug: string;
+      addonMonthlyPriceToman: number;
+    };
+
+businessRouter.get("/microsite/eligibility", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+
+  const existingMicrosite = await getMicrositeId(db, businessId);
+  if (existingMicrosite) {
+    return c.json<MicrositeEligibility>({ eligible: false, reason: "already_created" });
+  }
+
+  const campaignId = await findCurrentCampaignId(db, businessId);
+  if (!campaignId) {
+    return c.json<MicrositeEligibility>({ eligible: false, reason: "no_campaign" });
+  }
+
+  const campaign = await queryFirst<{ status: string; goal: string }>(
+    db,
+    "SELECT status, goal FROM campaigns WHERE id = ?",
+    [campaignId]
+  );
+  const profile = await loadProfile(db, businessId);
+  const businessName = profile?.name ?? "";
+
+  return c.json<MicrositeEligibility>({
+    eligible: true,
+    businessName,
+    campaignGoal: (campaign?.goal ?? "acquisition") as "acquisition" | "retention" | "acquisition_retention",
+    campaignStatus: (campaign?.status ?? "draft") as "active" | "draft" | "ended",
+    suggestedSlug: await suggestMicrositeSlugForBusinessName(db, businessName),
+    addonMonthlyPriceToman: MICROSITE_ADDON_MONTHLY_PRICE_TOMAN,
+  });
+});
+
+businessRouter.post("/microsite/activate", async (c) => {
+  const db = c.env.DB;
+  const businessId = c.get("auth").sub;
+
+  if (await getMicrositeId(db, businessId)) {
+    return c.json({ error: "میکروسایت قبلاً ساخته شده است", code: "microsite_already_created" }, 409);
+  }
+  const campaignId = await findCurrentCampaignId(db, businessId);
+  if (!campaignId) {
+    return c.json({ error: "ابتدا باید یک کمپین بسازید", code: "no_campaign" }, 409);
+  }
+
+  const body = await c.req.json<Partial<{ subdomainSlug: string }>>();
+
+  // Validate the requested slug (if any) BEFORE creating the microsite row --
+  // an invalid/taken slug should fail cleanly with nothing created, rather
+  // than leaving an orphaned row behind with ensureMicrosite's ugly default
+  // slug that the owner then has to notice and fix via PUT /microsite.
+  let slug: string | undefined;
+  if (body.subdomainSlug !== undefined) {
+    const trimmed = body.subdomainSlug.trim().toLowerCase();
+    const validationError = validateMicrositeSlug(trimmed);
+    if (validationError) return c.json({ error: validationError }, 400);
+    const clash = await queryFirst<{ id: string }>(db, "SELECT id FROM business_microsites WHERE subdomain_slug = ?", [
+      trimmed,
+    ]);
+    if (clash) return c.json({ error: "این آدرس قبلاً استفاده شده است", code: "slug_taken" }, 409);
+    slug = trimmed;
+  }
+
+  const micrositeId = await ensureMicrosite(db, businessId);
+
+  // The owner's edited/confirmed slug from this flow counts as their
+  // one-time choice (plan.md Item 17) -- same lock semantics as PUT
+  // /microsite's own subdomainSlug branch, just applied at creation time
+  // instead of afterward.
+  if (slug !== undefined) {
+    await execute(
+      db,
+      "UPDATE business_microsites SET subdomain_slug = ?, subdomain_slug_set_by_owner = 1, updated_at = ? WHERE id = ?",
+      [slug, nowIso(), micrositeId]
+    );
+  }
+
+  // "Buy and activate" -- turns on the add-on. No payment processor exists
+  // anywhere in this codebase yet (architecture.md's addon_monthly_price_toman
+  // is still an unwired placeholder column), so this records the add-on as
+  // active at today's placeholder price rather than actually charging
+  // anything -- consistent with ensureSubscription's own 'trialing'-by-default
+  // approach to a not-yet-built billing flow.
+  await execute(
+    db,
+    "UPDATE business_microsites SET addon_status = 'active', addon_monthly_price_toman = ?, updated_at = ? WHERE id = ?",
+    [MICROSITE_ADDON_MONTHLY_PRICE_TOMAN, nowIso(), micrositeId]
+  );
+
+  return c.json(await serializeMicrosite(db, micrositeId), 201);
 });
 
 // ============================================================================

@@ -259,6 +259,25 @@ export interface MicrositeState {
   modules: MicrositeModule[];
 }
 
+/**
+ * "Request a microsite for an existing campaign" entry point (business.ts's
+ * GET /microsite/eligibility). Tells MicrositeBuilderTab's not-created state
+ * whether there's anything to offer instead of just a dead-end message: a
+ * campaign already exists and no microsite has been created yet, plus a
+ * ready-to-edit suggested subdomain slug and the add-on's monthly price.
+ */
+export type MicrositeEligibility =
+  | { eligible: false; reason: 'already_created' | 'no_campaign' }
+  | {
+      eligible: true;
+      businessName: string;
+      campaignGoal: 'acquisition' | 'retention' | 'acquisition_retention';
+      campaignStatus: 'active' | 'draft' | 'ended';
+      /** Pre-slugified from businessName, uniqueness-checked server-side -- safe to show as an editable default. */
+      suggestedSlug: string;
+      addonMonthlyPriceToman: number;
+    };
+
 export interface Subscription {
   tier: string;
   monthlyPriceToman: number;

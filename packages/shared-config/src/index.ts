@@ -16,6 +16,16 @@
 // buildMicrositeJoinUrl can be deleted).
 export const MICROSITE_DOMAIN = 'ourdomain.com';
 
+// Monthly price for the microsite add-on (architecture.md: "the separate
+// optional add-on fee for having a microsite ... exact price TBD"). Same
+// TBD-placeholder status as MICROSITE_DOMAIN above -- used by the
+// "request a microsite for an existing campaign" activation flow
+// (business.ts's POST /microsite/activate) to show a real number in the
+// buy-and-activate confirmation instead of leaving the add-on's price
+// column permanently null. Update this the same day a real price is
+// decided; nothing else needs to change.
+export const MICROSITE_ADDON_MONTHLY_PRICE_TOMAN = 490000;
+
 // TEMPORARY (added 2026-09-13): no real domain purchased yet, so
 // `{slug}.${MICROSITE_DOMAIN}` links don't resolve to anything live. Until
 // Open Item 3 (real domain) is decided, this is false so
