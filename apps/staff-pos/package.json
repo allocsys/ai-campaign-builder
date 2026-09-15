@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b",
-    "test": "echo \"no tests yet\" && exit 0",
+    "test": "vitest run",
     "deploy": "wrangler deploy"
   },
   "dependencies": {
