@@ -2099,7 +2099,7 @@ businessRouter.put("/microsite", async (c) => {
 
 // ============================================================================
 // Microsite activation ("request a microsite for an existing campaign").
-// Fixes the gap where a business that skipped the wizard's "وwantsSite"
+// Fixes the gap where a business that skipped the wizard's "wantsSite"
 // checkbox had no way back in -- GET/PUT /microsite above only ever 404
 // with code 'microsite_not_created' and neither may create one as a side
 // effect (see ensureMicrosite's own comment). These two routes are the
