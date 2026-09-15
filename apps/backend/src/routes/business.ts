@@ -369,21 +369,28 @@ export async function serializeCampaign(db: D1Database, campaignId: string) {
   // here before, since no caller needed a stable per-row identifier until the
   // manual editor (granular add/remove/edit of individual tasks/rewards, not
   // just whole-array replacement) needed one.
-  const tasks = await queryAll<{ id: string; name: string; pattern_name: string; points_value: number }>(
-    db,
-    `SELECT ct.id, ct.name, tp.name AS pattern_name, ct.points_value
-     FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
-     WHERE ct.campaign_id = ? ORDER BY ct.display_order ASC`,
-    [campaignId]
-  );
-
-  const rewards = await queryAll<{ id: string; name: string; pattern_name: string; threshold_points: number }>(
-    db,
-    `SELECT cr.id, cr.name, rp.name AS pattern_name, cr.threshold_points
-     FROM campaign_rewards cr JOIN reward_patterns rp ON rp.id = cr.reward_pattern_id
-     WHERE cr.campaign_id = ? ORDER BY cr.threshold_points ASC`,
-    [campaignId]
-  );
+  //
+  // Perf fix (dashboard-perf branch): tasks and rewards are independent of
+  // each other (neither reads the other's result), so they run concurrently
+  // via Promise.all instead of as two sequential awaits. serializeCampaign
+  // backs GET /campaign and GET /campaigns/:campaignId, both hit on every
+  // dashboard/campaign-editor load.
+  const [tasks, rewards] = await Promise.all([
+    queryAll<{ id: string; name: string; pattern_name: string; points_value: number }>(
+      db,
+      `SELECT ct.id, ct.name, tp.name AS pattern_name, ct.points_value
+       FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
+       WHERE ct.campaign_id = ? ORDER BY ct.display_order ASC`,
+      [campaignId]
+    ),
+    queryAll<{ id: string; name: string; pattern_name: string; threshold_points: number }>(
+      db,
+      `SELECT cr.id, cr.name, rp.name AS pattern_name, cr.threshold_points
+       FROM campaign_rewards cr JOIN reward_patterns rp ON rp.id = cr.reward_pattern_id
+       WHERE cr.campaign_id = ? ORDER BY cr.threshold_points ASC`,
+      [campaignId]
+    ),
+  ]);
 
   return {
     status: campaign.status as "active" | "draft" | "ended",
