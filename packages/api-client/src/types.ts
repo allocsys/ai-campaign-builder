@@ -18,11 +18,12 @@ export interface BusinessProfile {
 }
 
 /**
- * Aggregate lifetime stats for the dashboard overview panel.
- * Backend endpoint (GET /api/business/stats) doesn't exist yet -- this type
- * and getBusinessStats() are added frontend-first so the UI is ready; until
- * the endpoint ships, getBusinessStats() 404s and DashboardTab hides the
- * stats row rather than erroring the whole page. See plan.md open items.
+ * Aggregate lifetime stats for the dashboard overview panel, scoped to the
+ * business's single "current" campaign. Backed by GET /api/business/stats
+ * (see that route's own doc comment in business.ts for the
+ * conversionRatePercent definition). DashboardTab still hides the stats row
+ * on any request failure (network error etc.) rather than erroring the
+ * whole page.
  */
 export interface BusinessStats {
   totalMembers: number;
