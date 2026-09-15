@@ -185,6 +185,94 @@ describe("Staff POS Routes (/api/staff)", () => {
     });
   });
 
+  describe("Milestone Streak (every 3rd purchase)", () => {
+    const streakCampaignId = "sp_camp_streak";
+    const streakCustomerId = "sp_cust_streak";
+    const streakPersonalCode = "STREAK01";
+    const streakCcc = "ccc_sp_streak";
+
+    beforeAll(async () => {
+      const cat = await env.DB.prepare("SELECT id FROM business_categories LIMIT 1").first();
+      const posPatternFirstAction = await env.DB.prepare("SELECT id FROM task_patterns WHERE name = 'first_action'").first();
+      const posPatternRepeat = await env.DB.prepare("SELECT id FROM task_patterns WHERE name = 'repeat_purchase'").first();
+      const posPatternStreak = await env.DB.prepare("SELECT id FROM task_patterns WHERE name = 'milestone_streak'").first();
+
+      // Different business than sp_biz_1's campaign -- findActiveCampaignId
+      // picks the ACTIVE campaign for a business, and sp_biz_1 already has
+      // one (sp_camp_1). Give this streak scenario its own business so both
+      // campaigns can be "active" simultaneously without colliding.
+      const streakBizId = "sp_biz_streak";
+      const streakOwnerId = "sp_owner_streak";
+      await env.DB.prepare("INSERT INTO business_owners (id, phone, phone_verified) VALUES (?, '09126660099', 1)").bind(streakOwnerId).run();
+      await env.DB.prepare("INSERT INTO businesses (id, owner_id, name, category_id) VALUES (?, ?, 'Streak Test Gym', ?)").bind(streakBizId, streakOwnerId, cat?.id).run();
+      await env.DB.prepare("INSERT INTO campaigns (id, business_id, goal, status) VALUES (?, ?, 'retention', 'active')").bind(streakCampaignId, streakBizId).run();
+      await env.DB.prepare("INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name) VALUES ('pos_task_streak_first', ?, ?, 30, 1, 'First Purchase')").bind(streakCampaignId, posPatternFirstAction?.id).run();
+      await env.DB.prepare("INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name) VALUES ('pos_task_streak_repeat', ?, ?, 15, 2, 'Repeat Purchase')").bind(streakCampaignId, posPatternRepeat?.id).run();
+      await env.DB.prepare("INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name) VALUES ('pos_task_streak_milestone', ?, ?, 30, 3, 'Streak Bonus')").bind(streakCampaignId, posPatternStreak?.id).run();
+
+      const streakStaffId = "sp_staff_streak";
+      await env.DB.prepare("INSERT INTO staff (id, business_id, name, phone, active) VALUES (?, ?, 'Streak Staffer', '09126663333', 1)").bind(streakStaffId, streakBizId).run();
+      await env.DB.prepare("INSERT INTO customers (id, phone_number, phone_verified) VALUES (?, '09126664444', 1)").bind(streakCustomerId).run();
+      await env.DB.prepare("INSERT INTO customer_campaign_codes (id, customer_id, campaign_id, personal_code, qr_payload) VALUES (?, ?, ?, ?, 'CAMP-STREAK01')").bind(streakCcc, streakCustomerId, streakCampaignId, streakPersonalCode).run();
+
+      (globalThis as any).__streakStaffToken = await generateTestToken({ sub: streakStaffId, role: "staff", businessId: streakBizId });
+    });
+
+    async function logStreakPurchase(idempotencyKey: string) {
+      return makeAppRequest("/api/staff/purchases", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${(globalThis as any).__streakStaffToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ personalCode: streakPersonalCode, amountToman: 20000, idempotencyKey }),
+      });
+    }
+
+    it("awards first_action on purchase 1, repeat_purchase on purchase 2, milestone_streak (not repeat_purchase) on purchase 3", async () => {
+      const res1 = await logStreakPurchase("idemp_streak_1");
+      const body1 = await res1.json() as { tasksAwarded: string[]; pointsAwarded: number; purchaseCount: number };
+      expect(body1.tasksAwarded).toEqual(["first_action"]);
+      expect(body1.pointsAwarded).toBe(30);
+      expect(body1.purchaseCount).toBe(1);
+
+      const res2 = await logStreakPurchase("idemp_streak_2");
+      const body2 = await res2.json() as { tasksAwarded: string[]; pointsAwarded: number; purchaseCount: number };
+      expect(body2.tasksAwarded).toEqual(["repeat_purchase"]);
+      expect(body2.pointsAwarded).toBe(15);
+      expect(body2.purchaseCount).toBe(2);
+
+      const res3 = await logStreakPurchase("idemp_streak_3");
+      const body3 = await res3.json() as { tasksAwarded: string[]; pointsAwarded: number; purchaseCount: number };
+      // 3rd purchase: milestone_streak replaces repeat_purchase, not stacked
+      // alongside it.
+      expect(body3.tasksAwarded).toEqual(["milestone_streak"]);
+      expect(body3.pointsAwarded).toBe(30);
+      expect(body3.purchaseCount).toBe(3);
+
+      const res4 = await logStreakPurchase("idemp_streak_4");
+      const body4 = await res4.json() as { tasksAwarded: string[]; pointsAwarded: number; purchaseCount: number };
+      // Back to regular repeat_purchase on the 4th.
+      expect(body4.tasksAwarded).toEqual(["repeat_purchase"]);
+      expect(body4.pointsAwarded).toBe(15);
+      expect(body4.purchaseCount).toBe(4);
+
+      const bal = await env.DB.prepare("SELECT SUM(points) AS total FROM points_ledger WHERE customer_campaign_code_id = ?").bind(streakCcc).first();
+      expect(bal?.total).toBe(90); // 30 + 15 + 30 + 15
+    });
+
+    it("campaigns with no milestone_streak task configured keep awarding repeat_purchase on every purchase, including the 3rd (regression guard)", async () => {
+      // sp_camp_1 (used throughout this file) has no milestone_streak task --
+      // its own 3rd purchase (idemp_sp_3, tested above) already awarded
+      // repeat_purchase, not nothing. This is just an explicit assertion the
+      // streak change didn't silently affect campaigns without the pattern.
+      const row = await env.DB.prepare(
+        "SELECT tp.name AS pattern_name FROM task_submissions ts JOIN campaign_tasks ct ON ct.id = ts.campaign_task_id JOIN task_patterns tp ON tp.id = ct.task_pattern_id WHERE ts.idempotency_key = 'idemp_sp_3'"
+      ).first();
+      expect(row?.pattern_name).toBe("repeat_purchase");
+    });
+  });
+
   describe("Reward Redemption Fulfillment & Offline Queue Sync", () => {
     const redemptionCode = "888999";
     const redemptionId = "rr_sp_1";
