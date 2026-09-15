@@ -39,10 +39,11 @@ export async function getChecklist(client: ApiClient): Promise<ChecklistItem[]> 
 }
 
 /**
- * GET /api/business/stats -- backend route not implemented yet (frontend-first,
- * see BusinessStats doc comment in types.ts). Callers must catch/handle the
- * rejection until the endpoint ships; DashboardTab treats a failure here as
- * "no stats to show" rather than a page-level error.
+ * GET /api/business/stats -- lifetime stats for the business's single
+ * "current" campaign (zeroed, not 404, when there's no campaign yet). This
+ * IS implemented on the backend; DashboardTab still treats any failure here
+ * as "no stats to show" rather than a page-level error, which is fine to
+ * leave as defensive handling for network errors etc.
  */
 export async function getBusinessStats(client: ApiClient): Promise<BusinessStats> {
   return client.request<BusinessStats>('/api/business/stats');

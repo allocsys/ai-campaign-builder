@@ -55,16 +55,27 @@ businessRouter.use("/*", async (c, next) => {
 // defensive/future-proofing rather than reachable today.
 businessRouter.use("/*", async (c, next) => {
   const auth = c.get("auth");
-  const ownerExists = await queryFirst<{ id: string }>(c.env.DB, "SELECT id FROM business_owners WHERE id = ?", [
-    auth.sub,
-  ]);
-  if (!ownerExists) {
+  // Perf fix (dashboard-perf branch): this used to be two sequential
+  // round-trips (SELECT business_owners, then SELECT businesses) on EVERY
+  // single /api/business/* request. A LEFT JOIN gets both answers -- does
+  // the owner still exist, and if so what's their business id (if any) --
+  // in one query. `business_id` is NULL both when the owner row itself
+  // doesn't exist (row is null entirely) and when the owner exists but has
+  // no business yet, so the ownerExists/business?.id distinction from the
+  // old code is preserved via `row` (null => 403) vs `row.business_id`
+  // (null => brand-new owner, same fallback as before).
+  const row = await queryFirst<{ business_id: string | null }>(
+    c.env.DB,
+    `SELECT b.id AS business_id
+     FROM business_owners bo
+     LEFT JOIN businesses b ON b.owner_id = bo.id
+     WHERE bo.id = ?`,
+    [auth.sub]
+  );
+  if (!row) {
     return c.json({ error: "This account no longer exists.", code: "business_account_deleted" }, 403);
   }
-  const business = await queryFirst<{ id: string }>(c.env.DB, "SELECT id FROM businesses WHERE owner_id = ?", [
-    auth.sub,
-  ]);
-  c.set("auth", { ...auth, ownerId: auth.sub, sub: business?.id ?? auth.sub });
+  c.set("auth", { ...auth, ownerId: auth.sub, sub: row.business_id ?? auth.sub });
   await next();
 });
 
@@ -358,21 +369,28 @@ export async function serializeCampaign(db: D1Database, campaignId: string) {
   // here before, since no caller needed a stable per-row identifier until the
   // manual editor (granular add/remove/edit of individual tasks/rewards, not
   // just whole-array replacement) needed one.
-  const tasks = await queryAll<{ id: string; name: string; pattern_name: string; points_value: number }>(
-    db,
-    `SELECT ct.id, ct.name, tp.name AS pattern_name, ct.points_value
-     FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
-     WHERE ct.campaign_id = ? ORDER BY ct.display_order ASC`,
-    [campaignId]
-  );
-
-  const rewards = await queryAll<{ id: string; name: string; pattern_name: string; threshold_points: number }>(
-    db,
-    `SELECT cr.id, cr.name, rp.name AS pattern_name, cr.threshold_points
-     FROM campaign_rewards cr JOIN reward_patterns rp ON rp.id = cr.reward_pattern_id
-     WHERE cr.campaign_id = ? ORDER BY cr.threshold_points ASC`,
-    [campaignId]
-  );
+  //
+  // Perf fix (dashboard-perf branch): tasks and rewards are independent of
+  // each other (neither reads the other's result), so they run concurrently
+  // via Promise.all instead of as two sequential awaits. serializeCampaign
+  // backs GET /campaign and GET /campaigns/:campaignId, both hit on every
+  // dashboard/campaign-editor load.
+  const [tasks, rewards] = await Promise.all([
+    queryAll<{ id: string; name: string; pattern_name: string; points_value: number }>(
+      db,
+      `SELECT ct.id, ct.name, tp.name AS pattern_name, ct.points_value
+       FROM campaign_tasks ct JOIN task_patterns tp ON tp.id = ct.task_pattern_id
+       WHERE ct.campaign_id = ? ORDER BY ct.display_order ASC`,
+      [campaignId]
+    ),
+    queryAll<{ id: string; name: string; pattern_name: string; threshold_points: number }>(
+      db,
+      `SELECT cr.id, cr.name, rp.name AS pattern_name, cr.threshold_points
+       FROM campaign_rewards cr JOIN reward_patterns rp ON rp.id = cr.reward_pattern_id
+       WHERE cr.campaign_id = ? ORDER BY cr.threshold_points ASC`,
+      [campaignId]
+    ),
+  ]);
 
   return {
     status: campaign.status as "active" | "draft" | "ended",
@@ -1366,37 +1384,43 @@ businessRouter.get("/campaigns/:campaignId/stats", async (c) => {
 // ============================================================================
 
 async function loadBusinessStats(db: D1Database, campaignId: string) {
-  const members = await queryFirst<{ count: number }>(
-    db,
-    "SELECT COUNT(*) AS count FROM customer_campaign_codes WHERE campaign_id = ?",
-    [campaignId]
-  );
-
-  const pointsIssued = await queryFirst<{ total: number }>(
-    db,
-    `SELECT COALESCE(SUM(pl.points), 0) AS total
-     FROM points_ledger pl JOIN customer_campaign_codes ccc ON ccc.id = pl.customer_campaign_code_id
-     WHERE ccc.campaign_id = ? AND pl.entry_type = 'earned'`,
-    [campaignId]
-  );
-
-  const redemptions = await queryFirst<{ count: number }>(
-    db,
-    `SELECT COUNT(*) AS count
-     FROM reward_redemptions rr JOIN customer_campaign_codes ccc ON ccc.id = rr.customer_campaign_code_id
-     WHERE ccc.campaign_id = ? AND rr.status = 'fulfilled'`,
-    [campaignId]
-  );
-
-  const funnel = await queryFirst<{ opportunities: number; conversions: number }>(
-    db,
-    `SELECT
-       COUNT(*) AS opportunities,
-       COALESCE(SUM(CASE WHEN ts.status = 'approved' THEN 1 ELSE 0 END), 0) AS conversions
-     FROM task_submissions ts JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
-     WHERE ccc.campaign_id = ?`,
-    [campaignId]
-  );
+  // Perf fix (dashboard-perf branch): these 4 queries are fully independent
+  // of each other (none reads a result the others produce), but used to run
+  // as 4 sequential awaits -- each paying its own D1 round-trip latency back
+  // to back. Promise.all fires them concurrently instead, so this function's
+  // total latency is roughly the slowest single query rather than the sum of
+  // all 4. Called on every dashboard load (GET /business/stats) plus GET
+  // /business/campaigns/:campaignId/stats.
+  const [members, pointsIssued, redemptions, funnel] = await Promise.all([
+    queryFirst<{ count: number }>(
+      db,
+      "SELECT COUNT(*) AS count FROM customer_campaign_codes WHERE campaign_id = ?",
+      [campaignId]
+    ),
+    queryFirst<{ total: number }>(
+      db,
+      `SELECT COALESCE(SUM(pl.points), 0) AS total
+       FROM points_ledger pl JOIN customer_campaign_codes ccc ON ccc.id = pl.customer_campaign_code_id
+       WHERE ccc.campaign_id = ? AND pl.entry_type = 'earned'`,
+      [campaignId]
+    ),
+    queryFirst<{ count: number }>(
+      db,
+      `SELECT COUNT(*) AS count
+       FROM reward_redemptions rr JOIN customer_campaign_codes ccc ON ccc.id = rr.customer_campaign_code_id
+       WHERE ccc.campaign_id = ? AND rr.status = 'fulfilled'`,
+      [campaignId]
+    ),
+    queryFirst<{ opportunities: number; conversions: number }>(
+      db,
+      `SELECT
+         COUNT(*) AS opportunities,
+         COALESCE(SUM(CASE WHEN ts.status = 'approved' THEN 1 ELSE 0 END), 0) AS conversions
+       FROM task_submissions ts JOIN customer_campaign_codes ccc ON ccc.id = ts.customer_campaign_code_id
+       WHERE ccc.campaign_id = ?`,
+      [campaignId]
+    ),
+  ]);
 
   const opportunities = funnel?.opportunities ?? 0;
   const conversions = funnel?.conversions ?? 0;

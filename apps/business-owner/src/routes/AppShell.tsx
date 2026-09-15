@@ -1,5 +1,5 @@
-import { type ReactNode, useState, useEffect } from 'react'
-import { useLocation, Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useLocation, Link, Outlet } from 'react-router-dom'
 import { Button, AppHeader, Drawer, BottomNav } from '@ai-campaign-builder/ui-kit'
 import { getSuggestedChanges } from '@ai-campaign-builder/api-client'
 import { useAuth } from '../lib/auth'
@@ -8,8 +8,21 @@ import apiClient from '../lib/api-client'
 /**
  * AppShell component integrating AppHeader, Drawer, and BottomNav
  * for persistent navigation across all /dashboard/* routes.
+ *
+ * Perf fix (dashboard-perf branch): this used to take a `children` prop and
+ * get re-constructed fresh inside every leaf route's `element` in App.tsx.
+ * React Router treats a differently-matched route as a different element
+ * tree, so navigating between dashboard tabs was unmounting and remounting
+ * this entire shell on every click -- including re-firing the
+ * getSuggestedChanges fetch below on every single navigation, and causing
+ * the header/drawer/bottom-nav to flicker and re-render from scratch. Now
+ * that App.tsx nests all /dashboard/* routes under a single shared
+ * <Route element={<AppShell />}> layout route, this component renders its
+ * child route via <Outlet/> and stays mounted across all of them -- the
+ * pendingSuggestionsCount fetch below now only runs once per session
+ * instead of once per navigation.
  */
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell() {
   const { phone, logout } = useAuth()
   const location = useLocation()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -112,7 +125,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </Drawer>
 
-      <main className="flex-1 p-6">{children}</main>
+      <main className="flex-1 p-6">
+        <Outlet />
+      </main>
 
       {/* plan.md Item 21 -- campaignTo no longer needs to be computed here:
           the nav tab always points at the campaign list page now (its own
