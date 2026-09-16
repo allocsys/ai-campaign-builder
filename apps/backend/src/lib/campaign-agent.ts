@@ -93,11 +93,11 @@ const VALID_TASK_PATTERN_NAMES = [
 // to it.
 const VALID_REWARD_PATTERN_NAMES = [
   "percentage_discount",
-  "fixed_amount_discount",
   "free_item",
-  "free_gift",
-  "cashback",
-  "vip_perk",
+  "free_shipping",
+  "vip_tier",
+  "promo_item",
+  "early_access",
 ] as const;
 
 export interface ParsedCampaignChangeSuggestion {
