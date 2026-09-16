@@ -1582,8 +1582,23 @@ businessRouter.post("/campaign/chat", async (c) => {
   const campaignId = body.campaignId;
   const campaignState = await serializeCampaign(db, campaignId);
   const history = await loadChatHistory(c.env, campaignId, body.sessionId);
+  // Catalog of reward_patterns the owner could add a NEW reward from (not
+  // just the ones already on the campaign, which campaignState.rewards
+  // already covers) -- see campaign-agent.ts's AvailableRewardPattern for
+  // why add_reward needs this the same way add_task has always had
+  // VALID_TASK_PATTERN_NAMES inlined into the prompt.
+  const availableRewardPatterns = await queryAll<{ id: string; name: string }>(
+    db,
+    "SELECT id, name FROM reward_patterns"
+  );
 
-  const result = await parseNaturalLanguageCampaignRequest(c.env, body.text, campaignState, history);
+  const result = await parseNaturalLanguageCampaignRequest(
+    c.env,
+    body.text,
+    campaignState,
+    history,
+    availableRewardPatterns
+  );
 
   if (result.needsClarification) {
     await appendChatTurns(c.env, campaignId, body.sessionId, [
@@ -1773,6 +1788,40 @@ async function applySuggestionMutation(
         `INSERT INTO campaign_tasks (id, campaign_id, task_pattern_id, points_value, display_order, name)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [generateId(), campaignId, patternRow.id, points, (maxOrder?.max_order ?? -1) + 1, name.trim()]
+      );
+      return { ok: true };
+    }
+    case "add_reward": {
+      // Mirrors add_task's mutation exactly, one level up (campaign_rewards
+      // instead of campaign_tasks, threshold instead of points/display_order --
+      // reward ordering is by threshold_points, see serializeCampaign's
+      // ORDER BY, so there's no display_order column to compute here).
+      const pattern = value.pattern;
+      const name = value.name;
+      const threshold = value.threshold;
+      if (
+        typeof pattern !== "string" ||
+        typeof name !== "string" ||
+        !name.trim() ||
+        typeof threshold !== "number" ||
+        !Number.isInteger(threshold) ||
+        threshold <= 0
+      ) {
+        return {
+          ok: false,
+          status: 400,
+          error: "Suggestion is missing a valid pattern/name/threshold for the new reward",
+        };
+      }
+      const patternRow = await queryFirst<{ id: string }>(db, "SELECT id FROM reward_patterns WHERE name = ?", [
+        pattern,
+      ]);
+      if (!patternRow) return { ok: false, status: 400, error: `Unknown reward pattern: ${pattern}` };
+      await execute(
+        db,
+        `INSERT INTO campaign_rewards (id, campaign_id, reward_pattern_id, threshold_points, name)
+         VALUES (?, ?, ?, ?, ?)`,
+        [generateId(), campaignId, patternRow.id, threshold, name.trim()]
       );
       return { ok: true };
     }
