@@ -25,6 +25,7 @@ vi.mock('@ai-campaign-builder/ui-kit', async () => {
 
 vi.mock('../../lib/api-client', () => ({
   getCustomerByCode: vi.fn(),
+  getPosTaskOptions: vi.fn(),
   logPurchase: vi.fn(),
   getRedemptionByCode: vi.fn(),
   fulfillRedemption: vi.fn(),
@@ -74,6 +75,9 @@ describe('StaffPosHome', () => {
       expired: false,
     })
     vi.mocked(apiClient.getPendingSubmissions).mockResolvedValue([])
+    // Default: no extra selectable POS tasks configured for this campaign --
+    // individual tests can override this to assert the checkbox list renders.
+    vi.mocked(apiClient.getPosTaskOptions).mockResolvedValue([])
   })
 
   it('renders correctly on initial load with initial customer and activity', async () => {
