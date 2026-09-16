@@ -58,7 +58,8 @@ export type CampaignChangeType =
   | "add_task"
   | "remove_task"
   | "campaign_duration"
-  | "reward_depth";
+  | "reward_depth"
+  | "add_reward";
 
 export type RiskTier = "low" | "high";
 
@@ -81,6 +82,22 @@ const VALID_TASK_PATTERN_NAMES = [
   "first_action",
   "off_peak",
   "anniversary_birthday",
+] as const;
+
+// Mirrors reward_patterns.name's CHECK constraint exactly (migrations/
+// 0001_init.sql) -- the only pattern names add_reward's structured value
+// may legally reference. Kept as a static list (mirroring
+// VALID_TASK_PATTERN_NAMES above) rather than sourced purely from the
+// dynamic availableRewardPatterns context field, so validation here never
+// depends on the model having echoed back a name that was actually offered
+// to it.
+const VALID_REWARD_PATTERN_NAMES = [
+  "percentage_discount",
+  "fixed_amount_discount",
+  "free_item",
+  "free_gift",
+  "cashback",
+  "vip_perk",
 ] as const;
 
 export interface ParsedCampaignChangeSuggestion {
