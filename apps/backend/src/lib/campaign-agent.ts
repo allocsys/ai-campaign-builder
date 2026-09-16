@@ -229,7 +229,7 @@ function buildPrompt(
     `treat that the same as an ambiguous request (needsClarification) rather than inventing a targetId. ` +
     `(3) If the request is clear and maps to exactly one concrete change, respond with ONLY a JSON object in this exact shape: ` +
     `{"needsClarification": false, "changeType": "<one of: task_points, reward_threshold, add_task, remove_task, campaign_duration, reward_depth, add_reward>", ` +
-    `"targetId": "<the matching id from tasks/rewards above -- omit entirely for add_task and campaign_duration>", ` +
+    `"targetId": "<the matching id from tasks/rewards above -- omit entirely for add_task, add_reward, and campaign_duration>", ` +
     `"value": <the new value -- shape depends on changeType, see below>, ` +
     `"rationale": "<1 short Persian sentence explaining why this change addresses the request>", ` +
     `"confidence": <number between 0 and 1 reflecting how sure you are this is exactly what the owner wants>}. ` +
@@ -405,6 +405,32 @@ function parseAndValidate(rawText: string, state: CampaignState): ParsedCampaign
       suggestedValue = JSON.stringify({ pattern, name: name.trim(), points });
       break;
     }
+    case "add_reward": {
+      // Mirrors add_task's validation exactly, one level up (threshold
+      // instead of points) -- see AvailableRewardPattern's comment above for
+      // why pattern is checked against VALID_REWARD_PATTERN_NAMES here
+      // rather than trusting whatever the model echoed back from the
+      // prompt's availableRewardPatterns list.
+      const value = parsed.value as { pattern?: unknown; name?: unknown; threshold?: unknown } | undefined;
+      const pattern = value?.pattern;
+      const name = value?.name;
+      const threshold = value?.threshold;
+      if (
+        typeof pattern !== "string" ||
+        !(VALID_REWARD_PATTERN_NAMES as readonly string[]).includes(pattern) ||
+        typeof name !== "string" ||
+        !name.trim() ||
+        typeof threshold !== "number" ||
+        !Number.isFinite(threshold) ||
+        !Number.isInteger(threshold) ||
+        threshold <= 0
+      ) {
+        return { needsClarification: true, clarifyingQuestion: GENERIC_CLARIFICATION };
+      }
+      currentValue = JSON.stringify(null);
+      suggestedValue = JSON.stringify({ pattern, name: name.trim(), threshold });
+      break;
+    }
   }
 
   return {
@@ -490,14 +516,15 @@ export async function parseNaturalLanguageCampaignRequest(
   env: Env,
   text: string,
   currentCampaignState: CampaignState,
-  history: ChatTurn[] = []
+  history: ChatTurn[] = [],
+  availableRewardPatterns: AvailableRewardPattern[] = []
 ): Promise<ParsedCampaignChangeResult> {
   const trimmed = text.trim();
   if (!trimmed) {
     return { needsClarification: true, clarifyingQuestion: "چه تغییری می‌خواید توی کمپین اعمال بشه؟" };
   }
 
-  const prompt = buildPrompt(trimmed, currentCampaignState, history);
+  const prompt = buildPrompt(trimmed, currentCampaignState, history, availableRewardPatterns);
   const raw = await runCascade(env, prompt);
 
   if (raw === null) {
