@@ -162,7 +162,30 @@ function computeRiskTier(changeType: CampaignChangeType): RiskTier {
   return changeType === "campaign_duration" ? "low" : "high";
 }
 
-function buildPrompt(text: string, state: CampaignState, history: ChatTurn[]): string {
+// Extra, optional context alongside CampaignState -- the catalog of
+// reward_patterns a business could add a NEW reward from (id/name pairs),
+// as opposed to CampaignState.rewards, which only lists rewards already on
+// the campaign. GAP this closes: add_task has always had the equivalent
+// (VALID_TASK_PATTERN_NAMES is inlined into the prompt as a fixed enum,
+// since every task_pattern is always legal for add_task), but add_reward
+// has no such fixed set it can safely assume -- reward_patterns is a real
+// lookup table (see routes/business.ts's serializeCampaign/applyCampaignUpdate,
+// which resolve reward pattern name -> id from it, same as task_patterns).
+// Optional (defaults to VALID_REWARD_PATTERN_NAMES's fixed list, see
+// buildPrompt below) so a caller that hasn't been updated to fetch this yet
+// doesn't break -- it just won't be able to name reward patterns by their
+// real display name in the prompt, only their raw pattern key.
+export interface AvailableRewardPattern {
+  id: string;
+  name: string;
+}
+
+function buildPrompt(
+  text: string,
+  state: CampaignState,
+  history: ChatTurn[],
+  availableRewardPatterns: AvailableRewardPattern[] = []
+): string {
   const stateSummary = {
     goal: state.goal,
     pointMultiplier: state.pointMultiplier,
@@ -170,6 +193,17 @@ function buildPrompt(text: string, state: CampaignState, history: ChatTurn[]): s
     endDate: state.endDate,
     tasks: state.tasks.map((t) => ({ id: t.id, name: t.name, pattern: t.pattern, points: t.points })),
     rewards: state.rewards.map((r) => ({ id: r.id, name: r.name, pattern: r.pattern, threshold: r.threshold })),
+    // GAP fix (see AvailableRewardPattern's comment above): without this,
+    // the model has no way to know what NEW reward patterns exist to choose
+    // from when the owner asks to add one -- only what's already on the
+    // campaign. Falls back to the fixed VALID_REWARD_PATTERN_NAMES list
+    // (pattern key doubling as its own display name) when the caller hasn't
+    // supplied the real id/name catalog, so add_reward still works (just
+    // without real display names) even before every caller is updated.
+    availableRewardPatterns:
+      availableRewardPatterns.length > 0
+        ? availableRewardPatterns.map((p) => p.name)
+        : VALID_REWARD_PATTERN_NAMES,
   };
 
   const historyBlock =
@@ -194,7 +228,7 @@ function buildPrompt(text: string, state: CampaignState, history: ChatTurn[]): s
     `(2) If the request refers to a task or reward that does not appear in the current campaign state's tasks/rewards arrays above, ` +
     `treat that the same as an ambiguous request (needsClarification) rather than inventing a targetId. ` +
     `(3) If the request is clear and maps to exactly one concrete change, respond with ONLY a JSON object in this exact shape: ` +
-    `{"needsClarification": false, "changeType": "<one of: task_points, reward_threshold, add_task, remove_task, campaign_duration, reward_depth>", ` +
+    `{"needsClarification": false, "changeType": "<one of: task_points, reward_threshold, add_task, remove_task, campaign_duration, reward_depth, add_reward>", ` +
     `"targetId": "<the matching id from tasks/rewards above -- omit entirely for add_task and campaign_duration>", ` +
     `"value": <the new value -- shape depends on changeType, see below>, ` +
     `"rationale": "<1 short Persian sentence explaining why this change addresses the request>", ` +
@@ -205,6 +239,7 @@ function buildPrompt(text: string, state: CampaignState, history: ChatTurn[]): s
     `for campaign_duration, a plain integer number of days to extend the campaign by (negative to shorten it, not a new date); ` +
     `for reward_depth, a short Persian string -- the reward's complete new description text (e.g. "۳۰٪ تخفیف کل فاکتور تا سقف ۵۰۰ هزار تومان"); ` +
     `for add_task, an object {"pattern": "<one of: ${VALID_TASK_PATTERN_NAMES.join(", ")}>", "name": "<short Persian task label>", "points": <integer>}; ` +
+    `for add_reward, an object {"pattern": "<one of the availableRewardPatterns listed in the current campaign state above>", "name": "<short Persian reward label>", "threshold": <integer total points needed to unlock it>}; ` +
     `for remove_task, omit "value" entirely (targetId alone identifies what to remove). ` +
     `(4) Respond with ONLY the JSON object (one of the two shapes above) and nothing else -- no markdown, no commentary.`
   );
@@ -227,6 +262,7 @@ const VALID_CHANGE_TYPES: CampaignChangeType[] = [
   "remove_task",
   "campaign_duration",
   "reward_depth",
+  "add_reward",
 ];
 
 // Change types that must reference an existing campaign_tasks/campaign_rewards row.
